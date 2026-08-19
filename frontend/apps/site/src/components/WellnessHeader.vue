@@ -52,11 +52,12 @@ function handleLogout() {
         </button>
       </nav>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3">
         <template v-if="authStore.token">
-          <button class="hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-ink-soft hover:text-ink sm:flex" @click="router.push('/portal')">
+          <button class="flex items-center gap-1.5 rounded-full px-2 py-2 text-xs font-medium text-ink-soft hover:text-ink sm:gap-2 sm:px-4 sm:text-sm" @click="router.push('/portal')" aria-label="Minha área">
             <ShieldCheck :size="16" />
-            <span>Minha área</span>
+            <span class="hidden min-[375px]:inline sm:hidden">Área</span>
+            <span class="hidden sm:inline">Minha área</span>
           </button>
           <button class="rounded-full p-2 text-ink-soft hover:text-ink" aria-label="Sair" @click="handleLogout">
             <LogOut :size="16" />
@@ -66,8 +67,10 @@ function handleLogout() {
           <button class="hidden text-sm font-medium text-ink-soft hover:text-ink sm:block" @click="router.push('/acesso-admin')">
             Equipe
           </button>
-          <button class="hidden rounded-full border border-line bg-white/60 px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink sm:block" @click="router.push('/entrar')">
-            Portal do aluno
+          <button class="flex items-center gap-1.5 rounded-full border border-line bg-white/60 px-2.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink sm:gap-2 sm:px-4 sm:text-sm" @click="router.push('/entrar')" aria-label="Portal do aluno">
+            <ShieldCheck :size="16" />
+            <span class="hidden min-[375px]:inline sm:hidden">Aluno</span>
+            <span class="hidden sm:inline">Portal do aluno</span>
           </button>
         </template>
         <button class="button-magenta" @click="router.push('/comprar')">
