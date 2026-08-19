@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ArrowRight, UserCircle, QrCode, CheckCircle2 } from "lucide-vue-next";
 import WellnessHeader from "@/components/WellnessHeader.vue";
+import HelpFab from "@/components/HelpFab.vue";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/lib/api";
 
@@ -89,6 +90,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="min-h-screen bg-paper">
     <WellnessHeader />
+    <HelpFab />
     <main class="mx-auto max-w-5xl px-6 py-16">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>

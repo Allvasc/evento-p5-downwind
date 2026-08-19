@@ -6,6 +6,7 @@ import { Sun, Check, ArrowRight, Heart, Waves, Sparkles, Coffee, Clock } from "l
 import { formatBRL, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
+import HelpFab from "@/components/HelpFab.vue";
 
 const router = useRouter();
 
@@ -63,6 +64,7 @@ const sameDayLabel = computed(() => {
 <template>
   <div class="min-h-screen bg-paper">
     <WellnessHeader />
+    <HelpFab />
 
     <main>
       <!-- HERO -->

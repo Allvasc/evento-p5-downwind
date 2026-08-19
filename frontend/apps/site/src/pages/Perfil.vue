@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ArrowLeft, UserCircle, Check, Mail } from "lucide-vue-next";
 import WellnessHeader from "@/components/WellnessHeader.vue";
+import HelpFab from "@/components/HelpFab.vue";
 import { useAuthStore } from "@/stores/auth";
 import { api, ApiError } from "@/lib/api";
 
@@ -84,6 +85,7 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen bg-paper">
     <WellnessHeader />
+    <HelpFab />
     <main class="mx-auto max-w-4xl px-6 py-16">
       <button class="mb-8 inline-flex items-center gap-2 text-sm text-ink-soft hover:text-ink" @click="router.push('/portal')">
         <ArrowLeft :size="16" /> Voltar ao portal
