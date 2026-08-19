@@ -459,14 +459,23 @@ function clearOrderDateFilter() {
 
 async function openOrder(o: OrderRow) {
   orderActionError.value = "";
+  resendAltEmailOpen.value = false;
+  resendAltEmail.value = "";
   selectedOrder.value = await api.get<OrderDetail>(`/admin/orders/${o.id}`);
 }
 
-async function resendOrderEmail(o: OrderDetail) {
+const resendAltEmailOpen = ref(false);
+const resendAltEmail = ref("");
+
+async function resendOrderEmail(o: OrderDetail, email?: string) {
   orderActionError.value = "";
   orderActionBusy.value = true;
   try {
-    await api.post(`/admin/orders/${o.id}/resend-email`);
+    await api.post(`/admin/orders/${o.id}/resend-email`, email ? { email } : undefined);
+    if (email) {
+      resendAltEmailOpen.value = false;
+      resendAltEmail.value = "";
+    }
   } catch (err) {
     orderActionError.value = err instanceof ApiError ? err.message : "Não foi possível reenviar.";
   } finally {
@@ -1144,7 +1153,7 @@ onMounted(async () => {
 
               <p v-if="orderActionError" class="mt-3 text-xs font-medium text-red-600">{{ orderActionError }}</p>
 
-              <div v-if="!isReportsOnly" class="mt-5 flex flex-wrap gap-3">
+              <div v-if="!isReportsOnly" class="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   v-if="selectedOrder.status === 'paid'"
                   class="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
@@ -1153,6 +1162,33 @@ onMounted(async () => {
                 >
                   <Mail :size="13" /> Reenviar e-mail
                 </button>
+
+                <template v-if="selectedOrder.status === 'paid' && resendAltEmailOpen">
+                  <input
+                    v-model="resendAltEmail"
+                    type="email"
+                    placeholder="e-mail alternativo"
+                    class="w-52 rounded-lg border border-line px-2.5 py-1.5 text-xs"
+                    @keyup.enter="resendAltEmail.trim() && resendOrderEmail(selectedOrder, resendAltEmail.trim())"
+                  />
+                  <button
+                    class="text-xs font-semibold text-magenta disabled:opacity-50"
+                    :disabled="orderActionBusy || !resendAltEmail.trim()"
+                    @click="resendOrderEmail(selectedOrder, resendAltEmail.trim())"
+                  >
+                    Enviar
+                  </button>
+                  <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="resendAltEmailOpen = false; resendAltEmail = ''">Cancelar</button>
+                </template>
+                <button
+                  v-else-if="selectedOrder.status === 'paid'"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
+                  :disabled="orderActionBusy"
+                  @click="resendAltEmailOpen = true"
+                >
+                  <Mail :size="13" /> Outro e-mail
+                </button>
+
                 <button
                   v-if="selectedOrder.status === 'paid'"
                   class="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"

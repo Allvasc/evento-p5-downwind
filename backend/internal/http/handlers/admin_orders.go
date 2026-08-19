@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/mail"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -142,10 +143,29 @@ func (h *AdminOrdersHandler) Reschedule(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]string{"previousDate": result.PreviousDate, "newDate": result.NewDate})
 }
 
+type resendEmailRequest struct {
+	// Email optionally overrides where this one resend goes — e.g. the customer says
+	// their inbox is having trouble, or a family member is picking up the tickets. It
+	// does not change the student's registered e-mail; it only redirects this send.
+	Email string `json:"email"`
+}
+
 // ResendEmail is the admin-triggered counterpart of the student's self-service resend —
-// useful when support fields a "não recebi o QR" complaint directly.
+// useful when support fields a "não recebi o QR" complaint directly. Send optionally
+// targets a secondary address instead of the one on file, for that same complaint when
+// the registered inbox itself is the problem.
 func (h *AdminOrdersHandler) ResendEmail(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+
+	var req resendEmailRequest
+	_ = json.NewDecoder(r.Body).Decode(&req) // body is optional — no override is the common case
+	overrideEmail := strings.TrimSpace(req.Email)
+	if overrideEmail != "" {
+		if _, err := mail.ParseAddress(overrideEmail); err != nil {
+			writeJSONError(w, http.StatusBadRequest, "e-mail inválido")
+			return
+		}
+	}
 
 	detail, err := h.orders.GetPaidOrderDetail(r.Context(), id)
 	if err != nil {
@@ -160,6 +180,9 @@ func (h *AdminOrdersHandler) ResendEmail(w http.ResponseWriter, r *http.Request)
 		h.log.Error("get paid order detail", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível reenviar o e-mail")
 		return
+	}
+	if overrideEmail != "" {
+		detail.StudentEmail = overrideEmail
 	}
 
 	if err := sendTicketEmail(r.Context(), h.mailer, h.log, *detail); err != nil {
