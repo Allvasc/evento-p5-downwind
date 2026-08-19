@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, X, FileText, Menu } from "lucide-vue-next";
+import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, Menu } from "lucide-vue-next";
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
 import { formatBRL } from "@p5wellness/shared";
@@ -413,10 +413,12 @@ async function anonymizeCustomer(c: CustomerDetail) {
 
 // ── Pedidos ────────────────────────────────────────────────────────────────
 interface OrderRow { id: string; orderNumber: string; status: string; totalCents: number; studentName: string; studentEmail: string; createdAt: string }
+interface OrderReschedule { reason: string; previousDate: string; newDate: string; changedByName: string; createdAt: string }
 interface OrderDetail extends OrderRow {
   asaasPaymentId: string;
   items: { productTitle: string; activityTitle: string | null; benefitType: string; sessionStartsAt: string | null }[];
   entitlements: { id: string; label: string; vendorName: string; status: string; validFrom: string; validUntil: string; issuedAt: string; usedAt: string | null; usedByName?: string }[];
+  reschedules: OrderReschedule[];
 }
 
 const orderStatusFilter = ref("");
@@ -484,6 +486,39 @@ async function refundOrder(o: OrderDetail) {
     orderActionError.value = err instanceof ApiError ? err.message : "Não foi possível estornar.";
   } finally {
     orderActionBusy.value = false;
+  }
+}
+
+// ── Remarcar pedido (não compareceu, pediu outra data) ───────────────────────
+const rescheduleModalOpen = ref(false);
+const rescheduleDate = ref("");
+const rescheduleReason = ref("");
+const rescheduleError = ref("");
+const reschedulingOrder = ref(false);
+
+function openReschedule() {
+  rescheduleDate.value = "";
+  rescheduleReason.value = "";
+  rescheduleError.value = "";
+  rescheduleModalOpen.value = true;
+}
+
+async function submitReschedule(o: OrderDetail) {
+  if (!rescheduleDate.value || !rescheduleReason.value.trim()) {
+    rescheduleError.value = "Informe a nova data e o motivo.";
+    return;
+  }
+  rescheduleError.value = "";
+  reschedulingOrder.value = true;
+  try {
+    await api.post(`/admin/orders/${o.id}/reschedule`, { newDate: rescheduleDate.value, reason: rescheduleReason.value.trim() });
+    rescheduleModalOpen.value = false;
+    await openOrder(o);
+    await loadOrders();
+  } catch (err) {
+    rescheduleError.value = err instanceof ApiError ? err.message : "Não foi possível remarcar.";
+  } finally {
+    reschedulingOrder.value = false;
   }
 }
 
@@ -1097,6 +1132,16 @@ onMounted(async () => {
                 <li v-if="!selectedOrder.entitlements.length" class="py-2 text-sm text-ink-soft">Nenhum benefício emitido (pedido ainda não pago).</li>
               </ul>
 
+              <template v-if="selectedOrder.reschedules.length">
+                <h4 class="mt-4 mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">Histórico de remarcações</h4>
+                <ul class="divide-y divide-line text-sm">
+                  <li v-for="(rr, i) in selectedOrder.reschedules" :key="i" class="py-2">
+                    <p class="text-ink">{{ formatDateOnly(rr.previousDate) }} → {{ formatDateOnly(rr.newDate) }}</p>
+                    <p class="mt-0.5 text-xs text-ink-soft">{{ formatDateTime(rr.createdAt) }} · por {{ rr.changedByName }} · motivo: {{ rr.reason }}</p>
+                  </li>
+                </ul>
+              </template>
+
               <p v-if="orderActionError" class="mt-3 text-xs font-medium text-red-600">{{ orderActionError }}</p>
 
               <div v-if="!isReportsOnly" class="mt-5 flex flex-wrap gap-3">
@@ -1110,11 +1155,44 @@ onMounted(async () => {
                 </button>
                 <button
                   v-if="selectedOrder.status === 'paid'"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
+                  :disabled="orderActionBusy"
+                  @click="openReschedule"
+                >
+                  <CalendarClock :size="13" /> Remarcar data
+                </button>
+                <button
+                  v-if="selectedOrder.status === 'paid'"
                   class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
                   :disabled="orderActionBusy"
                   @click="refundOrder(selectedOrder)"
                 >
                   <RotateCcw :size="13" /> Estornar pedido
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="rescheduleModalOpen && selectedOrder" class="fixed inset-0 z-60 flex items-center justify-center bg-ink/40 p-6" @click.self="rescheduleModalOpen = false">
+            <div class="w-full max-w-sm rounded-[var(--radius-card)] bg-white p-6">
+              <div class="flex items-start justify-between">
+                <h3 class="font-serif text-lg font-semibold text-ink">Remarcar pedido</h3>
+                <button class="text-ink-soft hover:text-ink" @click="rescheduleModalOpen = false"><X :size="18" /></button>
+              </div>
+              <p class="mt-1 text-xs text-ink-soft">Move todos os benefícios do pedido {{ selectedOrder.orderNumber }} pra uma nova data. O cliente recebe um e-mail avisando a mudança.</p>
+
+              <label class="mt-4 block text-xs font-semibold uppercase tracking-wider text-ink-soft">Nova data</label>
+              <input v-model="rescheduleDate" type="date" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm" />
+
+              <label class="mt-4 block text-xs font-semibold uppercase tracking-wider text-ink-soft">Motivo</label>
+              <textarea v-model="rescheduleReason" rows="3" placeholder="Ex: cliente não compareceu, solicitou remarcação para outra data." class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm"></textarea>
+
+              <p v-if="rescheduleError" class="mt-3 text-xs font-medium text-red-600">{{ rescheduleError }}</p>
+
+              <div class="mt-5 flex justify-end gap-3">
+                <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="rescheduleModalOpen = false">Cancelar</button>
+                <button class="button-magenta py-2 text-xs" :disabled="reschedulingOrder" @click="submitReschedule(selectedOrder)">
+                  {{ reschedulingOrder ? "Remarcando..." : "Confirmar remarcação" }}
                 </button>
               </div>
             </div>

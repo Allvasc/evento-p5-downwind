@@ -186,6 +186,7 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 
 				cfg.Post("/orders/{id}/refund", adminOrders.Refund)
 				cfg.Post("/orders/{id}/resend-email", adminOrders.ResendEmail)
+				cfg.Post("/orders/{id}/reschedule", adminOrders.Reschedule)
 			})
 
 			// Gráficos, relatórios e a lista/detalhe de pedidos (só leitura) — role

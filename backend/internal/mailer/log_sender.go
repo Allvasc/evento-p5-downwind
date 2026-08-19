@@ -35,6 +35,16 @@ func (s *LogSender) SendOrderConfirmation(ctx context.Context, to, studentName, 
 	return s.record(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation")
 }
 
+func (s *LogSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, tickets []TicketAttachment) error {
+	labels := make([]string, len(tickets))
+	for i, t := range tickets {
+		labels[i] = t.Label
+	}
+	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "reschedule_notice",
+		"studentName", studentName, "orderNumber", orderNumber, "newDate", newDate, "tickets", fmt.Sprintf("%v", labels))
+	return s.record(ctx, to, "Sua data no P5 Wellness Club foi alterada", "reschedule_notice")
+}
+
 func (s *LogSender) SendWelcome(ctx context.Context, to, fullName string) error {
 	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "welcome", "fullName", fullName)
 	return s.record(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gopkg.in/gomail.v2"
@@ -83,6 +84,43 @@ func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName,
 	return s.record(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation")
 }
 
+func (s *SMTPSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, tickets []TicketAttachment) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.from)
+	m.SetHeader("To", to)
+	subject := "Sua data no P5 Wellness Club foi alterada"
+	m.SetHeader("Subject", subject)
+
+	var html bytes.Buffer
+	html.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+		<h1 style="color:#1e2235">Nova data confirmada, %s!</h1>
+		<p style="color:#5e6174">Seu pedido <strong>%s</strong> foi remarcado. Sua nova data é <strong>%s</strong>. Apresente o QR Code correspondente na entrada de cada benefício — em combos, cada um é validado separadamente.</p>`, studentName, orderNumber, formatBRDate(newDate)))
+
+	for i, t := range tickets {
+		cid := fmt.Sprintf("ticket%d", i)
+		html.WriteString(fmt.Sprintf(`<div style="margin:24px 0;text-align:center;border:1px solid #e8ddd2;border-radius:16px;padding:16px">
+			<p style="font-weight:600;color:#1e2235">%s</p>
+			<img src="cid:%s" width="220" height="220" alt="QR Code" />
+		</div>`, t.Label, cid))
+		pngData := t.PNG
+		m.Embed(fmt.Sprintf("%s.png", t.Label),
+			gomail.SetCopyFunc(func(w io.Writer) error {
+				_, err := w.Write(pngData)
+				return err
+			}),
+			gomail.SetHeader(map[string][]string{"Content-ID": {"<" + cid + ">"}}),
+		)
+	}
+	html.WriteString(`</div>`)
+	m.SetBody("text/html", html.String())
+
+	if err := s.dialer.DialAndSend(m); err != nil {
+		s.recordFailure(ctx, to, subject, "reschedule_notice", err)
+		return err
+	}
+	return s.record(ctx, to, subject, "reschedule_notice")
+}
+
 func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
@@ -105,6 +143,16 @@ func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string) error
 		return err
 	}
 	return s.record(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome")
+}
+
+// formatBRDate renders a "YYYY-MM-DD" date param as dd/mm/yyyy for e-mail copy; falls
+// back to the raw value if it doesn't parse rather than failing the whole send.
+func formatBRDate(isoDate string) string {
+	t, err := time.Parse("2006-01-02", isoDate)
+	if err != nil {
+		return isoDate
+	}
+	return t.Format("02/01/2006")
 }
 
 func (s *SMTPSender) record(ctx context.Context, to, subject, template string) error {

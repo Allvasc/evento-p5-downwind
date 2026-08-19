@@ -20,6 +20,9 @@ var ErrOrderNotPaid = errors.New("order is not paid")
 var ErrSessionRequired = errors.New("session selection required for activity")
 var ErrSessionFull = errors.New("session has no open seats")
 var ErrActivityChoiceRequired = errors.New("choose one of the product's linked activities")
+var ErrTicketAlreadyUsed = errors.New("um dos benefícios deste pedido já foi utilizado")
+var ErrRescheduleDateInPast = errors.New("a nova data não pode ser no passado")
+var ErrNoSessionOnDate = errors.New("no matching session for activity on the requested date")
 
 type OrderRepository struct {
 	pool *pgxpool.Pool
@@ -464,6 +467,132 @@ func (r *OrderRepository) RefundOrder(ctx context.Context, orderID string) error
 	}
 
 	return tx.Commit(ctx)
+}
+
+type RescheduleResult struct {
+	OrderID      string
+	PreviousDate string
+	NewDate      string
+}
+
+// Reschedule moves every benefit of a paid order to a new Fortaleza calendar day — used
+// when a customer misses the event and asks to attend on another date. The whole order
+// moves together (matching the single-day-event model the public checkout already
+// assumes): every class-type order_item gets rebooked into that activity's session on the
+// new day, and every entitlement (including a breakfast one, which has no session of its
+// own) has its valid_from/valid_until pushed to match. Blocked if any of the order's
+// entitlements has already been used — the visit already happened, so there is nothing
+// left to move.
+func (r *OrderRepository) Reschedule(ctx context.Context, orderID, newDate, reason, changedBy string) (*RescheduleResult, error) {
+	if newDate < TodayInEventTZ() {
+		return nil, ErrRescheduleDateInPast
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var status string
+	if err := tx.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1 FOR UPDATE`, orderID).Scan(&status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if status != "paid" {
+		return nil, ErrOrderNotPaid
+	}
+
+	var blocked int
+	if err := tx.QueryRow(ctx, `
+		SELECT COUNT(*) FROM entitlements WHERE order_id = $1 AND status != 'available'
+	`, orderID).Scan(&blocked); err != nil {
+		return nil, err
+	}
+	if blocked > 0 {
+		return nil, ErrTicketAlreadyUsed
+	}
+
+	var previousDate string
+	if err := tx.QueryRow(ctx, `
+		SELECT to_char(MIN(valid_from), 'YYYY-MM-DD') FROM entitlements WHERE order_id = $1
+	`, orderID).Scan(&previousDate); err != nil {
+		return nil, err
+	}
+
+	activityRows, err := tx.Query(ctx, `
+		SELECT DISTINCT activity_id FROM order_items WHERE order_id = $1 AND benefit_type = 'class'
+	`, orderID)
+	if err != nil {
+		return nil, err
+	}
+	var activityIDs []string
+	for activityRows.Next() {
+		var activityID string
+		if err := activityRows.Scan(&activityID); err != nil {
+			activityRows.Close()
+			return nil, err
+		}
+		activityIDs = append(activityIDs, activityID)
+	}
+	activityRows.Close()
+	if err := activityRows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, activityID := range activityIDs {
+		var sessionID string
+		var capacity, booked int
+		err := tx.QueryRow(ctx, `
+			SELECT cs.id, cs.capacity, (
+				SELECT COUNT(*) FROM order_items oi
+				JOIN orders o ON o.id = oi.order_id
+				WHERE oi.class_session_id = cs.id AND o.status IN ('paid', 'pending')
+			)
+			FROM class_sessions cs
+			WHERE cs.activity_id = $1 AND cs.status = 'scheduled'
+			  AND to_char(cs.starts_at AT TIME ZONE 'America/Fortaleza', 'YYYY-MM-DD') = $2
+			ORDER BY cs.starts_at ASC
+			LIMIT 1
+			FOR UPDATE
+		`, activityID, newDate).Scan(&sessionID, &capacity, &booked)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNoSessionOnDate
+		}
+		if err != nil {
+			return nil, err
+		}
+		if booked >= capacity {
+			return nil, ErrSessionFull
+		}
+
+		if _, err := tx.Exec(ctx, `
+			UPDATE order_items SET class_session_id = $1 WHERE order_id = $2 AND activity_id = $3 AND benefit_type = 'class'
+		`, sessionID, orderID, activityID); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE entitlements SET valid_from = $1::date, valid_until = $1::date WHERE order_id = $2
+	`, newDate, orderID); err != nil {
+		return nil, err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO order_reschedules (order_id, changed_by, reason, previous_date, new_date)
+		VALUES ($1, $2, $3, $4::date, $5::date)
+	`, orderID, changedBy, reason, previousDate, newDate); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return &RescheduleResult{OrderID: orderID, PreviousDate: previousDate, NewDate: newDate}, nil
 }
 
 func generateOrderNumber() (string, error) {

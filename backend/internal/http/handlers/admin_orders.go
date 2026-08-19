@@ -1,12 +1,16 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"p5wellness/backend/internal/asaas"
+	"p5wellness/backend/internal/http/middleware"
 	"p5wellness/backend/internal/mailer"
 	"p5wellness/backend/internal/repository/postgres"
 )
@@ -86,6 +90,56 @@ func (h *AdminOrdersHandler) Refund(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+type rescheduleRequest struct {
+	NewDate string `json:"newDate"`
+	Reason  string `json:"reason"`
+}
+
+// Reschedule moves every benefit of a paid order to a new date — the "cliente não
+// compareceu, quer remarcar" flow. Who did it and why is captured in order_reschedules
+// (backend/internal/repository/postgres/order.go) and surfaced back in the order detail;
+// the customer is best-effort notified by e-mail with the new date once the change lands.
+func (h *AdminOrdersHandler) Reschedule(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	claims := middleware.ClaimsFromContext(r.Context())
+
+	var req rescheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.NewDate == "" || strings.TrimSpace(req.Reason) == "" {
+		writeJSONError(w, http.StatusBadRequest, "informe a nova data e o motivo da remarcação")
+		return
+	}
+
+	result, err := h.orders.Reschedule(r.Context(), id, req.NewDate, strings.TrimSpace(req.Reason), claims.UserID())
+	if err != nil {
+		switch {
+		case errors.Is(err, postgres.ErrNotFound):
+			writeJSONError(w, http.StatusNotFound, "pedido não encontrado")
+		case errors.Is(err, postgres.ErrOrderNotPaid):
+			writeJSONError(w, http.StatusConflict, "só é possível remarcar pedidos pagos")
+		case errors.Is(err, postgres.ErrTicketAlreadyUsed):
+			writeJSONError(w, http.StatusConflict, "um dos benefícios deste pedido já foi utilizado, não é possível remarcar")
+		case errors.Is(err, postgres.ErrRescheduleDateInPast):
+			writeJSONError(w, http.StatusBadRequest, "a nova data não pode ser no passado")
+		case errors.Is(err, postgres.ErrNoSessionOnDate):
+			writeJSONError(w, http.StatusConflict, "não há turma disponível nessa data para uma das atividades do pedido")
+		case errors.Is(err, postgres.ErrSessionFull):
+			writeJSONError(w, http.StatusConflict, "a turma dessa data já está lotada")
+		default:
+			h.log.Error("reschedule order", "error", err, "orderId", id)
+			writeJSONError(w, http.StatusInternalServerError, "não foi possível remarcar o pedido")
+		}
+		return
+	}
+
+	if detail, err := h.orders.GetPaidOrderDetail(r.Context(), id); err != nil {
+		h.log.Error("get order detail for reschedule email", "error", err, "orderId", id)
+	} else if err := sendRescheduleEmail(r.Context(), h.mailer, h.log, *detail, result.NewDate); err != nil {
+		h.log.Error("send reschedule email", "error", err, "orderId", id)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"previousDate": result.PreviousDate, "newDate": result.NewDate})
 }
 
 // ResendEmail is the admin-triggered counterpart of the student's self-service resend —

@@ -78,11 +78,20 @@ type AdminOrderEntitlement struct {
 	UsedByName string  `json:"usedByName,omitempty"`
 }
 
+type AdminOrderReschedule struct {
+	Reason        string `json:"reason"`
+	PreviousDate  string `json:"previousDate"`
+	NewDate       string `json:"newDate"`
+	ChangedByName string `json:"changedByName"`
+	CreatedAt     string `json:"createdAt"`
+}
+
 type AdminOrderDetail struct {
 	AdminOrderSummary
 	AsaasPaymentID string                  `json:"asaasPaymentId"`
 	Items          []AdminOrderItem        `json:"items"`
 	Entitlements   []AdminOrderEntitlement `json:"entitlements"`
+	Reschedules    []AdminOrderReschedule  `json:"reschedules"`
 }
 
 func (r *AdminOrderRepository) Detail(ctx context.Context, orderID string) (*AdminOrderDetail, error) {
@@ -184,6 +193,30 @@ func (r *AdminOrderRepository) Detail(ctx context.Context, orderID string) (*Adm
 		for id, parts := range labels {
 			d.Entitlements[index[id]].Label = strings.Join(parts, " + ")
 		}
+	}
+
+	reschedRows, err := r.pool.Query(ctx, `
+		SELECT orr.reason, orr.previous_date::text, orr.new_date::text,
+		       tm.name, to_char(orr.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
+		FROM order_reschedules orr
+		JOIN team_members tm ON tm.id = orr.changed_by
+		WHERE orr.order_id = $1
+		ORDER BY orr.created_at DESC
+	`, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer reschedRows.Close()
+	d.Reschedules = make([]AdminOrderReschedule, 0)
+	for reschedRows.Next() {
+		var rr AdminOrderReschedule
+		if err := reschedRows.Scan(&rr.Reason, &rr.PreviousDate, &rr.NewDate, &rr.ChangedByName, &rr.CreatedAt); err != nil {
+			return nil, err
+		}
+		d.Reschedules = append(d.Reschedules, rr)
+	}
+	if err := reschedRows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &d, nil
