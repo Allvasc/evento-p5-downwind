@@ -1,0 +1,24 @@
+# Stack local containerizada (sem domínio real / sem ACME) — usada por docker-compose.local.yml
+:8081 {
+	handle /api/* {
+		reverse_proxy backend:8090
+	}
+	handle {
+		root * /srv/site
+		try_files {path} /index.html
+		file_server
+	}
+	encode gzip zstd
+}
+
+:8082 {
+	handle /api/* {
+		reverse_proxy backend:8090
+	}
+	handle {
+		root * /srv/admin
+		try_files {path} /index.html
+		file_server
+	}
+	encode gzip zstd
+}

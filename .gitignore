@@ -1,0 +1,17 @@
+# env
+.env
+.env.local
+
+# go
+backend/tmp/
+backend/*.exe
+
+# node
+node_modules/
+frontend/**/dist/
+frontend/**/.vite/
+frontend/**/*.tsbuildinfo
+
+# misc
+*.log
+.DS_Store

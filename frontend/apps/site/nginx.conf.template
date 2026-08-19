@@ -1,0 +1,34 @@
+server {
+    listen 80;
+    server_name _;
+
+    # Resolver embutido do Docker (também encaminha para o resolver público do host) —
+    # necessário para resolver o domínio da API em tempo de requisição, não na carga da
+    # config. Sem isso, uma falha passageira de DNS no boot travaria o container
+    # inteiro do site com "host not found in upstream".
+    resolver 127.0.0.11 valid=10s;
+
+    # Mesma convenção do dev (vite.config.ts, que faz proxy de /api para o backend
+    # local) e do Caddy de produção: /api/* na mesma origem do site é encaminhado para
+    # a API — o navegador nunca faz uma chamada cross-origin (sem CORS). Aponta direto
+    # para o domínio público da API (HTTPS, com TLS válido) em vez de um hostname
+    # interno da plataforma — mais simples e não depende de convenção de rede de
+    # nenhum PaaS específico.
+    location /api/ {
+        set $api_host "${API_HOST}";
+        proxy_pass https://$api_host;
+        proxy_ssl_server_name on;
+        proxy_set_header Host $api_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri /index.html;
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+}

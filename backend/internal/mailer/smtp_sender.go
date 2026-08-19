@@ -1,0 +1,127 @@
+package mailer
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"gopkg.in/gomail.v2"
+)
+
+// SMTPSender delivers real e-mail over SMTP. Point it at Hostgator (your domain, with
+// SPF/DKIM/DMARC configured — see docs/EMAIL_DNS_SETUP.md) in production; Gmail works
+// for local testing but is not meant for production volume (~500/day cap, and generic
+// automated sends from a personal account are flagged by other providers more readily).
+type SMTPSender struct {
+	dialer        *gomail.Dialer
+	from          string
+	publicSiteURL string
+	pool          *pgxpool.Pool
+	log           *slog.Logger
+}
+
+func NewSMTPSender(host string, port int, user, pass, from, publicSiteURL string, pool *pgxpool.Pool, log *slog.Logger) *SMTPSender {
+	return &SMTPSender{
+		dialer:        gomail.NewDialer(host, port, user, pass),
+		from:          from,
+		publicSiteURL: publicSiteURL,
+		pool:          pool,
+		log:           log,
+	}
+}
+
+func (s *SMTPSender) Send(ctx context.Context, to, subject, template, body string) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.from)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/plain", body)
+
+	if err := s.dialer.DialAndSend(m); err != nil {
+		s.recordFailure(ctx, to, subject, template, err)
+		return err
+	}
+	return s.record(ctx, to, subject, template)
+}
+
+func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, tickets []TicketAttachment) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.from)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", "Sua experiência P5 Wellness Club está confirmada")
+
+	var html bytes.Buffer
+	html.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+		<h1 style="color:#1e2235">Tudo certo, %s!</h1>
+		<p style="color:#5e6174">Seu pedido <strong>%s</strong> foi confirmado. Apresente o QR Code correspondente na entrada de cada benefício — em combos, cada um é validado separadamente.</p>`, studentName, orderNumber))
+
+	for i, t := range tickets {
+		cid := fmt.Sprintf("ticket%d", i)
+		html.WriteString(fmt.Sprintf(`<div style="margin:24px 0;text-align:center;border:1px solid #e8ddd2;border-radius:16px;padding:16px">
+			<p style="font-weight:600;color:#1e2235">%s</p>
+			<img src="cid:%s" width="220" height="220" alt="QR Code" />
+		</div>`, t.Label, cid))
+		pngData := t.PNG
+		m.Embed(fmt.Sprintf("%s.png", t.Label),
+			gomail.SetCopyFunc(func(w io.Writer) error {
+				_, err := w.Write(pngData)
+				return err
+			}),
+			gomail.SetHeader(map[string][]string{"Content-ID": {"<" + cid + ">"}}),
+		)
+	}
+	html.WriteString(`</div>`)
+	m.SetBody("text/html", html.String())
+
+	if err := s.dialer.DialAndSend(m); err != nil {
+		s.recordFailure(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation", err)
+		return err
+	}
+	return s.record(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation")
+}
+
+func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.from)
+	m.SetHeader("To", to)
+	m.SetHeader("Subject", "Bem-vindo(a) ao P5 Wellness Club")
+
+	html := fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+		<p style="font-family:monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#d91977;margin-bottom:8px">P5 Kite House &times; AYO Wellness</p>
+		<h1 style="color:#1e2235;margin-top:0">Bem-vindo(a), %s!</h1>
+		<p style="color:#5e6174;line-height:1.5">Seu cadastro no P5 Wellness Club foi criado com sucesso. Agora você já pode escolher sua experiência — aulas avulsas ou combos com café da manhã — e reservar sua data.</p>
+		<p style="margin:28px 0">
+			<a href="%s/comprar" style="background:#d91977;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Escolher experiência</a>
+		</p>
+		<p style="color:#5e6174;font-size:13px">Depois da compra, o QR Code de cada benefício chega por e-mail e também fica disponível no seu <a href="%s/portal" style="color:#d91977">portal do aluno</a>.</p>
+	</div>`, fullName, s.publicSiteURL, s.publicSiteURL)
+	m.SetBody("text/html", html)
+
+	if err := s.dialer.DialAndSend(m); err != nil {
+		s.recordFailure(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome", err)
+		return err
+	}
+	return s.record(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome")
+}
+
+func (s *SMTPSender) record(ctx context.Context, to, subject, template string) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO email_log (to_email, subject, template, status, sent_at)
+		VALUES ($1, $2, $3, 'sent', now())
+	`, to, subject, template)
+	return err
+}
+
+func (s *SMTPSender) recordFailure(ctx context.Context, to, subject, template string, sendErr error) {
+	s.log.Error("smtp send failed", "to", to, "error", sendErr)
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO email_log (to_email, subject, template, status, error_message, attempts)
+		VALUES ($1, $2, $3, 'failed', $4, 1)
+	`, to, subject, template, sendErr.Error())
+	if err != nil {
+		s.log.Error("record email failure", "error", err)
+	}
+}

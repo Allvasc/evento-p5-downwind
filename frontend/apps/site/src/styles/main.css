@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* Identidade visual replicada do protótipo de referência (P5 Wellness Club × AYO) */
+@theme {
+  --color-ink: #1e2235;
+  --color-ink-soft: #5e6174;
+  --color-paper: #fffaf3;
+  --color-warm: #f5ede3;
+  --color-sun: #e7b95c;
+  --color-magenta: #d91977;
+  --color-magenta-dark: #9c1554;
+  --color-sky: #b9dff0;
+  --color-line: #e8ddd2;
+
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+
+  --radius-card: 1.25rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+label[for] {
+  cursor: pointer;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-magenta);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.button-magenta {
+  background: var(--color-magenta);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0.85rem 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 8px 24px -8px rgba(217, 25, 119, 0.55);
+  cursor: pointer;
+}
+.button-magenta:hover {
+  background: var(--color-magenta-dark);
+  transform: translateY(-1px);
+}
+
+.button-outline {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-ink);
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0.75rem 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+.button-outline:hover {
+  background: var(--color-ink);
+  color: #fff;
+}
+
+.button-warm {
+  background: var(--color-warm);
+  color: var(--color-ink);
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0.75rem 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+.button-warm:hover {
+  background: #ebdccb;
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(2px);
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 0;
+}
+.hero-orb--blue {
+  background: var(--color-sky);
+  width: 22rem;
+  height: 22rem;
+  top: -6rem;
+  left: -8rem;
+}
+.hero-orb--cream {
+  background: var(--color-sun);
+  opacity: 0.35;
+  width: 26rem;
+  height: 26rem;
+  bottom: -10rem;
+  right: -10rem;
+}
+

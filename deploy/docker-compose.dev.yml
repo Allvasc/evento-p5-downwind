@@ -1,0 +1,21 @@
+name: p5wellness-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: p5wellness
+      POSTGRES_PASSWORD: p5wellness_dev
+      POSTGRES_DB: p5wellness
+    ports:
+      - "5433:5432"
+    volumes:
+      - p5wellness_postgres_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U p5wellness"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  p5wellness_postgres_dev:
