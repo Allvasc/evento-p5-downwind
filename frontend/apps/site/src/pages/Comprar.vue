@@ -21,6 +21,17 @@ const { data, isLoading } = useQuery({
 const products = computed(() => data.value?.products ?? []);
 const selected = computed(() => products.value.find((p) => p.id === selectedId.value) ?? null);
 
+// What to bring/wear, shown as a highlight under each activity's badge in step 1 — the
+// moment the customer already knows which activities they're booking. Keyed by slug
+// (stable) rather than title (display text, could be reworded in the catalog).
+const ACTIVITY_TIPS: Record<string, string> = {
+  yoga: "Traga seu tapete, toalha ou canga",
+  hyrox: "Use roupas leves e confortáveis",
+};
+function activityTip(slug: string): string | null {
+  return ACTIVITY_TIPS[slug] ?? null;
+}
+
 // For chooseOneActivity products (e.g. "Yoga ou HYROX"), the customer first picks which
 // activity, then sees only that activity's dates — instead of the usual "every linked
 // activity needs a matching session" grouping used for combos.
@@ -240,6 +251,12 @@ async function goToPayment() {
                     <p class="mt-1.5 text-xs leading-relaxed text-ink-soft">{{ p.description }}</p>
                     <div v-if="p.activities.length" class="mt-3 flex flex-wrap gap-2">
                       <span v-for="a in p.activities" :key="a.id" class="inline-flex items-center gap-1 rounded-md bg-warm/80 px-2.5 py-1 text-[10px] font-semibold text-ink-soft">✦ {{ a.title }}</span>
+                    </div>
+                    <div v-if="p.activities.some((a) => activityTip(a.slug))" class="mt-2 space-y-1">
+                      <p v-for="a in p.activities.filter((a) => activityTip(a.slug))" :key="a.id + '-tip'" class="flex items-start gap-1.5 text-[11px] font-medium text-magenta">
+                        <span aria-hidden="true">📌</span>
+                        <span>{{ a.title }}: {{ activityTip(a.slug) }}</span>
+                      </p>
                     </div>
                   </div>
                 </div>
