@@ -16,9 +16,12 @@ UPDATE activities SET active = false WHERE id IN (
   '00000000-0000-0000-0000-000000000002'
 );
 
-INSERT INTO activities (id, title, slug, instructor, duration_minutes, description, display_order) VALUES
+-- vendor_id: '...f5' = P5 Kite House, seedado por 00003_vendor_scoped_entitlements.sql
+-- (coluna NOT NULL desde aquela migration — não existia ainda quando 00002 rodou).
+INSERT INTO activities (id, title, slug, instructor, duration_minutes, description, display_order, vendor_id) VALUES
   ('00000000-0000-0000-0000-000000000201', 'P5 DownWind Day', 'p5-downwind-day', 'Equipe P5', 330,
-   'Percurso guiado da P5 Kite House até a Praia do Presídio, com apoio aquático e terrestre o tempo todo.', 1);
+   'Percurso guiado da P5 Kite House até a Praia do Presídio, com apoio aquático e terrestre o tempo todo.', 1,
+   '00000000-0000-0000-0000-0000000000f5');
 
 INSERT INTO products (id, title, slug, description, type, includes_breakfast, price_cents, featured, active, display_order, choose_one_activity) VALUES
   ('00000000-0000-0000-0000-000000000301', 'P5 DownWind Day', 'p5-downwind-day',
