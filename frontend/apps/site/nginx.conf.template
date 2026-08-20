@@ -24,6 +24,14 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Painel interno da equipe (check-in e admin) — não deixar buscadores indexarem,
+    # mesmo servindo da mesma origem pública do site.
+    location ~ ^/(admin|check-in) {
+        add_header X-Robots-Tag "noindex, nofollow" always;
+        root /usr/share/nginx/html;
+        try_files $uri /index.html;
+    }
+
     location / {
         root /usr/share/nginx/html;
         try_files $uri /index.html;

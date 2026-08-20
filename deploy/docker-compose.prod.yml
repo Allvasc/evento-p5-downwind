@@ -34,7 +34,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-P5 Wellness Club <wellness@p5beachclub.com.br>}
+      SMTP_FROM: ${SMTP_FROM:-P5 DownWind Day <downwindday@p5beachclub.com.br>}
       ASAAS_API_KEY: ${ASAAS_API_KEY}
       ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api.asaas.com/v3}
       ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN}
@@ -53,7 +53,6 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ../frontend/apps/site/dist:/srv/site:ro
-      - ../frontend/apps/admin/dist:/srv/admin:ro
       - p5wellness_caddy_data:/data
       - p5wellness_caddy_config:/config
     depends_on:

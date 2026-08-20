@@ -1,8 +1,23 @@
 # Caddy emite/renova HTTPS automaticamente via Let's Encrypt para cada domínio listado.
 
-wellness.p5beachclub.com.br {
+downwindday.p5beachclub.com.br {
 	handle /api/* {
 		reverse_proxy backend:8090
+	}
+
+	# Painel interno da equipe (check-in e admin) — mesma origem do site público,
+	# só marcado pra não ser indexado por buscadores.
+	handle /admin* {
+		header X-Robots-Tag "noindex, nofollow"
+		root * /srv/site
+		try_files {path} /index.html
+		file_server
+	}
+	handle /check-in* {
+		header X-Robots-Tag "noindex, nofollow"
+		root * /srv/site
+		try_files {path} /index.html
+		file_server
 	}
 
 	handle {
@@ -14,28 +29,11 @@ wellness.p5beachclub.com.br {
 	encode gzip zstd
 }
 
-wellness-admin.p5beachclub.com.br {
-	handle /api/* {
-		reverse_proxy backend:8090
-	}
-
-	handle {
-		root * /srv/admin
-		try_files {path} /index.html
-		file_server
-	}
-
-	encode gzip zstd
-
-	# Painel interno: não deixar buscadores indexarem.
-	header X-Robots-Tag "noindex, nofollow"
-}
-
 # Domínio dedicado da API — usado como URL do webhook da Asaas
-# (https://wellness-api.p5beachclub.com.br/api/v1/webhooks/asaas) e para chamadas
-# diretas ao backend. Mesma origem física do backend das duas entradas acima, só
-# que sem servir nenhum estático — tudo aqui é a API.
-wellness-api.p5beachclub.com.br {
+# (https://downwindday-api.p5beachclub.com.br/api/v1/webhooks/asaas) e para chamadas
+# diretas ao backend. Mesma origem física do backend da entrada acima, só que sem
+# servir nenhum estático — tudo aqui é a API.
+downwindday-api.p5beachclub.com.br {
 	reverse_proxy backend:8090
 	encode gzip zstd
 }

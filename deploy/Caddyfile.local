@@ -10,15 +10,3 @@
 	}
 	encode gzip zstd
 }
-
-:8082 {
-	handle /api/* {
-		reverse_proxy backend:8090
-	}
-	handle {
-		root * /srv/admin
-		try_files {path} /index.html
-		file_server
-	}
-	encode gzip zstd
-}

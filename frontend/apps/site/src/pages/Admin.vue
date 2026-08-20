@@ -5,8 +5,8 @@ import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, Cale
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
 import { formatBRL } from "@p5wellness/shared";
-import { api, ApiError } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth";
+import { api, ApiError } from "@/lib/teamApi";
+import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
 
 Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip);
 

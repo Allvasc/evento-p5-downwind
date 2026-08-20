@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { TEAM_TOKEN_KEY } from "@/lib/api";
+import { TEAM_TOKEN_KEY } from "@/lib/teamApi";
 
-export const useAuthStore = defineStore("auth", () => {
+export const useTeamAuthStore = defineStore("team-auth", () => {
   const token = ref<string | null>(localStorage.getItem(TEAM_TOKEN_KEY));
   const role = ref<string | null>(localStorage.getItem("p5_team_role"));
   const name = ref<string | null>(localStorage.getItem("p5_team_name"));

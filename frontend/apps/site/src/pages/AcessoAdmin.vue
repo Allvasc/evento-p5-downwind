@@ -4,8 +4,10 @@ import { useRouter } from "vue-router";
 import { Lock, ArrowLeft, ArrowRight, Check } from "lucide-vue-next";
 import { api, ApiError } from "@/lib/api";
 import BrandMark from "@/components/BrandMark.vue";
+import { useTeamAuthStore } from "@/stores/teamAuth";
 
 const router = useRouter();
+const teamAuth = useTeamAuthStore();
 
 type Mode = "login" | "recover" | "reset";
 const mode = ref<Mode>("login");
@@ -17,19 +19,9 @@ const loading = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
 
-// O painel admin roda como um app/origem separado (bundle isolado do site público).
-// Em dev e na stack local containerizada ele sempre está uma porta acima do site
-// (5183→5184, 8081→8082); em produção vive em wellness-admin.p5beachclub.com.br,
-// que não é um subdomínio previsível a partir do domínio do site (não é
-// "admin.<host>"), então o valor vem gravado no build via VITE_ADMIN_URL (ver
-// .env.production). O token não pode ser lido via localStorage entre origens
-// diferentes, então ele viaja pela URL e o app admin o consome no primeiro
-// carregamento (ver router.ts de apps/admin).
-function adminBaseUrl(): string {
-  if (import.meta.env.VITE_ADMIN_URL) return import.meta.env.VITE_ADMIN_URL;
-  const { protocol, hostname, port } = window.location;
-  if (port) return `${protocol}//${hostname}:${Number(port) + 1}`;
-  return `${protocol}//admin.${hostname}`;
+// "admin" e "reports" enxergam o painel em /admin; "staff" só entra no check-in.
+function hasAdminAreaAccess(role: string) {
+  return role === "admin" || role === "reports";
 }
 
 async function submit() {
@@ -42,11 +34,8 @@ async function submit() {
         email: email.value,
         password: password.value,
       });
-      const params = new URLSearchParams({
-        token: res.token, role: res.role, name: res.name,
-        vendorId: res.vendorId ?? "", vendorName: res.vendorName ?? "",
-      });
-      window.location.href = `${adminBaseUrl()}/?${params.toString()}`;
+      teamAuth.setSession(res.token, res.role, res.name, res.vendorId, res.vendorName);
+      router.push(hasAdminAreaAccess(res.role) ? "/admin" : "/check-in");
     } else if (mode.value === "recover") {
       await api.post("/auth/team/request-password-reset", { email: email.value });
       successMessage.value = "Se o e-mail existir, você receberá um código de recuperação.";

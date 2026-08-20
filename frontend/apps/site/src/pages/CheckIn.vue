@@ -2,8 +2,8 @@
 import { ref, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ScanLine, Video, VideoOff, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, LogOut, WifiOff, RefreshCw, X, LayoutDashboard, ListChecks, Search } from "lucide-vue-next";
-import { api, ApiError } from "@/lib/api";
-import { useAuthStore } from "@/stores/auth";
+import { api, ApiError } from "@/lib/teamApi";
+import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
 import { enqueueScan, listPendingScans, removeScans, countPendingScans, type PendingScan } from "@/offline/queue";
 
 const router = useRouter();

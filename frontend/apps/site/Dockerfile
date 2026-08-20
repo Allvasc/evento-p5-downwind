@@ -15,5 +15,5 @@ COPY apps/site/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /repo/apps/site/dist /usr/share/nginx/html
 # Domínio público da API (sem esquema) — só precisa mudar se o domínio real for
 # diferente deste (ver deploy/EASYPANEL.md).
-ENV API_HOST=wellness-api.p5beachclub.com.br
+ENV API_HOST=downwindday-api.p5beachclub.com.br
 EXPOSE 80
