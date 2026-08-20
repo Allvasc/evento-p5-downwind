@@ -61,7 +61,7 @@ label[for] {
   align-items: center;
   gap: 0.5rem;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 8px 24px -8px rgba(217, 25, 119, 0.55);
+  box-shadow: 0 8px 24px -8px rgba(11, 99, 214, 0.55);
   cursor: pointer;
 }
 .button-magenta:hover {
