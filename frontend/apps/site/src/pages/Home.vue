@@ -21,8 +21,8 @@ import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
 import BrandMark from "@/components/BrandMark.vue";
+import KitesurferIcon from "@/components/KitesurferIcon.vue";
 import WaveIcon from "@/components/WaveIcon.vue";
-import KiteVectorArt from "@/components/KiteVectorArt.vue";
 
 const router = useRouter();
 
@@ -175,22 +175,6 @@ const itinerary = [
         </div>
       </section>
 
-      <!-- SECTION: FOTO ATMOSFÉRICA -->
-      <section class="relative h-80 overflow-hidden border-t border-line/60 md:h-104">
-        <img
-          src="/photo-ocean-band.webp"
-          alt="Kitesurfista no mar aberto, vento forte e ondas"
-          class="absolute inset-0 h-full w-full object-cover object-[center_35%]"
-        />
-        <div class="absolute inset-0 bg-linear-to-t from-ink/80 via-ink/10 to-transparent"></div>
-        <div class="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-end px-6 pb-8">
-          <p class="font-mono text-xs font-semibold tracking-widest text-sky-300 uppercase">Mar aberto</p>
-          <p class="mt-1 max-w-md font-serif text-2xl font-bold text-white md:text-3xl">
-            Onde o vento encontra o mar aberto.
-          </p>
-        </div>
-      </section>
-
       <!-- SECTION: O QUE ESTÁ INCLUSO -->
       <section id="inclui" class="border-t border-line/60 bg-warm/40 py-20">
         <div class="mx-auto max-w-6xl px-6">
@@ -249,41 +233,35 @@ const itinerary = [
       <!-- SECTION: CONFIANÇA / SEGURANÇA -->
       <section class="border-t border-line/60 bg-ink py-20 text-white">
         <div class="mx-auto max-w-6xl px-6">
-          <div class="grid gap-10 md:grid-cols-[1.1fr_0.9fr] md:items-center">
-            <div>
-              <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">SEGURANÇA E ESTRUTURA</p>
-              <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
-                Feito para quem leva o vento <span class="text-sky-300">a sério.</span>
-              </h2>
+          <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
+            <KitesurferIcon :size="34" class="text-sky-300" />
+          </div>
+          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">SEGURANÇA E ESTRUTURA</p>
+          <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
+            Feito para quem leva o vento <span class="text-sky-300">a sério.</span>
+          </h2>
 
-              <div class="mt-12 grid gap-8 sm:grid-cols-3 md:grid-cols-1 md:gap-7">
-                <div class="flex flex-col gap-3">
-                  <LifeBuoy :size="26" class="text-sky-300" />
-                  <h3 class="font-serif text-lg font-bold">Apoio o tempo todo</h3>
-                  <p class="text-sm leading-relaxed text-white/70">
-                    Equipe P5 acompanhando na água e em terra durante todo o percurso, do início ao fim.
-                  </p>
-                </div>
-                <div class="flex flex-col gap-3">
-                  <Radar :size="26" class="text-sky-300" />
-                  <h3 class="font-serif text-lg font-bold">Monitoramento em tempo real</h3>
-                  <p class="text-sm leading-relaxed text-white/70">
-                    Condições de vento acompanhadas pelo aplicativo Wind Maps antes e durante o dia.
-                  </p>
-                </div>
-                <div class="flex flex-col gap-3">
-                  <ShieldCheck :size="26" class="text-sky-300" />
-                  <h3 class="font-serif text-lg font-bold">Estrutura completa</h3>
-                  <p class="text-sm leading-relaxed text-white/70">
-                    Compressor, banheiro e hidratação no ponto de saída, mais receptivo na chegada.
-                  </p>
-                </div>
-              </div>
+          <div class="mt-12 grid gap-8 md:grid-cols-3">
+            <div class="flex flex-col gap-3">
+              <LifeBuoy :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Apoio o tempo todo</h3>
+              <p class="text-sm leading-relaxed text-white/70">
+                Equipe P5 acompanhando na água e em terra durante todo o percurso, do início ao fim.
+              </p>
             </div>
-
-            <div class="relative mx-auto h-105 w-full max-w-55 md:h-140">
-              <div class="absolute inset-0 -z-10 rounded-full bg-sky-400/10 blur-3xl"></div>
-              <KiteVectorArt inverted />
+            <div class="flex flex-col gap-3">
+              <Radar :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Monitoramento em tempo real</h3>
+              <p class="text-sm leading-relaxed text-white/70">
+                Condições de vento acompanhadas pelo aplicativo Wind Maps antes e durante o dia.
+              </p>
+            </div>
+            <div class="flex flex-col gap-3">
+              <ShieldCheck :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Estrutura completa</h3>
+              <p class="text-sm leading-relaxed text-white/70">
+                Compressor, banheiro e hidratação no ponto de saída, mais receptivo na chegada.
+              </p>
             </div>
           </div>
         </div>
