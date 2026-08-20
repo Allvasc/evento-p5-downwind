@@ -49,7 +49,7 @@ function dateRangeQuery(from: string, to: string) {
   return qs ? `?${qs}` : "";
 }
 
-// ── Setores (empresas parceiras: P5, AYO...) ──────────────────────────────
+// ── Setores ────────────────────────────────────────────────────────────────
 interface Vendor { id: string; name: string; slug: string }
 const vendors = ref<Vendor[]>([]);
 async function loadVendors() {
@@ -77,8 +77,8 @@ const chartData = computed(() => ({
     {
       label: "Receita (R$)",
       data: salesPoints.value.map((p) => p.revenueCents / 100),
-      borderColor: "#d91977",
-      backgroundColor: "rgba(217,25,119,0.1)",
+      borderColor: "#0b63d6",
+      backgroundColor: "rgba(11,99,214,0.1)",
       tension: 0.35,
       fill: true,
       pointRadius: 2,

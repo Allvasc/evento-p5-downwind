@@ -94,7 +94,7 @@ async function submit() {
             </h1>
 
             <p class="mt-4 text-sm leading-relaxed text-white/70">
-              Este acesso é exclusivo para administradores e funcionários responsáveis pela operação do clube.
+              Este acesso é exclusivo para administradores e funcionários responsáveis pela operação do evento.
             </p>
           </div>
 
@@ -102,7 +102,7 @@ async function submit() {
             <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-magenta/20 text-magenta">
               <Check :size="13" />
             </div>
-            <span>Gestão de aulas, vendas, presença e equipe.</span>
+            <span>Gestão de ingressos, vendas, check-in e equipe.</span>
           </div>
         </div>
 
@@ -137,7 +137,7 @@ async function submit() {
                   v-model="email"
                   type="email"
                   required
-                  placeholder="equipe@p5wellness.com"
+                  placeholder="equipe@p5kitehouse.com"
                   class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-soft/50 focus:border-magenta focus:outline-none focus:ring-1 focus:ring-magenta"
                 />
               </div>

@@ -54,9 +54,8 @@ async function submit() {
     <header class="sticky top-0 z-40 bg-paper/90 backdrop-blur border-b border-line">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/" class="flex items-center gap-1.5 font-bold tracking-tight text-ink">
-          <span class="font-sans text-xl font-bold text-ink">P5</span>
-          <span class="text-lg font-light text-magenta">/</span>
-          <span class="font-sans text-sm font-bold tracking-wider text-magenta">AYO</span>
+          <span class="font-serif text-xl font-bold text-ink">P5</span>
+          <span class="font-mono text-[10px] font-bold tracking-widest text-magenta uppercase">DownWind Day</span>
         </a>
         <span class="font-mono text-xs font-bold tracking-widest text-magenta uppercase">
           ÁREA DA EQUIPE
@@ -70,16 +69,16 @@ async function submit() {
         <div class="bg-ink p-10 text-white flex flex-col justify-between min-h-[440px]">
           <div>
             <p class="font-mono text-xs font-bold tracking-widest text-magenta uppercase">
-              ✦ P5 WELLNESS CLUB
+              ✦ P5 DOWNWIND DAY
             </p>
 
             <h1 class="mt-8 font-serif text-4xl font-bold leading-tight text-white md:text-5xl">
               Operação<br />
-              <em class="font-serif italic text-magenta">P5 Wellness.</em>
+              <span class="text-magenta">P5 Kite House.</span>
             </h1>
 
             <p class="mt-4 text-sm leading-relaxed text-white/70">
-              Este acesso é exclusivo para administradores e funcionários responsáveis pela operação do clube.
+              Este acesso é exclusivo para administradores e funcionários responsáveis pela operação do evento.
             </p>
           </div>
 
@@ -87,7 +86,7 @@ async function submit() {
             <div class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-magenta/20 text-magenta">
               <Check :size="13" />
             </div>
-            <span>Gestão de aulas, vendas, presença e equipe.</span>
+            <span>Gestão de ingressos, vendas, check-in e equipe.</span>
           </div>
         </div>
 
@@ -122,7 +121,7 @@ async function submit() {
                   v-model="email"
                   type="email"
                   required
-                  placeholder="equipe@p5wellness.com"
+                  placeholder="equipe@p5kitehouse.com"
                   class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-soft/50 focus:border-magenta focus:outline-none focus:ring-1 focus:ring-magenta"
                 />
               </div>
@@ -176,7 +175,7 @@ async function submit() {
     </main>
 
     <footer class="py-6 text-center text-xs text-ink-soft border-t border-line/40">
-      &copy; {{ new Date().getFullYear() }} P5 Wellness Club — Operação
+      &copy; {{ new Date().getFullYear() }} P5 DownWind Day — Operação
     </footer>
   </div>
 </template>

@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
-/* Identidade visual replicada do protótipo de referência (P5 Wellness Club × AYO) */
+/* Identidade visual P5 DownWind Day — preto, branco e azul, inspirada em vento e mar. */
 @theme {
-  --color-ink: #1e2235;
-  --color-ink-soft: #5e6174;
-  --color-paper: #fffaf3;
-  --color-warm: #f5ede3;
-  --color-sun: #e7b95c;
-  --color-magenta: #d91977;
-  --color-magenta-dark: #9c1554;
-  --color-sky: #b9dff0;
-  --color-line: #e8ddd2;
+  --color-ink: #0a0f1a;
+  --color-ink-soft: #57677e;
+  --color-paper: #f6f9fc;
+  --color-warm: #e7f0f8;
+  --color-sun: #67d6f0;
+  --color-magenta: #0b63d6;
+  --color-magenta-dark: #084a9e;
+  --color-sky: #cfe8f7;
+  --color-line: #dbe6ef;
 
-  --font-serif: "Playfair Display", Georgia, serif;
+  --font-serif: "Archivo", "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "DM Mono", ui-monospace, monospace;
 
@@ -61,7 +61,7 @@ label[for] {
   align-items: center;
   gap: 0.5rem;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 8px 24px -8px rgba(217, 25, 119, 0.55);
+  box-shadow: 0 8px 24px -8px rgba(11, 99, 214, 0.55);
   cursor: pointer;
 }
 .button-magenta:hover {
