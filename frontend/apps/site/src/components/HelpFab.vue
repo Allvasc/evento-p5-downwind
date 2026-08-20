@@ -41,8 +41,12 @@ const faqs: FaqItem[] = [
   },
   {
     icon: Backpack,
-    question: "O que eu levo para a aula?",
-    answer: ["Yoga: traga seu tapete, toalha ou canga.", "HYROX: use roupas leves e confortáveis."],
+    question: "O que eu levo para o DownWind Day?",
+    answer: [
+      "Seu próprio equipamento de kite (kite, barra, trapézio e prancha) — o ingresso cobre estrutura e apoio, não o material.",
+      "Protetor solar, roupa de neoprene ou lycra e água.",
+      "O compressor para encher o kite fica disponível no ponto de saída.",
+    ],
   },
   {
     icon: CreditCard,
@@ -55,7 +59,7 @@ const faqs: FaqItem[] = [
   {
     icon: CalendarClock,
     question: "Não vou conseguir comparecer. Posso remarcar?",
-    answer: ["Sim — fale com a equipe P5 Wellness Club informando o número do seu pedido; a remarcação é feita manualmente pela equipe."],
+    answer: ["Sim — fale com a equipe P5 informando o número do seu pedido; a remarcação é feita manualmente pela equipe."],
   },
 ];
 

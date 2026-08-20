@@ -2,6 +2,7 @@
 import { RouterLink, useRouter, useRoute } from "vue-router";
 import { ShieldCheck, LogOut, CalendarCheck } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
+import BrandMark from "@/components/BrandMark.vue";
 
 withDefaults(defineProps<{ transparent?: boolean }>(), {
   transparent: false,
@@ -12,10 +13,9 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 const navItems = [
-  { label: "Experiência", target: "#experiencia" },
-  { label: "Aulas & combos", target: "#aulas-combos" },
-  { label: "Café da manhã", target: "#cafe-da-manha" },
-  { label: "Como funciona", target: "#como-funciona" },
+  { label: "O que inclui", target: "#inclui" },
+  { label: "Percurso", target: "#percurso" },
+  { label: "Preço", target: "#preco" },
 ];
 
 function scrollTo(target: string) {
@@ -34,11 +34,9 @@ function handleLogout() {
 
 <template>
   <header :class="['sticky top-0 z-40 transition-all duration-200', transparent ? 'bg-paper/85 backdrop-blur-md border-b border-line/70' : 'bg-paper/95 backdrop-blur-md border-b border-line shadow-xs']">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-      <RouterLink to="/" class="flex items-center gap-1.5 font-bold tracking-tight text-ink" aria-label="P5 Wellness Club × AYO">
-        <span class="font-sans text-xl font-bold text-ink">P5</span>
-        <span class="text-lg font-light text-magenta">/</span>
-        <span class="font-sans text-sm font-bold tracking-wider text-magenta">AYO</span>
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+      <RouterLink to="/" aria-label="P5 DownWind Day">
+        <BrandMark :size="34" />
       </RouterLink>
 
       <nav class="hidden items-center gap-8 md:flex" aria-label="Navegação principal">
@@ -69,16 +67,15 @@ function handleLogout() {
           </button>
           <button class="flex items-center gap-1.5 rounded-full border border-line bg-white/60 px-2.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink sm:gap-2 sm:px-4 sm:text-sm" @click="router.push('/entrar')" aria-label="Portal do aluno">
             <ShieldCheck :size="16" />
-            <span class="hidden min-[375px]:inline sm:hidden">Aluno</span>
+            <span class="hidden min-[375px]:inline sm:hidden">Entrar</span>
             <span class="hidden sm:inline">Portal do aluno</span>
           </button>
         </template>
         <button class="button-magenta" @click="router.push('/comprar')">
           <CalendarCheck :size="16" />
-          Reservar
+          Garantir vaga
         </button>
       </div>
     </div>
   </header>
 </template>
-

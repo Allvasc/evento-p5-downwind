@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { Lock, ArrowLeft, ArrowRight, Check } from "lucide-vue-next";
 import { api, ApiError } from "@/lib/api";
+import BrandMark from "@/components/BrandMark.vue";
 
 const router = useRouter();
 
@@ -69,10 +70,8 @@ async function submit() {
     <!-- Header -->
     <header class="sticky top-0 z-40 bg-paper/90 backdrop-blur border-b border-line">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="/" class="flex items-center gap-1.5 font-bold tracking-tight text-ink">
-          <span class="font-sans text-xl font-bold text-ink">P5</span>
-          <span class="text-lg font-light text-magenta">/</span>
-          <span class="font-sans text-sm font-bold tracking-wider text-magenta">AYO</span>
+        <a href="/" aria-label="P5 DownWind Day">
+          <BrandMark :size="30" />
         </a>
         <span class="font-mono text-xs font-bold tracking-widest text-magenta uppercase">
           ÁREA DA EQUIPE
@@ -86,12 +85,12 @@ async function submit() {
         <div class="bg-ink p-10 text-white flex flex-col justify-between min-h-[440px]">
           <div>
             <p class="font-mono text-xs font-bold tracking-widest text-magenta uppercase">
-              ✦ P5 WELLNESS CLUB
+              ✦ P5 DOWNWIND DAY
             </p>
 
             <h1 class="mt-8 font-serif text-4xl font-bold leading-tight text-white md:text-5xl">
               Operação<br />
-              <em class="font-serif italic text-magenta">P5 Wellness.</em>
+              <span class="text-magenta">P5 Kite House.</span>
             </h1>
 
             <p class="mt-4 text-sm leading-relaxed text-white/70">
@@ -191,8 +190,17 @@ async function submit() {
       </div>
     </main>
 
-    <footer class="py-6 text-center text-xs text-ink-soft border-t border-line/40">
-      &copy; {{ new Date().getFullYear() }} P5 Wellness Club — Operação
+    <footer class="py-6 text-center text-xs text-ink-soft border-t border-line/40 space-y-3">
+      <p>&copy; {{ new Date().getFullYear() }} P5 DownWind Day — Operação</p>
+      <a
+        href="https://prolins.com.br"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Powered by Prolins Software House e Outsource"
+        class="inline-block opacity-80 transition-opacity hover:opacity-100"
+      >
+        <img src="/prolins-selo.webp" alt="Powered by Prolins Software House e Outsource" width="44" height="44" class="h-11 w-11" />
+      </a>
     </footer>
   </div>
 </template>

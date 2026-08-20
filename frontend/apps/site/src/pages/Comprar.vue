@@ -216,7 +216,7 @@ async function goToPayment() {
 
       <div v-else-if="!products.length" class="mt-12 rounded-[var(--radius-card)] border border-line bg-white p-10 text-center">
         <h2 class="font-serif text-xl font-semibold text-ink">Agenda em preparação</h2>
-        <p class="mt-2 text-ink-soft">As atividades e combinações do P5 Wellness Club serão publicadas aqui em breve.</p>
+        <p class="mt-2 text-ink-soft">O ingresso do P5 DownWind Day será publicado aqui em breve.</p>
       </div>
 
       <div v-else class="mt-10 grid gap-10 md:grid-cols-[1.5fr_1fr] md:items-start">

@@ -102,7 +102,7 @@ async function submit() {
         <div class="bg-ink p-10 text-white flex flex-col justify-between min-h-[440px]">
           <div>
             <p class="font-mono text-xs font-bold tracking-widest text-magenta uppercase">
-              ✦ P5 WELLNESS CLUB
+              ✦ P5 DOWNWIND DAY
             </p>
 
             <h1 class="mt-8 font-serif text-4xl font-bold leading-tight text-white md:text-5xl">
@@ -254,8 +254,17 @@ async function submit() {
       </div>
     </main>
 
-    <footer class="py-6 text-center text-xs text-ink-soft border-t border-line/40">
-      &copy; {{ new Date().getFullYear() }} P5 Wellness Club. Todos os direitos reservados.
+    <footer class="py-6 text-center text-xs text-ink-soft border-t border-line/40 space-y-3">
+      <p>&copy; {{ new Date().getFullYear() }} P5 DownWind Day. Todos os direitos reservados.</p>
+      <a
+        href="https://prolins.com.br"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Powered by Prolins Software House e Outsource"
+        class="inline-block opacity-80 transition-opacity hover:opacity-100"
+      >
+        <img src="/prolins-selo.webp" alt="Powered by Prolins Software House e Outsource" width="44" height="44" class="h-11 w-11" />
+      </a>
     </footer>
   </div>
 </template>
