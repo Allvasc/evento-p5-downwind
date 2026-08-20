@@ -1,6 +1,9 @@
-# Build context precisa ser `frontend/` (não `frontend/apps/site/`), para enxergar o
-# workspace pnpm inteiro (packages/shared é uma dependência real do app). No EasyPanel:
-# Build Context = frontend, Dockerfile Path = apps/site/Dockerfile.
+# Fica na raiz de frontend/ (não em apps/site/) de propósito: o EasyPanel usado neste
+# projeto só aceita um único campo de path, que serve tanto de build context quanto de
+# diretório onde ele procura um arquivo chamado exatamente "Dockerfile" — não dá pra
+# apontar pra um Dockerfile aninhado com um build context diferente. Por isso o path
+# aqui também precisa ser o build context certo, com o workspace pnpm inteiro visível
+# (packages/shared é uma dependência real do app). No EasyPanel: Path = frontend.
 FROM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /repo

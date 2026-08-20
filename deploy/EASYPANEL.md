@@ -16,6 +16,14 @@ O frontend (`frontend/apps/site`) é um único app Vue que serve tanto o site p�
 painel exigem login de equipe (`/acesso-admin`) e o nginx marca essas páginas com
 `X-Robots-Tag: noindex, nofollow` para não aparecerem em buscadores.
 
+**Sobre o campo de path no EasyPanel**: nesta instância ele só tem **um** campo de
+path por app — não tem "build context" e "caminho do Dockerfile" separados. Esse path
+vira o build context *e* o EasyPanel sempre procura um arquivo chamado exatamente
+`Dockerfile` bem na raiz dele (nunca aninhado). Por isso os dois Dockerfiles deste
+repo (`backend/Dockerfile` e `frontend/Dockerfile`) ficam direto na raiz das suas
+respectivas pastas de build context — não tem como apontar pra um Dockerfile dentro
+de uma subpasta com um path diferente pro contexto.
+
 ## 0. Antes de começar
 
 Aponte os 2 domínios (A/AAAA) para o IP do servidor onde o EasyPanel roda:
@@ -30,8 +38,7 @@ EasyPanel gerar — vai virar a `DATABASE_URL` do backend.
 ## 2. App do backend
 
 - **Fonte**: este repositório Git.
-- **Build Context**: `backend`
-- **Dockerfile Path**: `backend/Dockerfile` (já existe, builda `cmd/api` e `cmd/seed-admin`)
+- **Path**: `backend` (o Dockerfile já existe em `backend/Dockerfile`, builda `cmd/api` e `cmd/seed-admin`)
 - **Porta do container**: `8090`
 - **Domínio**: `downwindday-api.p5beachclub.com.br` (é a URL que vai no webhook da Asaas)
 - **Variáveis de ambiente** (mesmas de `deploy/.env.production.example`, sem o prefixo
@@ -71,11 +78,10 @@ EasyPanel gerar — vai virar a `DATABASE_URL` do backend.
 Faça o deploy do backend (passo 2) **antes** do frontend abaixo — ele espera que
 `downwindday-api.p5beachclub.com.br` já responda, já que faz proxy direto pra lá.
 
-## 3. App do frontend (`frontend/apps/site`)
+## 3. App do frontend (`frontend/apps/site`, servido a partir de `frontend/Dockerfile`)
 
-- **Build Context**: `frontend` (não `frontend/apps/site` — o Dockerfile precisa
-  enxergar o workspace pnpm inteiro, incluindo `packages/shared`)
-- **Dockerfile Path**: `apps/site/Dockerfile`
+- **Path**: `frontend` (o Dockerfile fica na raiz desta pasta de propósito — precisa
+  enxergar o workspace pnpm inteiro, incluindo `packages/shared`, não só `apps/site`)
 - **Porta do container**: `80`
 - **Domínio**: `downwindday.p5beachclub.com.br`
 - **Variáveis de ambiente**: nenhuma obrigatória — o Dockerfile já tem
