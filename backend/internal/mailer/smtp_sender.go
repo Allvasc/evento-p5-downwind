@@ -52,17 +52,18 @@ func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName,
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", to)
-	m.SetHeader("Subject", "Sua experiência P5 Wellness Club está confirmada")
+	subject := "Seu ingresso P5 DownWind Day está confirmado"
+	m.SetHeader("Subject", subject)
 
 	var html bytes.Buffer
 	html.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-		<h1 style="color:#1e2235">Tudo certo, %s!</h1>
-		<p style="color:#5e6174">Seu pedido <strong>%s</strong> foi confirmado. Apresente o QR Code correspondente na entrada de cada benefício — em combos, cada um é validado separadamente.</p>`, studentName, orderNumber))
+		<h1 style="color:#0a0f1a">Tudo certo, %s!</h1>
+		<p style="color:#57677e">Seu pedido <strong>%s</strong> foi confirmado. Apresente o QR Code na entrada — ele é a sua vaga garantida no P5 DownWind Day.</p>`, studentName, orderNumber))
 
 	for i, t := range tickets {
 		cid := fmt.Sprintf("ticket%d", i)
-		html.WriteString(fmt.Sprintf(`<div style="margin:24px 0;text-align:center;border:1px solid #e8ddd2;border-radius:16px;padding:16px">
-			<p style="font-weight:600;color:#1e2235">%s</p>
+		html.WriteString(fmt.Sprintf(`<div style="margin:24px 0;text-align:center;border:1px solid #dbe6ef;border-radius:16px;padding:16px">
+			<p style="font-weight:600;color:#0a0f1a">%s</p>
 			<img src="cid:%s" width="220" height="220" alt="QR Code" />
 		</div>`, t.Label, cid))
 		pngData := t.PNG
@@ -78,28 +79,28 @@ func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName,
 	m.SetBody("text/html", html.String())
 
 	if err := s.dialer.DialAndSend(m); err != nil {
-		s.recordFailure(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation", err)
+		s.recordFailure(ctx, to, subject, "order_confirmation", err)
 		return err
 	}
-	return s.record(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation")
+	return s.record(ctx, to, subject, "order_confirmation")
 }
 
 func (s *SMTPSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, tickets []TicketAttachment) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", to)
-	subject := "Sua data no P5 Wellness Club foi alterada"
+	subject := "Sua data no P5 DownWind Day foi alterada"
 	m.SetHeader("Subject", subject)
 
 	var html bytes.Buffer
 	html.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-		<h1 style="color:#1e2235">Nova data confirmada, %s!</h1>
-		<p style="color:#5e6174">Seu pedido <strong>%s</strong> foi remarcado. Sua nova data é <strong>%s</strong>. Apresente o QR Code correspondente na entrada de cada benefício — em combos, cada um é validado separadamente.</p>`, studentName, orderNumber, formatBRDate(newDate)))
+		<h1 style="color:#0a0f1a">Nova data confirmada, %s!</h1>
+		<p style="color:#57677e">Seu pedido <strong>%s</strong> foi remarcado. Sua nova data é <strong>%s</strong>. Apresente o QR Code na entrada — ele é a sua vaga garantida no P5 DownWind Day.</p>`, studentName, orderNumber, formatBRDate(newDate)))
 
 	for i, t := range tickets {
 		cid := fmt.Sprintf("ticket%d", i)
-		html.WriteString(fmt.Sprintf(`<div style="margin:24px 0;text-align:center;border:1px solid #e8ddd2;border-radius:16px;padding:16px">
-			<p style="font-weight:600;color:#1e2235">%s</p>
+		html.WriteString(fmt.Sprintf(`<div style="margin:24px 0;text-align:center;border:1px solid #dbe6ef;border-radius:16px;padding:16px">
+			<p style="font-weight:600;color:#0a0f1a">%s</p>
 			<img src="cid:%s" width="220" height="220" alt="QR Code" />
 		</div>`, t.Label, cid))
 		pngData := t.PNG
@@ -125,24 +126,25 @@ func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string) error
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", to)
-	m.SetHeader("Subject", "Bem-vindo(a) ao P5 Wellness Club")
+	subject := "Bem-vindo(a) ao P5 DownWind Day"
+	m.SetHeader("Subject", subject)
 
 	html := fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-		<p style="font-family:monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#d91977;margin-bottom:8px">P5 Kite House &times; AYO Wellness</p>
-		<h1 style="color:#1e2235;margin-top:0">Bem-vindo(a), %s!</h1>
-		<p style="color:#5e6174;line-height:1.5">Seu cadastro no P5 Wellness Club foi criado com sucesso. Agora você já pode escolher sua experiência — aulas avulsas ou combos com café da manhã — e reservar sua data.</p>
+		<p style="font-family:monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#0b63d6;margin-bottom:8px">P5 Kite House</p>
+		<h1 style="color:#0a0f1a;margin-top:0">Bem-vindo(a), %s!</h1>
+		<p style="color:#57677e;line-height:1.5">Seu cadastro foi criado com sucesso. Agora você já pode garantir sua vaga no percurso guiado até a Praia do Presídio — transporte, apoio completo e estrutura do início ao fim.</p>
 		<p style="margin:28px 0">
-			<a href="%s/comprar" style="background:#d91977;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Escolher experiência</a>
+			<a href="%s/comprar" style="background:#0b63d6;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Garantir minha vaga</a>
 		</p>
-		<p style="color:#5e6174;font-size:13px">Depois da compra, o QR Code de cada benefício chega por e-mail e também fica disponível no seu <a href="%s/portal" style="color:#d91977">portal do aluno</a>.</p>
+		<p style="color:#57677e;font-size:13px">Depois da compra, o QR Code do seu ingresso chega por e-mail e também fica disponível no seu <a href="%s/portal" style="color:#0b63d6">portal do aluno</a>.</p>
 	</div>`, fullName, s.publicSiteURL, s.publicSiteURL)
 	m.SetBody("text/html", html)
 
 	if err := s.dialer.DialAndSend(m); err != nil {
-		s.recordFailure(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome", err)
+		s.recordFailure(ctx, to, subject, "welcome", err)
 		return err
 	}
-	return s.record(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome")
+	return s.record(ctx, to, subject, "welcome")
 }
 
 // formatBRDate renders a "YYYY-MM-DD" date param as dd/mm/yyyy for e-mail copy; falls
