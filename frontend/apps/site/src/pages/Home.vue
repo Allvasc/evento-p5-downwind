@@ -20,7 +20,6 @@ import {
 import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
-import BrandMark from "@/components/BrandMark.vue";
 import KitesurferIcon from "@/components/KitesurferIcon.vue";
 import WaveIcon from "@/components/WaveIcon.vue";
 
@@ -105,7 +104,7 @@ const itinerary = [
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
               <button class="button-magenta" @click="router.push('/comprar')">
-                Garantir minha vaga · R$ 100
+                Garantir minha vaga · R$ 120
                 <ArrowRight :size="18" />
               </button>
               <button
@@ -127,7 +126,7 @@ const itinerary = [
           <div class="relative mx-auto w-full max-w-sm">
             <div class="relative rounded-[1.75rem] border border-line/80 bg-white p-6 shadow-2xl">
               <div class="flex items-center justify-between">
-                <BrandMark :size="30" />
+                <img src="/logo-downwind.webp" alt="P5 DownWind Day" class="h-6 w-auto" />
                 <span class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Acesso único</span>
               </div>
 
@@ -154,7 +153,7 @@ const itinerary = [
               <div class="flex items-center justify-between px-1">
                 <div>
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Valor</p>
-                  <p class="font-serif text-2xl font-black text-ink">R$ 100</p>
+                  <p class="font-serif text-2xl font-black text-ink">R$ 120</p>
                 </div>
                 <span class="rounded-full border border-magenta/30 bg-magenta/10 px-3 py-1.5 text-[11px] font-semibold text-magenta">
                   Vagas limitadas
@@ -274,7 +273,7 @@ const itinerary = [
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
             Um valor, <span class="text-magenta">tudo incluso.</span>
           </h2>
-          <p class="mt-4 font-serif text-6xl font-black text-ink md:text-7xl">R$ 100</p>
+          <p class="mt-4 font-serif text-6xl font-black text-ink md:text-7xl">R$ 120</p>
           <p class="mt-3 text-sm text-ink-soft">
             Percurso, transporte, apoio aquático e terrestre e estrutura completa no ponto de saída.
           </p>
@@ -292,7 +291,7 @@ const itinerary = [
       <!-- FOOTER -->
       <footer class="border-t border-line/80 bg-ink py-12 text-white">
         <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
-          <BrandMark :size="32" inverted />
+          <img src="/logo-downwind-dark.webp" alt="P5 DownWind Day" class="h-8 w-auto" />
 
           <p class="text-xs text-white/60 text-center md:text-left">
             P5 Kite House.<br />
@@ -305,7 +304,12 @@ const itinerary = [
           </div>
         </div>
 
-        <div class="mt-10 flex justify-center border-t border-white/10 px-6 pt-6">
+        <div class="mt-10 flex flex-col items-center gap-3 border-t border-white/10 px-6 pt-8">
+          <p class="font-mono text-[10px] font-semibold tracking-widest text-white/40 uppercase">Apoio</p>
+          <img src="/powerade-dark.webp" alt="Powerade" class="h-6 w-auto opacity-90" />
+        </div>
+
+        <div class="mt-8 flex justify-center border-t border-white/10 px-6 pt-6">
           <a
             href="https://prolins.com.br"
             target="_blank"

@@ -26,7 +26,7 @@ INSERT INTO activities (id, title, slug, instructor, duration_minutes, descripti
 INSERT INTO products (id, title, slug, description, type, includes_breakfast, price_cents, featured, active, display_order, choose_one_activity) VALUES
   ('00000000-0000-0000-0000-000000000301', 'P5 DownWind Day', 'p5-downwind-day',
    'Percurso Praia do Presídio, transporte, apoio aquático e terrestre, estrutura completa no ponto de saída e monitoramento pelo Wind Maps — tudo incluso.',
-   'class', false, 10000, true, true, 1, false);
+   'class', false, 12000, true, true, 1, false);
 
 INSERT INTO product_activities (product_id, activity_id) VALUES
   ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201');

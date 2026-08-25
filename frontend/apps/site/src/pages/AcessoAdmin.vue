@@ -3,7 +3,6 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { Lock, ArrowLeft, ArrowRight, Check } from "lucide-vue-next";
 import { api, ApiError } from "@/lib/api";
-import BrandMark from "@/components/BrandMark.vue";
 import { useTeamAuthStore } from "@/stores/teamAuth";
 
 const router = useRouter();
@@ -60,7 +59,7 @@ async function submit() {
     <header class="sticky top-0 z-40 bg-paper/90 backdrop-blur border-b border-line">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/" aria-label="P5 DownWind Day">
-          <BrandMark :size="30" />
+          <img src="/logo-downwind.webp" alt="P5 DownWind Day" class="h-7 w-auto" />
         </a>
         <span class="font-mono text-xs font-bold tracking-widest text-magenta uppercase">
           ÁREA DA EQUIPE
