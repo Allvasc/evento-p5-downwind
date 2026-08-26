@@ -70,7 +70,7 @@ const included = [
 const itinerary = [
   { time: "7:30", title: "Concentração", detail: "Chegada na P5 Kite House, checagem de equipamento e briefing." },
   { time: "→", title: "Transporte", detail: "Deslocamento estruturado até o ponto de partida do percurso." },
-  { time: "↝", title: "Percurso", detail: "Downwind até a Praia do Presídio, com apoio aquático e terrestre o tempo todo." },
+  { time: "↝", title: "Percurso", detail: "Downwind da Praia do Presídio até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
   { time: "13h", title: "Chegada", detail: "Receptivo, ajuda na desmontagem e encerramento do dia." },
 ];
 </script>
@@ -99,7 +99,7 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              O <strong class="font-semibold text-ink">P5 DownWind Day</strong> é o percurso guiado da P5 Kite House até a Praia do Presídio — transporte, apoio completo e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
+              O <strong class="font-semibold text-ink">P5 DownWind Day</strong> é o percurso guiado da Praia do Presídio até a P5 Kite House — transporte, apoio completo e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
@@ -132,14 +132,14 @@ const itinerary = [
 
               <div class="mt-6 flex items-center justify-between gap-2 px-1">
                 <div>
-                  <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Partida</p>
+                  <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Concentração</p>
                   <p class="font-serif text-lg font-bold text-ink">P5 Kite House</p>
                   <p class="text-xs text-ink-soft">7:30</p>
                 </div>
                 <Wind :size="22" class="shrink-0 text-magenta" />
                 <div class="text-right">
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Percurso</p>
-                  <p class="font-serif text-lg font-bold text-ink">Praia do Presídio</p>
+                  <p class="font-serif text-lg font-bold text-ink">Presídio &rarr; P5</p>
                   <p class="text-xs text-ink-soft">até 13h</p>
                 </div>
               </div>
@@ -184,7 +184,7 @@ const itinerary = [
               <span class="text-magenta">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Do embarque na P5 Kite House até o encerramento na Praia do Presídio, toda a estrutura já está no seu ingresso.
+              Da concentração na P5 Kite House até a chegada de volta, passando pelo percurso a partir da Praia do Presídio, toda a estrutura já está no seu ingresso.
             </p>
           </div>
 
