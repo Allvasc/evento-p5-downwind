@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, Menu } from "lucide-vue-next";
+import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu } from "lucide-vue-next";
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
 import { formatBRL } from "@p5wellness/shared";
-import { api, ApiError } from "@/lib/teamApi";
+import { api, ApiError, TEAM_TOKEN_KEY } from "@/lib/teamApi";
 import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
 
 Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip);
@@ -536,11 +536,20 @@ interface Attendee { name: string; email: string; orderNumber: string }
 interface SessionRoster { sessionId: string; activityTitle: string; startsAt: string; capacity: number; attendees: Attendee[] }
 interface ProductRoster { productId: string; title: string; buyers: Attendee[] }
 interface ActivityRoster { label: string; attendees: Attendee[] }
+interface EventAttendee {
+  fullName: string; phone: string; email: string; cpf: string;
+  purchasedAt: string; orderNumber: string; benefit: string;
+  sessionAt: string; eventDate: string; vendorName: string;
+  checkedIn: boolean; checkedInAt: string;
+}
 
-const reportView = ref<"turma" | "produto" | "atividade">("turma");
+const reportView = ref<"turma" | "produto" | "atividade" | "presenca">("turma");
 const sessionRosters = ref<SessionRoster[]>([]);
 const productRosters = ref<ProductRoster[]>([]);
 const activityRosters = ref<ActivityRoster[]>([]);
+const attendees = ref<EventAttendee[]>([]);
+const attendeesError = ref("");
+const downloadingCsv = ref(false);
 const loadingReports = ref(false);
 // "por turma" filtra pela data da própria aula; "por produto"/"por atividade" filtram
 // pela data da compra — ver comentários no repositório (admin_reports.go) do porquê.
@@ -552,17 +561,145 @@ async function loadReports() {
   loadingReports.value = true;
   try {
     const qs = dateRangeQuery(reportDateFrom.value, reportDateTo.value);
-    const [sessionsRes, productsRes, activitiesRes] = await Promise.all([
+    const [sessionsRes, productsRes, activitiesRes, attendeesRes] = await Promise.all([
       api.get<{ sessions: SessionRoster[] }>(`/admin/reports/sessions${qs}`),
       api.get<{ products: ProductRoster[] }>(`/admin/reports/products${qs}`),
       api.get<{ activities: ActivityRoster[] }>(`/admin/reports/activities${qs}`),
+      api.get<{ attendees: EventAttendee[] }>(`/admin/reports/attendees${qs}`),
     ]);
     sessionRosters.value = sessionsRes.sessions;
     productRosters.value = productsRes.products;
     activityRosters.value = activitiesRes.activities;
+    attendees.value = attendeesRes.attendees;
   } finally {
     loadingReports.value = false;
   }
+}
+
+// Baixa a lista de presença como CSV. Precisa de um fetch próprio (não o api client, que
+// só fala JSON) pra ler o corpo como blob e disparar o download com o header de auth.
+async function downloadAttendanceCSV() {
+  attendeesError.value = "";
+  downloadingCsv.value = true;
+  try {
+    const qs = dateRangeQuery(reportDateFrom.value, reportDateTo.value);
+    const res = await fetch(`/api/v1/admin/reports/attendees.csv${qs}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem(TEAM_TOKEN_KEY) ?? ""}` },
+      credentials: "include",
+    });
+    if (!res.ok) {
+      attendeesError.value = "Não foi possível gerar o arquivo.";
+      return;
+    }
+    const blob = await res.blob();
+    const filename = res.headers.get("Content-Disposition")?.match(/filename="?([^"]+)"?/)?.[1] ?? "lista-presenca.csv";
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    attendeesError.value = "Não foi possível gerar o arquivo.";
+  } finally {
+    downloadingCsv.value = false;
+  }
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+}
+
+// Monta a lista de presença como um documento HTML pronto pra impressão — a partir dos
+// dados já carregados, sem nova chamada. O usuário escolhe "Salvar como PDF" (ou imprime
+// direto). Paisagem, cabeçalho de tabela repetido por página e um quadradinho de verdade
+// pra ticar à caneta.
+function attendanceListHtml() {
+  const now = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const periodo =
+    reportDateFrom.value || reportDateTo.value
+      ? `Período: ${reportDateFrom.value ? formatDateOnly(reportDateFrom.value) : "início"} — ${reportDateTo.value ? formatDateOnly(reportDateTo.value) : "hoje"}`
+      : "Todos os participantes";
+  const rows = attendees.value
+    .map(
+      (a, i) => `<tr>
+        <td class="num">${i + 1}</td>
+        <td class="chk"><span class="box"></span></td>
+        <td>${escapeHtml(a.fullName)}</td>
+        <td>${escapeHtml(a.phone || "—")}</td>
+        <td class="mono">${escapeHtml(a.cpf || "—")}</td>
+        <td>${escapeHtml(a.email)}</td>
+        <td class="mono">${escapeHtml(a.purchasedAt)}</td>
+        <td>${escapeHtml(a.benefit)}${a.sessionAt ? " · " + escapeHtml(a.sessionAt) : ""}</td>
+      </tr>`
+    )
+    .join("");
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Lista de presença — P5 DownWind Day</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1a1a1a; margin: 0; font-size: 11px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-bottom: 12px; }
+  h1 { font-size: 16px; margin: 0 0 2px; }
+  .sub { font-size: 10px; color: #555; }
+  .meta { font-size: 10px; color: #555; text-align: right; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  th, td { border: 1px solid #bbb; padding: 5px 6px; text-align: left; vertical-align: top; }
+  th { background: #eee; font-size: 9px; text-transform: uppercase; letter-spacing: .03em; }
+  tbody tr:nth-child(even) { background: #f6f6f6; }
+  tr { page-break-inside: avoid; }
+  .num { width: 26px; text-align: right; color: #777; }
+  .chk { width: 40px; text-align: center; }
+  .box { display: inline-block; width: 13px; height: 13px; border: 1.5px solid #1a1a1a; border-radius: 2px; }
+  .mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  footer { margin-top: 10px; font-size: 9px; color: #777; }
+</style></head><body>
+<header>
+  <div><h1>P5 DownWind Day — Lista de presença</h1><div class="sub">${periodo}</div></div>
+  <div class="meta">${attendees.value.length} participante(s)<br>Gerado em ${now}</div>
+</header>
+<table>
+  <thead><tr>
+    <th class="num">#</th><th class="chk">Pres.</th><th>Nome</th><th>Telefone</th>
+    <th>CPF</th><th>E-mail</th><th>Data da compra</th><th>Ingresso / turma</th>
+  </tr></thead>
+  <tbody>${rows || `<tr><td colspan="8" style="text-align:center;padding:20px">Nenhum participante para o período.</td></tr>`}</tbody>
+</table>
+<footer>Confira a identidade no check-in e marque o quadradinho à caneta para confirmar a presença.</footer>
+</body></html>`;
+}
+
+function printAttendanceList() {
+  attendeesError.value = "";
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(iframe);
+  const win = iframe.contentWindow;
+  if (!win) {
+    attendeesError.value = "Não foi possível gerar o PDF.";
+    iframe.remove();
+    return;
+  }
+  win.document.open();
+  win.document.write(attendanceListHtml());
+  win.document.close();
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    setTimeout(() => iframe.remove(), 300);
+  };
+  win.onafterprint = cleanup;
+  // Um respiro pro layout renderizar antes de abrir o diálogo de impressão.
+  setTimeout(() => {
+    win.focus();
+    win.print();
+    cleanup();
+  }, 250);
 }
 
 function clearReportDateFilter() {
@@ -1238,7 +1375,7 @@ onMounted(async () => {
         <!-- RELATÓRIOS -->
         <section v-else-if="tab === 'relatorios'">
           <h1 class="font-serif text-2xl font-bold text-ink">Relatórios</h1>
-          <p class="mt-1 text-sm text-ink-soft">Lista de nomes de quem comprou — por turma (data/hora), por produto ou por atividade.</p>
+          <p class="mt-1 text-sm text-ink-soft">Lista de quem comprou — por turma (data/hora), por produto, por atividade, ou a lista de presença do dia do evento (com telefone, CPF e um quadradinho pra ticar).</p>
 
           <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
             <div class="flex gap-2 rounded-full border border-line bg-white p-1 w-fit">
@@ -1260,6 +1397,12 @@ onMounted(async () => {
               >
                 Por atividade
               </button>
+              <button
+                :class="['rounded-full px-4 py-1.5 text-sm font-semibold transition-colors', reportView === 'presenca' ? 'bg-magenta text-white' : 'text-ink-soft hover:text-ink']"
+                @click="reportView = 'presenca'"
+              >
+                Lista de presença
+              </button>
             </div>
 
             <div class="flex flex-wrap items-end gap-2">
@@ -1276,7 +1419,7 @@ onMounted(async () => {
             </div>
           </div>
           <p class="mt-2 text-xs text-ink-soft">
-            O filtro de data considera a data da turma em "Por turma" e a data da compra em "Por produto"/"Por atividade".
+            O filtro de data considera a data da turma em "Por turma", a data da compra em "Por produto"/"Por atividade" e o dia do evento em "Lista de presença".
           </p>
 
           <p v-if="loadingReports" class="mt-6 text-sm text-ink-soft">Carregando...</p>
@@ -1321,7 +1464,7 @@ onMounted(async () => {
           </div>
 
           <!-- Por atividade -->
-          <div v-else class="mt-6 grid gap-4 md:grid-cols-2">
+          <div v-else-if="reportView === 'atividade'" class="mt-6 grid gap-4 md:grid-cols-2">
             <div v-for="a in activityRosters" :key="a.label" class="rounded-[var(--radius-card)] border border-line bg-white p-5">
               <div class="flex items-start justify-between gap-3">
                 <h3 class="font-serif text-lg font-semibold text-ink">{{ a.label }}</h3>
@@ -1336,6 +1479,61 @@ onMounted(async () => {
               </ul>
             </div>
             <p v-if="!activityRosters.length" class="text-sm text-ink-soft">Nenhuma atividade cadastrada.</p>
+          </div>
+
+          <!-- Lista de presença -->
+          <div v-else class="mt-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <p class="text-sm text-ink-soft">
+                {{ attendees.length }} participante(s) esperado(s). Contém dados pessoais (telefone, CPF) — use só para o check-in do evento.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button class="button-outline px-4 py-1.5 text-sm" @click="printAttendanceList">
+                  <Printer :size="16" /> PDF / Imprimir
+                </button>
+                <button class="button-magenta px-4 py-1.5 text-sm" :disabled="downloadingCsv" @click="downloadAttendanceCSV">
+                  <FileDown :size="16" /> {{ downloadingCsv ? "Gerando..." : "Baixar CSV" }}
+                </button>
+              </div>
+            </div>
+            <p v-if="attendeesError" class="mt-2 text-sm text-red-600">{{ attendeesError }}</p>
+
+            <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-line bg-white">
+              <table class="w-full text-sm">
+                <thead class="bg-warm/60">
+                  <tr class="text-left text-ink-soft">
+                    <th class="px-4 py-3">Presença</th>
+                    <th class="px-4 py-3">Nome</th>
+                    <th class="px-4 py-3">Telefone</th>
+                    <th class="px-4 py-3">E-mail</th>
+                    <th class="px-4 py-3">CPF</th>
+                    <th class="px-4 py-3">Data da compra</th>
+                    <th class="px-4 py-3">Ingresso</th>
+                    <th class="px-4 py-3">Check-in</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(a, i) in attendees" :key="`${a.orderNumber}-${i}`" class="border-t border-line">
+                    <td class="px-4 py-3"><span class="inline-block h-4 w-4 rounded-sm border border-ink-soft/70"></span></td>
+                    <td class="px-4 py-3 text-ink">{{ a.fullName }}</td>
+                    <td class="px-4 py-3 text-ink-soft">{{ a.phone || "—" }}</td>
+                    <td class="px-4 py-3 text-ink-soft">{{ a.email }}</td>
+                    <td class="px-4 py-3 font-mono text-ink-soft">{{ a.cpf || "—" }}</td>
+                    <td class="px-4 py-3 text-ink-soft">{{ a.purchasedAt }}</td>
+                    <td class="px-4 py-3 text-ink-soft">
+                      {{ a.benefit }}<template v-if="a.sessionAt"> · {{ a.sessionAt }}</template>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span v-if="a.checkedIn" class="rounded-full bg-[#e5f5e8] px-2 py-0.5 text-xs font-semibold text-[#237438]">Feito</span>
+                      <span v-else class="text-xs text-ink-soft">—</span>
+                    </td>
+                  </tr>
+                  <tr v-if="!attendees.length">
+                    <td colspan="8" class="px-4 py-8 text-center text-ink-soft">Nenhum participante para o período.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </main>

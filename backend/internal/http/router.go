@@ -95,7 +95,7 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 	adminOrderRepo := postgres.NewAdminOrderRepository(pool)
 	adminOrders := handlers.NewAdminOrdersHandler(adminOrderRepo, orderRepo, asaasClient, emailSender, log)
 	adminReportsRepo := postgres.NewAdminReportsRepository(pool)
-	adminReports := handlers.NewAdminReportsHandler(adminReportsRepo, log)
+	adminReports := handlers.NewAdminReportsHandler(adminReportsRepo, cfg.PasswordPepper, log)
 
 	authRateLimit := httprate.LimitByIP(10, time.Minute)
 
@@ -204,6 +204,8 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 				rep.Get("/reports/sessions", adminReports.Sessions)
 				rep.Get("/reports/products", adminReports.Products)
 				rep.Get("/reports/activities", adminReports.Activities)
+				rep.Get("/reports/attendees", adminReports.Attendees)
+				rep.Get("/reports/attendees.csv", adminReports.AttendeesCSV)
 			})
 		})
 

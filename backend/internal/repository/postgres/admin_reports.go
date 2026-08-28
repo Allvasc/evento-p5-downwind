@@ -146,6 +146,91 @@ type ActivityRoster struct {
 	Attendees []Attendee `json:"attendees"`
 }
 
+// EventAttendee is one paid benefit due on the event day, joined to the buyer's full
+// contact record — phone, e-mail and CPF in the clear. It's the data a staff member
+// needs on a printed clipboard to check people in by hand, so unlike the name+e-mail
+// rosters above this is the complete personal record and is only ever exported (CSV) or
+// shown on the single "Lista de presença" screen, behind the same admin/reports auth.
+type EventAttendee struct {
+	FullName    string `json:"fullName"`
+	Phone       string `json:"phone"`
+	Email       string `json:"email"`
+	CPF         string `json:"cpf"`         // 000.000.000-00, or "" when the buyer never provided one
+	PurchasedAt string `json:"purchasedAt"` // dd/mm/aaaa hh:mm, Fortaleza — pagamento (cai pra criação se não houver)
+	OrderNumber string `json:"orderNumber"`
+	Benefit     string `json:"benefit"`   // "P5 DownWind Day", "Café da Manhã", "Yoga + HYROX"...
+	SessionAt   string `json:"sessionAt"` // dd/mm/aaaa hh:mm da turma, ou "" (Café da Manhã não tem turma)
+	EventDate   string `json:"eventDate"` // dd/mm/aaaa — dia do evento (entitlements.valid_until)
+	VendorName  string `json:"vendorName"`
+	CheckedIn   bool   `json:"checkedIn"`   // já validado no sistema (QR ou lista)
+	CheckedInAt string `json:"checkedInAt"` // dd/mm/aaaa hh:mm, ou ""
+}
+
+// EventAttendees lists every paid, non-cancelled benefit whose event day (valid_until)
+// falls in [from, to] — one row per entitlement, so a guest with a class + Café da Manhã
+// shows up twice, once per QR. from/to are plain dates (either may be nil to leave that
+// side open); with both nil it returns every paid benefit ever, which for a one-day event
+// is exactly the full list. encryptionKey is the same pepper used to encrypt the CPF at
+// registration (see student.go) — a wrong key would make pgp_sym_decrypt raise.
+func (r *AdminReportsRepository) EventAttendees(ctx context.Context, from, to *time.Time, encryptionKey string) ([]EventAttendee, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT s.full_name,
+		       COALESCE(s.phone, ''),
+		       s.email,
+		       CASE WHEN s.cpf_encrypted IS NOT NULL
+		            THEN pgp_sym_decrypt(s.cpf_encrypted, $3)
+		            ELSE '' END,
+		       to_char(COALESCE(o.paid_at, o.created_at) AT TIME ZONE 'America/Fortaleza', 'DD/MM/YYYY HH24:MI'),
+		       o.order_number,
+		       string_agg(DISTINCT COALESCE(a.title, 'Café da Manhã'), ' + ' ORDER BY COALESCE(a.title, 'Café da Manhã')),
+		       COALESCE(to_char(MIN(cs.starts_at) AT TIME ZONE 'America/Fortaleza', 'DD/MM/YYYY HH24:MI'), ''),
+		       to_char(e.valid_until, 'DD/MM/YYYY'),
+		       v.name,
+		       e.status = 'used',
+		       COALESCE(to_char(e.used_at AT TIME ZONE 'America/Fortaleza', 'DD/MM/YYYY HH24:MI'), '')
+		FROM entitlements e
+		JOIN orders o ON o.id = e.order_id AND o.status = 'paid'
+		JOIN students s ON s.id = e.student_id
+		JOIN vendors v ON v.id = e.vendor_id
+		JOIN entitlement_items ei ON ei.entitlement_id = e.id
+		JOIN order_items oi ON oi.id = ei.order_item_id
+		LEFT JOIN activities a ON a.id = oi.activity_id
+		LEFT JOIN class_sessions cs ON cs.id = oi.class_session_id
+		WHERE e.status <> 'cancelled'
+		  AND ($1::date IS NULL OR e.valid_until >= $1::date)
+		  AND ($2::date IS NULL OR e.valid_until <= $2::date)
+		GROUP BY e.id, s.full_name, s.phone, s.email, s.cpf_encrypted,
+		         o.paid_at, o.created_at, o.order_number, e.valid_until, v.name, e.status, e.used_at
+		ORDER BY e.valid_until, MIN(cs.starts_at) NULLS FIRST, s.full_name
+	`, from, to, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := make([]EventAttendee, 0)
+	for rows.Next() {
+		var a EventAttendee
+		var cpfDigits string
+		if err := rows.Scan(&a.FullName, &a.Phone, &a.Email, &cpfDigits, &a.PurchasedAt, &a.OrderNumber,
+			&a.Benefit, &a.SessionAt, &a.EventDate, &a.VendorName, &a.CheckedIn, &a.CheckedInAt); err != nil {
+			return nil, err
+		}
+		a.CPF = formatCPF(cpfDigits)
+		list = append(list, a)
+	}
+	return list, rows.Err()
+}
+
+// formatCPF turns the 11 stored digits into 000.000.000-00; anything else (empty, or an
+// unexpected length) is returned untouched.
+func formatCPF(digits string) string {
+	if len(digits) != 11 {
+		return digits
+	}
+	return digits[0:3] + "." + digits[3:6] + "." + digits[6:9] + "-" + digits[9:11]
+}
+
 // ByActivity collapses attendance to the underlying benefit itself — every Yoga booking
 // in one place, every HYROX booking in another, every Café da Manhã in a third —
 // independent of which product or specific turma/date it was bought through. A single
