@@ -113,6 +113,11 @@ func (r *TeamRepository) SetActive(ctx context.Context, id string, active bool) 
 	return err
 }
 
+func (r *TeamRepository) UpdateRole(ctx context.Context, id, role string, vendorID *string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE team_members SET role = $1, vendor_id = $2, updated_at = now() WHERE id = $3`, role, vendorID, id)
+	return err
+}
+
 func (r *TeamRepository) UpdateLastLogin(ctx context.Context, id string) error {
 	_, err := r.pool.Exec(ctx, `UPDATE team_members SET last_login_at = now() WHERE id = $1`, id)
 	return err

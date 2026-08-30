@@ -67,15 +67,16 @@ type AdminOrderItem struct {
 }
 
 type AdminOrderEntitlement struct {
-	ID         string  `json:"id"`
-	Label      string  `json:"label"`
-	VendorName string  `json:"vendorName"`
-	Status     string  `json:"status"`
-	ValidFrom  string  `json:"validFrom"`
-	ValidUntil string  `json:"validUntil"`
-	IssuedAt   string  `json:"issuedAt"`
-	UsedAt     *string `json:"usedAt"`
-	UsedByName string  `json:"usedByName,omitempty"`
+	ID                     string  `json:"id"`
+	Label                  string  `json:"label"`
+	VendorName             string  `json:"vendorName"`
+	Status                 string  `json:"status"`
+	ValidFrom              string  `json:"validFrom"`
+	ValidUntil             string  `json:"validUntil"`
+	IssuedAt               string  `json:"issuedAt"`
+	UsedAt                 *string `json:"usedAt"`
+	UsedByName             string  `json:"usedByName,omitempty"`
+	NoShowRescheduleUsedAt *string `json:"noShowRescheduleUsedAt,omitempty"`
 }
 
 type AdminOrderReschedule struct {
@@ -138,7 +139,8 @@ func (r *AdminOrderRepository) Detail(ctx context.Context, orderID string) (*Adm
 		SELECT e.id, v.name, e.status, e.valid_from::text, e.valid_until::text,
 		       to_char(e.issued_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'),
 		       to_char(e.used_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'),
-		       COALESCE(tm.name, '')
+		       COALESCE(tm.name, ''),
+		       to_char(e.no_show_reschedule_used_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
 		FROM entitlements e
 		JOIN vendors v ON v.id = e.vendor_id
 		LEFT JOIN team_members tm ON tm.id = e.used_by
@@ -153,7 +155,7 @@ func (r *AdminOrderRepository) Detail(ctx context.Context, orderID string) (*Adm
 	index := map[string]int{}
 	for entRows.Next() {
 		var e AdminOrderEntitlement
-		if err := entRows.Scan(&e.ID, &e.VendorName, &e.Status, &e.ValidFrom, &e.ValidUntil, &e.IssuedAt, &e.UsedAt, &e.UsedByName); err != nil {
+		if err := entRows.Scan(&e.ID, &e.VendorName, &e.Status, &e.ValidFrom, &e.ValidUntil, &e.IssuedAt, &e.UsedAt, &e.UsedByName, &e.NoShowRescheduleUsedAt); err != nil {
 			entRows.Close()
 			return nil, err
 		}
@@ -197,9 +199,10 @@ func (r *AdminOrderRepository) Detail(ctx context.Context, orderID string) (*Adm
 
 	reschedRows, err := r.pool.Query(ctx, `
 		SELECT orr.reason, orr.previous_date::text, orr.new_date::text,
-		       tm.name, to_char(orr.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
+		       COALESCE(tm.name, s.full_name || ' (cliente)'), to_char(orr.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
 		FROM order_reschedules orr
-		JOIN team_members tm ON tm.id = orr.changed_by
+		LEFT JOIN team_members tm ON tm.id = orr.changed_by
+		LEFT JOIN students s ON s.id = orr.changed_by_student_id
 		WHERE orr.order_id = $1
 		ORDER BY orr.created_at DESC
 	`, orderID)

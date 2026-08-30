@@ -19,6 +19,10 @@ type Attendee struct {
 	Name        string `json:"name"`
 	Email       string `json:"email"`
 	OrderNumber string `json:"orderNumber"`
+	// IsVoucher marks a courtesy redeemed with a partner-company voucher (see
+	// voucher_student.go) rather than an actual purchase — reports keep these in their
+	// own list so headcount/revenue reads aren't mixed with real buyers.
+	IsVoucher bool `json:"isVoucher"`
 }
 
 type SessionRoster struct {
@@ -36,7 +40,7 @@ type SessionRoster struct {
 func (r *AdminReportsRepository) SessionsWithAttendees(ctx context.Context, from, to *time.Time) ([]SessionRoster, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT cs.id, a.title, to_char(cs.starts_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), cs.capacity,
-		       COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, '')
+		       COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), COALESCE(o.payment_method, '')
 		FROM class_sessions cs
 		JOIN activities a ON a.id = cs.activity_id
 		LEFT JOIN order_items oi ON oi.class_session_id = cs.id
@@ -55,9 +59,9 @@ func (r *AdminReportsRepository) SessionsWithAttendees(ctx context.Context, from
 	list := make([]SessionRoster, 0)
 	index := map[string]int{}
 	for rows.Next() {
-		var sessionID, activityTitle, startsAt, name, email, orderNumber string
+		var sessionID, activityTitle, startsAt, name, email, orderNumber, paymentMethod string
 		var capacity int
-		if err := rows.Scan(&sessionID, &activityTitle, &startsAt, &capacity, &name, &email, &orderNumber); err != nil {
+		if err := rows.Scan(&sessionID, &activityTitle, &startsAt, &capacity, &name, &email, &orderNumber, &paymentMethod); err != nil {
 			return nil, err
 		}
 		i, ok := index[sessionID]
@@ -70,7 +74,7 @@ func (r *AdminReportsRepository) SessionsWithAttendees(ctx context.Context, from
 			})
 		}
 		if orderNumber != "" {
-			list[i].Attendees = append(list[i].Attendees, Attendee{Name: name, Email: email, OrderNumber: orderNumber})
+			list[i].Attendees = append(list[i].Attendees, Attendee{Name: name, Email: email, OrderNumber: orderNumber, IsVoucher: paymentMethod == "voucher"})
 		}
 	}
 	return list, rows.Err()
@@ -90,7 +94,7 @@ type ProductRoster struct {
 // prunes which purchases count as a "buyer" rather than hiding products outright.
 func (r *AdminReportsRepository) ProductsWithBuyers(ctx context.Context, from, to *time.Time) ([]ProductRoster, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT DISTINCT p.display_order, p.id, p.title, COALESCE(o.id::text, ''), COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), o.created_at
+		SELECT DISTINCT p.display_order, p.id, p.title, COALESCE(o.id::text, ''), COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), o.created_at, COALESCE(o.payment_method, '')
 		FROM products p
 		LEFT JOIN order_items oi ON oi.product_id = p.id
 		LEFT JOIN orders o ON o.id = oi.order_id AND o.status = 'paid'
@@ -106,14 +110,14 @@ func (r *AdminReportsRepository) ProductsWithBuyers(ctx context.Context, from, t
 	defer rows.Close()
 
 	type row struct {
-		productID, title, orderID, name, email, orderNumber string
+		productID, title, orderID, name, email, orderNumber, paymentMethod string
 	}
 	var scanned []row
 	for rows.Next() {
 		var r row
 		var displayOrder int
 		var createdAt any
-		if err := rows.Scan(&displayOrder, &r.productID, &r.title, &r.orderID, &r.name, &r.email, &r.orderNumber, &createdAt); err != nil {
+		if err := rows.Scan(&displayOrder, &r.productID, &r.title, &r.orderID, &r.name, &r.email, &r.orderNumber, &createdAt, &r.paymentMethod); err != nil {
 			return nil, err
 		}
 		scanned = append(scanned, r)
@@ -135,7 +139,7 @@ func (r *AdminReportsRepository) ProductsWithBuyers(ctx context.Context, from, t
 			list = append(list, ProductRoster{ProductID: r.productID, Title: r.title, Buyers: []Attendee{}})
 		}
 		if r.orderNumber != "" {
-			list[i].Buyers = append(list[i].Buyers, Attendee{Name: r.name, Email: r.email, OrderNumber: r.orderNumber})
+			list[i].Buyers = append(list[i].Buyers, Attendee{Name: r.name, Email: r.email, OrderNumber: r.orderNumber, IsVoucher: r.paymentMethod == "voucher"})
 		}
 	}
 	return list, nil
@@ -240,7 +244,7 @@ func formatCPF(digits string) string {
 func (r *AdminReportsRepository) ByActivity(ctx context.Context, from, to *time.Time) ([]ActivityRoster, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT COALESCE(a.title, 'Café da Manhã') AS label,
-		       COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, '')
+		       COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), COALESCE(o.payment_method, '')
 		FROM order_items oi
 		JOIN orders o ON o.id = oi.order_id AND o.status = 'paid'
 		JOIN students s ON s.id = o.student_id
@@ -257,8 +261,8 @@ func (r *AdminReportsRepository) ByActivity(ctx context.Context, from, to *time.
 	list := make([]ActivityRoster, 0)
 	index := map[string]int{}
 	for rows.Next() {
-		var label, name, email, orderNumber string
-		if err := rows.Scan(&label, &name, &email, &orderNumber); err != nil {
+		var label, name, email, orderNumber, paymentMethod string
+		if err := rows.Scan(&label, &name, &email, &orderNumber, &paymentMethod); err != nil {
 			return nil, err
 		}
 		i, ok := index[label]
@@ -267,7 +271,7 @@ func (r *AdminReportsRepository) ByActivity(ctx context.Context, from, to *time.
 			index[label] = i
 			list = append(list, ActivityRoster{Label: label, Attendees: []Attendee{}})
 		}
-		list[i].Attendees = append(list[i].Attendees, Attendee{Name: name, Email: email, OrderNumber: orderNumber})
+		list[i].Attendees = append(list[i].Attendees, Attendee{Name: name, Email: email, OrderNumber: orderNumber, IsVoucher: paymentMethod == "voucher"})
 	}
 	return list, rows.Err()
 }

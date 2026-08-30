@@ -181,6 +181,10 @@ type RosterEntry struct {
 	OrderNumber   string     `json:"orderNumber"`
 	Status        string     `json:"status"`
 	UsedAt        *time.Time `json:"usedAt,omitempty"`
+	PaymentMethod string     `json:"paymentMethod"`
+	IsVoucher     bool       `json:"isVoucher"`
+	CompanyName   string     `json:"companyName,omitempty"`
+	VoucherCode   string     `json:"voucherCode,omitempty"`
 }
 
 type RosterGroup struct {
@@ -209,7 +213,10 @@ func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, dat
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.status, e.used_at, v.name,
 		       s.full_name, o.order_number,
-		       cs.id, cs.starts_at, COALESCE(a.title, 'Café da Manhã')
+		       cs.id, cs.starts_at, COALESCE(a.title, 'Café da Manhã'),
+		       COALESCE(o.payment_method, ''),
+		       COALESCE(vouch.company_name, ''),
+		       COALESCE(vouch.code, '')
 		FROM entitlements e
 		JOIN orders o ON o.id = e.order_id AND o.status = 'paid'
 		JOIN vendors v ON v.id = e.vendor_id
@@ -218,6 +225,7 @@ func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, dat
 		JOIN order_items oi ON oi.id = ei.order_item_id
 		LEFT JOIN class_sessions cs ON cs.id = oi.class_session_id
 		LEFT JOIN activities a ON a.id = oi.activity_id
+		LEFT JOIN vouchers vouch ON vouch.order_id = o.id
 		WHERE e.valid_until = $1::date
 		  AND ($2::uuid IS NULL OR e.vendor_id = $2::uuid)
 		ORDER BY cs.starts_at NULLS LAST, s.full_name
@@ -230,11 +238,11 @@ func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, dat
 	var order []string
 	groups := map[string]*RosterGroup{}
 	for rows.Next() {
-		var entitlementID, status, vendorName, studentName, orderNumber, itemTitle string
+		var entitlementID, status, vendorName, studentName, orderNumber, itemTitle, paymentMethod, companyName, voucherCode string
 		var usedAt *time.Time
 		var sessionID *string
 		var startsAt *time.Time
-		if err := rows.Scan(&entitlementID, &status, &usedAt, &vendorName, &studentName, &orderNumber, &sessionID, &startsAt, &itemTitle); err != nil {
+		if err := rows.Scan(&entitlementID, &status, &usedAt, &vendorName, &studentName, &orderNumber, &sessionID, &startsAt, &itemTitle, &paymentMethod, &companyName, &voucherCode); err != nil {
 			return nil, err
 		}
 
@@ -254,8 +262,15 @@ func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, dat
 			order = append(order, key)
 		}
 		g.Entries = append(g.Entries, RosterEntry{
-			EntitlementID: entitlementID, StudentName: studentName, OrderNumber: orderNumber,
-			Status: status, UsedAt: usedAt,
+			EntitlementID: entitlementID,
+			StudentName:   studentName,
+			OrderNumber:   orderNumber,
+			Status:        status,
+			UsedAt:        usedAt,
+			PaymentMethod: paymentMethod,
+			IsVoucher:     paymentMethod == "voucher",
+			CompanyName:   companyName,
+			VoucherCode:   voucherCode,
 		})
 	}
 	if err := rows.Err(); err != nil {

@@ -52,20 +52,22 @@ func (r *StudentAreaRepository) ListOrders(ctx context.Context, studentID string
 }
 
 type TicketSummary struct {
-	ID          string
-	Status      string
-	Label       string
-	VendorName  string
-	OrderNumber string
-	ValidFrom   string
-	ValidUntil  string
-	UsedAt      string
+	ID                     string
+	Status                 string
+	Label                  string
+	VendorName             string
+	OrderNumber            string
+	ValidFrom              string
+	ValidUntil             string
+	UsedAt                 string
+	NoShowRescheduleUsedAt string
 }
 
 func (r *StudentAreaRepository) ListTickets(ctx context.Context, studentID string) ([]TicketSummary, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.id, e.status, v.name, o.order_number, e.valid_from::text, e.valid_until::text,
-		       COALESCE(to_char(e.used_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), '')
+		       COALESCE(to_char(e.used_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), ''),
+		       COALESCE(to_char(e.no_show_reschedule_used_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), '')
 		FROM entitlements e
 		JOIN orders o ON o.id = e.order_id
 		JOIN vendors v ON v.id = e.vendor_id
@@ -82,7 +84,7 @@ func (r *StudentAreaRepository) ListTickets(ctx context.Context, studentID strin
 	index := map[string]int{}
 	for rows.Next() {
 		var t TicketSummary
-		if err := rows.Scan(&t.ID, &t.Status, &t.VendorName, &t.OrderNumber, &t.ValidFrom, &t.ValidUntil, &t.UsedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Status, &t.VendorName, &t.OrderNumber, &t.ValidFrom, &t.ValidUntil, &t.UsedAt, &t.NoShowRescheduleUsedAt); err != nil {
 			return nil, err
 		}
 		index[t.ID] = len(tickets)

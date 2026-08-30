@@ -97,6 +97,10 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 	adminReportsRepo := postgres.NewAdminReportsRepository(pool)
 	adminReports := handlers.NewAdminReportsHandler(adminReportsRepo, cfg.PasswordPepper, log)
 
+	voucherRepo := postgres.NewVoucherRepository(pool)
+	voucherStudent := handlers.NewVoucherStudentHandler(catalogRepo, orderRepo, voucherRepo, emailSender, cfg.QRHMACSecret, log)
+	adminVouchers := handlers.NewAdminVouchersHandler(voucherRepo, log)
+
 	authRateLimit := httprate.LimitByIP(10, time.Minute)
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -134,6 +138,10 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 			me.With(authRateLimit).Post("/orders/{id}/resend-email", studentArea.ResendEmail)
 			me.Get("/tickets", studentArea.ListTickets)
 			me.Get("/tickets/{id}/qrcode.png", studentArea.TicketQRCode)
+			me.Get("/vouchers/{code}", voucherStudent.Check)
+			me.Post("/vouchers/redeem", voucherStudent.Redeem)
+			me.Get("/entitlements/{id}/reschedule-no-show-options", studentArea.NoShowRescheduleOptions)
+			me.Post("/entitlements/{id}/reschedule-no-show", studentArea.RescheduleNoShow)
 		})
 
 		api.Route("/checkout", func(co chi.Router) {
@@ -155,7 +163,8 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 
 		api.Route("/admin", func(ad chi.Router) {
 			// Config do admin (catálogo, equipe, clientes, e as ações de pedido que mexem
-			// em dinheiro/e-mail) — role "admin" apenas. A role "reports" fica de fora.
+			// em dinheiro/e-mail) — role "admin" apenas. As roles "reports" e "marketing"
+			// ficam de fora.
 			ad.Group(func(cfg chi.Router) {
 				cfg.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin"))
 
@@ -174,6 +183,7 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 				cfg.Get("/team", adminTeam.List)
 				cfg.Post("/team", adminTeam.Create)
 				cfg.Patch("/team/{id}/active", adminTeam.SetActive)
+				cfg.Patch("/team/{id}/role", adminTeam.UpdateRole)
 
 				cfg.Get("/sessions", adminSessions.List)
 				cfg.Post("/sessions", adminSessions.Create)
@@ -187,12 +197,16 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 				cfg.Post("/orders/{id}/refund", adminOrders.Refund)
 				cfg.Post("/orders/{id}/resend-email", adminOrders.ResendEmail)
 				cfg.Post("/orders/{id}/reschedule", adminOrders.Reschedule)
+				cfg.Post("/entitlements/{id}/reschedule-no-show", adminOrders.RescheduleNoShow)
+
+				cfg.Post("/vouchers", adminVouchers.Create)
+				cfg.Post("/vouchers/{id}/cancel", adminVouchers.Cancel)
 			})
 
 			// Gráficos, relatórios e a lista/detalhe de pedidos (só leitura) — role
-			// "admin" ou "reports".
+			// "admin", "reports" ou "marketing".
 			ad.Group(func(rep chi.Router) {
-				rep.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin", "reports"))
+				rep.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin", "reports", "marketing"))
 
 				rep.Get("/dashboard/summary", dashboard.Summary)
 				rep.Get("/dashboard/sales-by-product", dashboard.SalesByProduct)
@@ -206,6 +220,14 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 				rep.Get("/reports/activities", adminReports.Activities)
 				rep.Get("/reports/attendees", adminReports.Attendees)
 				rep.Get("/reports/attendees.csv", adminReports.AttendeesCSV)
+			})
+
+			// Consulta de vouchers (só leitura) — role "admin" ou "marketing". Criar e
+			// cancelar continuam restritos a "admin" (grupo acima).
+			ad.Group(func(vou chi.Router) {
+				vou.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin", "marketing"))
+
+				vou.Get("/vouchers", adminVouchers.List)
 			})
 		})
 

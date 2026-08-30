@@ -67,6 +67,83 @@ func (h *StudentAreaHandler) TicketQRCode(w http.ResponseWriter, r *http.Request
 	_, _ = w.Write(png)
 }
 
+// NoShowRescheduleOptions tells the student whether one of their tickets currently
+// qualifies for the free no-show reschedule (still available past its date, right not used
+// yet, within the 60-day window) and, if so, which calendar days have an open makeup
+// session for every activity on that ticket — see postgres.OrderRepository for the rule.
+func (h *StudentAreaHandler) NoShowRescheduleOptions(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromContext(r.Context())
+	entitlementID := chi.URLParam(r, "id")
+
+	opts, err := h.orders.ListNoShowRescheduleOptions(r.Context(), entitlementID, claims.UserID())
+	if err != nil {
+		if err == postgres.ErrNotFound {
+			writeJSONError(w, http.StatusNotFound, "benefício não encontrado")
+			return
+		}
+		h.log.Error("list no-show reschedule options", "error", err, "entitlementId", entitlementID)
+		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar as opções de remarcação")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"eligible":        opts.Eligible,
+		"reason":          opts.Reason,
+		"missedDate":      opts.MissedDate,
+		"windowExpiresAt": opts.WindowExpiresAt,
+		"dates":           opts.Dates,
+	})
+}
+
+type noShowRescheduleRequest struct {
+	NewDate string `json:"newDate"`
+}
+
+// RescheduleNoShow lets the student claim their one free reschedule themselves, picking one
+// of the dates NoShowRescheduleOptions offered — see
+// postgres.OrderRepository.RescheduleNoShowSelfService for the full rule and re-validation.
+func (h *StudentAreaHandler) RescheduleNoShow(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromContext(r.Context())
+	entitlementID := chi.URLParam(r, "id")
+
+	var req noShowRescheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.NewDate == "" {
+		writeJSONError(w, http.StatusBadRequest, "informe a data escolhida")
+		return
+	}
+
+	result, err := h.orders.RescheduleNoShowSelfService(r.Context(), entitlementID, claims.UserID(), req.NewDate)
+	if err != nil {
+		switch {
+		case err == postgres.ErrNotFound:
+			writeJSONError(w, http.StatusNotFound, "benefício não encontrado")
+		case err == postgres.ErrNotNoShow:
+			writeJSONError(w, http.StatusConflict, "este benefício não está com falta registrada")
+		case err == postgres.ErrNoShowRescheduleUsed:
+			writeJSONError(w, http.StatusConflict, "você já usou a remarcação por falta deste benefício")
+		case err == postgres.ErrNoShowWindowExpired:
+			writeJSONError(w, http.StatusConflict, "o prazo de 60 dias para remarcar por falta expirou")
+		case err == postgres.ErrNoNextSession:
+			writeJSONError(w, http.StatusConflict, "não há atividade para remarcar neste benefício")
+		case err == postgres.ErrNoSessionOnDate:
+			writeJSONError(w, http.StatusConflict, "essa data não está mais disponível — escolha outra")
+		case err == postgres.ErrSessionFull:
+			writeJSONError(w, http.StatusConflict, "essa turma já está lotada — escolha outra data")
+		default:
+			h.log.Error("student reschedule no-show", "error", err, "entitlementId", entitlementID)
+			writeJSONError(w, http.StatusInternalServerError, "não foi possível remarcar")
+		}
+		return
+	}
+
+	if detail, err := h.orders.GetPaidOrderDetail(r.Context(), result.OrderID); err != nil {
+		h.log.Error("get order detail for student no-show reschedule email", "error", err, "orderId", result.OrderID)
+	} else if err := sendRescheduleEmail(r.Context(), h.mailer, h.log, *detail, result.NewDate); err != nil {
+		h.log.Error("send student no-show reschedule email", "error", err, "orderId", result.OrderID)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"previousDate": result.PreviousDate, "newDate": result.NewDate})
+}
+
 func (h *StudentAreaHandler) Me(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromContext(r.Context())
 	student, err := h.students.FindByID(r.Context(), claims.UserID())

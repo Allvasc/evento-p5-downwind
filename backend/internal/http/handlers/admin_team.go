@@ -52,8 +52,8 @@ func (h *AdminTeamHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "nome, e-mail e senha (mínimo 8 caracteres) são obrigatórios")
 		return
 	}
-	if req.Role != "admin" && req.Role != "staff" && req.Role != "reports" {
-		writeJSONError(w, http.StatusBadRequest, "role deve ser admin, staff ou reports")
+	if req.Role != "admin" && req.Role != "staff" && req.Role != "reports" && req.Role != "marketing" {
+		writeJSONError(w, http.StatusBadRequest, "role deve ser admin, staff, reports ou marketing")
 		return
 	}
 	// Funcionário (staff) só valida QR do próprio setor — precisa de um setor definido.
@@ -88,6 +88,38 @@ func (h *AdminTeamHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]string{"id": member.ID})
+}
+
+type updateTeamMemberRoleRequest struct {
+	Role     string `json:"role"`
+	VendorID string `json:"vendorId"`
+}
+
+func (h *AdminTeamHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req updateTeamMemberRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "corpo inválido")
+		return
+	}
+	if req.Role != "admin" && req.Role != "staff" && req.Role != "reports" && req.Role != "marketing" {
+		writeJSONError(w, http.StatusBadRequest, "role deve ser admin, staff, reports ou marketing")
+		return
+	}
+	var vendorID *string
+	if req.Role == "staff" {
+		if req.VendorID == "" {
+			writeJSONError(w, http.StatusBadRequest, "selecione o setor deste funcionário")
+			return
+		}
+		vendorID = &req.VendorID
+	}
+	if err := h.team.UpdateRole(r.Context(), id, req.Role, vendorID); err != nil {
+		h.log.Error("update team member role", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "não foi possível atualizar o acesso")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (h *AdminTeamHandler) SetActive(w http.ResponseWriter, r *http.Request) {

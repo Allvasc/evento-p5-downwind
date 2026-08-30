@@ -143,6 +143,48 @@ func (h *AdminOrdersHandler) Reschedule(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]string{"previousDate": result.PreviousDate, "newDate": result.NewDate})
 }
 
+// RescheduleNoShow applies the "cliente faltou, tem direito a 1 remarcação" rule to a
+// single ticket (entitlement): it only succeeds if the ticket is still 'available' past
+// its original date (nobody scanned it) and this right hasn't been used before, and it
+// auto-picks the makeup date (the activity's next scheduled session) instead of taking one
+// from staff — see postgres.OrderRepository.RescheduleNoShow for the full rule.
+func (h *AdminOrdersHandler) RescheduleNoShow(w http.ResponseWriter, r *http.Request) {
+	entitlementID := chi.URLParam(r, "id")
+	claims := middleware.ClaimsFromContext(r.Context())
+
+	result, err := h.orders.RescheduleNoShow(r.Context(), entitlementID, claims.UserID())
+	if err != nil {
+		switch {
+		case errors.Is(err, postgres.ErrNotFound):
+			writeJSONError(w, http.StatusNotFound, "ingresso não encontrado")
+		case errors.Is(err, postgres.ErrNotNoShow):
+			writeJSONError(w, http.StatusConflict, "este benefício não está com falta registrada (ainda não passou a data ou já foi utilizado)")
+		case errors.Is(err, postgres.ErrNoShowRescheduleUsed):
+			writeJSONError(w, http.StatusConflict, "a remarcação por falta já foi utilizada para este benefício")
+		case errors.Is(err, postgres.ErrNoNextSession):
+			writeJSONError(w, http.StatusConflict, "não há próxima turma cadastrada para essa atividade")
+		case errors.Is(err, postgres.ErrNoShowWindowExpired):
+			writeJSONError(w, http.StatusConflict, "o prazo de 60 dias para remarcar por falta expirou")
+		case errors.Is(err, postgres.ErrNoSessionOnDate):
+			writeJSONError(w, http.StatusConflict, "não há turma disponível na próxima data para uma das atividades deste ingresso")
+		case errors.Is(err, postgres.ErrSessionFull):
+			writeJSONError(w, http.StatusConflict, "a próxima turma já está lotada")
+		default:
+			h.log.Error("reschedule no-show", "error", err, "entitlementId", entitlementID)
+			writeJSONError(w, http.StatusInternalServerError, "não foi possível remarcar por falta")
+		}
+		return
+	}
+
+	if detail, err := h.orders.GetPaidOrderDetail(r.Context(), result.OrderID); err != nil {
+		h.log.Error("get order detail for no-show reschedule email", "error", err, "orderId", result.OrderID)
+	} else if err := sendRescheduleEmail(r.Context(), h.mailer, h.log, *detail, result.NewDate); err != nil {
+		h.log.Error("send no-show reschedule email", "error", err, "orderId", result.OrderID)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"previousDate": result.PreviousDate, "newDate": result.NewDate})
+}
+
 type resendEmailRequest struct {
 	// Email optionally overrides where this one resend goes — e.g. the customer says
 	// their inbox is having trouble, or a family member is picking up the tickets. It
