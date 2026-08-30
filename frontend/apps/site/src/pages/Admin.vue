@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu } from "lucide-vue-next";
+import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu, Ticket, Copy, Info, CheckCircle2, User, Building2 } from "lucide-vue-next";
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
 import { formatBRL } from "@p5wellness/shared";
@@ -14,11 +14,19 @@ const router = useRouter();
 const authStore = useAuthStore();
 // A role "reports" enxerga dashboard (gráficos), pedidos (vendas, só leitura) e
 // relatórios — sem acesso a config de admin (catálogo, equipe, clientes, estorno/reenvio
-// de e-mail). O backend também bloqueia essas rotas, isso aqui só evita chamadas fadadas
-// a 403 e esconde ações que a role não pode executar.
+// de e-mail). A role "marketing" enxerga o mesmo (dashboard, pedidos, relatórios) mais a
+// tela de vouchers, em modo leitura (sem criar nem cancelar). O backend também bloqueia
+// essas rotas, isso aqui só evita chamadas fadadas a 403 e esconde ações que a role não
+// pode executar.
 const isReportsOnly = computed(() => authStore.role === "reports");
+const isMarketingOnly = computed(() => authStore.role === "marketing");
 const REPORTS_ROLE_TABS = ["dashboard", "pedidos", "relatorios"] as const;
-const tab = ref<"dashboard" | "produtos" | "atividades" | "turmas" | "equipe" | "clientes" | "pedidos" | "relatorios">("dashboard");
+const MARKETING_ROLE_TABS = ["dashboard", "pedidos", "relatorios", "vouchers"] as const;
+const TEAM_ROLE_LABELS: Record<string, string> = { admin: "Administrador", reports: "Relatórios", marketing: "Marketing" };
+function teamRoleLabel(role: string) {
+  return TEAM_ROLE_LABELS[role] ?? "Funcionário";
+}
+const tab = ref<"dashboard" | "produtos" | "atividades" | "turmas" | "equipe" | "vouchers" | "clientes" | "pedidos" | "relatorios">("dashboard");
 const mobileNavOpen = ref(false);
 function selectTab(next: typeof tab.value) {
   tab.value = next;
@@ -30,13 +38,16 @@ const navItems = [
   { key: "atividades", label: "Atividades", icon: Dumbbell },
   { key: "turmas", label: "Turmas", icon: CalendarDays },
   { key: "equipe", label: "Equipe", icon: Users },
+  { key: "vouchers", label: "Vouchers", icon: Ticket },
   { key: "clientes", label: "Clientes", icon: Search },
   { key: "pedidos", label: "Pedidos", icon: ClipboardList },
   { key: "relatorios", label: "Relatórios", icon: FileText },
 ] as const;
-const visibleNavItems = computed(() =>
-  isReportsOnly.value ? navItems.filter((item) => (REPORTS_ROLE_TABS as readonly string[]).includes(item.key)) : navItems
-);
+const visibleNavItems = computed(() => {
+  if (isReportsOnly.value) return navItems.filter((item) => (REPORTS_ROLE_TABS as readonly string[]).includes(item.key));
+  if (isMarketingOnly.value) return navItems.filter((item) => (MARKETING_ROLE_TABS as readonly string[]).includes(item.key));
+  return navItems;
+});
 
 // Filtro de data compartilhado por dashboard, pedidos e relatórios — cada tela mantém seu
 // próprio par de refs (o período de uma não deve mudar o da outra) mas monta a querystring
@@ -342,6 +353,207 @@ async function toggleMember(m: TeamMember) {
   await loadTeam();
 }
 
+const editingMemberId = ref("");
+const editRole = ref("");
+const editVendorId = ref("");
+const editRoleError = ref("");
+const savingRole = ref(false);
+
+function startEditRole(m: TeamMember) {
+  editingMemberId.value = m.ID;
+  editRole.value = m.Role;
+  editVendorId.value = m.VendorID || "";
+  editRoleError.value = "";
+}
+
+function cancelEditRole() {
+  editingMemberId.value = "";
+}
+
+async function saveRole(m: TeamMember) {
+  editRoleError.value = "";
+  if (editRole.value === "staff" && !editVendorId.value) {
+    editRoleError.value = "Selecione o setor deste funcionário.";
+    return;
+  }
+  savingRole.value = true;
+  try {
+    await api.patch(`/admin/team/${m.ID}/role`, { role: editRole.value, vendorId: editVendorId.value });
+    editingMemberId.value = "";
+    await loadTeam();
+  } catch (err) {
+    editRoleError.value = err instanceof ApiError ? err.message : "Não foi possível atualizar o acesso.";
+  } finally {
+    savingRole.value = false;
+  }
+}
+
+// ── Vouchers ───────────────────────────────────────────────────────────────
+// Cortesia dada a uma empresa parceira (ex: funcionários da Coca-Cola): o código gerado
+// aqui é resgatado pelo cliente dentro da área logada, sem passar pelo pagamento — ver
+// VoucherStudentHandler no backend.
+interface VoucherRow {
+  id: string;
+  code: string;
+  name: string;
+  companyName: string;
+  status: string;
+  createdByName: string;
+  redeemedByName?: string;
+  studentEmail?: string;
+  studentPhone?: string;
+  studentCpfLast4?: string;
+  orderNumber?: string;
+  activityTitle?: string;
+  sessionStartTime?: string;
+  entitlementStatus?: string;
+  entitlementUsedAt?: string;
+  entitlementUsedByName?: string;
+  activityDate?: string;
+  redeemedAt?: string;
+  createdAt: string;
+}
+const vouchers = ref<VoucherRow[]>([]);
+const newVoucher = ref({ name: "", companyName: "", count: 1 });
+const savingVoucher = ref(false);
+const voucherError = ref("");
+const lastCreatedCodes = ref<string[]>([]);
+const copiedCodes = ref(false);
+
+const voucherViewMode = ref<"codes" | "redemptions">("codes");
+const voucherRedemptionSearch = ref("");
+const voucherRedemptionDateFilter = ref("");
+const selectedVoucherDetail = ref<VoucherRow | null>(null);
+
+const redeemedVouchers = computed(() => {
+  return vouchers.value.filter((v) => v.status === "used");
+});
+
+const redeemedDates = computed(() => {
+  const dates = new Set<string>();
+  for (const v of redeemedVouchers.value) {
+    if (v.activityDate) dates.add(v.activityDate);
+  }
+  return Array.from(dates).sort();
+});
+
+const filteredRedeemedVouchers = computed(() => {
+  let list = redeemedVouchers.value;
+  const q = voucherRedemptionSearch.value.trim().toLowerCase();
+  if (q) {
+    list = list.filter((v) =>
+      (v.redeemedByName && v.redeemedByName.toLowerCase().includes(q)) ||
+      (v.studentEmail && v.studentEmail.toLowerCase().includes(q)) ||
+      (v.studentPhone && v.studentPhone.includes(q)) ||
+      (v.companyName && v.companyName.toLowerCase().includes(q)) ||
+      (v.name && v.name.toLowerCase().includes(q)) ||
+      (v.code && v.code.toLowerCase().includes(q)) ||
+      (v.orderNumber && v.orderNumber.toLowerCase().includes(q))
+    );
+  }
+  if (voucherRedemptionDateFilter.value) {
+    list = list.filter((v) => v.activityDate === voucherRedemptionDateFilter.value);
+  }
+  return list;
+});
+
+const redeemedVouchersByDate = computed(() => {
+  const groups: { date: string; dateFormatted: string; vouchers: VoucherRow[] }[] = [];
+  const map = new Map<string, VoucherRow[]>();
+
+  for (const v of filteredRedeemedVouchers.value) {
+    const d = v.activityDate || "sem_data";
+    if (!map.has(d)) {
+      map.set(d, []);
+    }
+    map.get(d)!.push(v);
+  }
+
+  const sortedKeys = Array.from(map.keys()).sort((a, b) => {
+    if (a === "sem_data") return 1;
+    if (b === "sem_data") return -1;
+    return a.localeCompare(b);
+  });
+
+  for (const key of sortedKeys) {
+    const list = map.get(key)!;
+    const formatted = key === "sem_data" ? "Data não agendada" : formatDatePtLong(key);
+    groups.push({
+      date: key,
+      dateFormatted: formatted,
+      vouchers: list,
+    });
+  }
+
+  return groups;
+});
+
+function formatDatePtLong(isoDate: string) {
+  if (!isoDate) return "";
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) return isoDate;
+  const [y, m, d] = parts;
+  const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+  const weekDay = dateObj.toLocaleDateString("pt-BR", { weekday: "long" });
+  return `${d}/${m}/${y} (${weekDay.charAt(0).toUpperCase() + weekDay.slice(1)})`;
+}
+
+function openVoucherDetail(v: VoucherRow) {
+  selectedVoucherDetail.value = v;
+}
+
+async function loadVouchers() {
+  const res = await api.get<{ vouchers: VoucherRow[] }>("/admin/vouchers");
+  vouchers.value = res.vouchers;
+}
+
+async function createVoucher() {
+  voucherError.value = "";
+  if (!newVoucher.value.name.trim() || !newVoucher.value.companyName.trim()) {
+    voucherError.value = "Informe o nome do voucher e o nome da empresa.";
+    return;
+  }
+  savingVoucher.value = true;
+  try {
+    const res = await api.post<{ vouchers: { id: string; code: string }[] }>("/admin/vouchers", {
+      name: newVoucher.value.name,
+      companyName: newVoucher.value.companyName,
+      count: newVoucher.value.count,
+    });
+    lastCreatedCodes.value = res.vouchers.map((v) => v.code);
+    copiedCodes.value = false;
+    newVoucher.value = { name: "", companyName: "", count: 1 };
+    await loadVouchers();
+  } catch (err) {
+    voucherError.value = err instanceof ApiError ? err.message : "Não foi possível criar o voucher.";
+  } finally {
+    savingVoucher.value = false;
+  }
+}
+
+async function copyVoucherCodes() {
+  try {
+    await navigator.clipboard.writeText(lastCreatedCodes.value.join("\n"));
+    copiedCodes.value = true;
+  } catch {
+    // clipboard permission denied — the codes are still shown on screen to copy by hand
+  }
+}
+
+async function cancelVoucher(v: VoucherRow) {
+  if (!window.confirm(`Cancelar o voucher ${v.code} (${v.name})? Essa ação não pode ser desfeita.`)) return;
+  try {
+    await api.post(`/admin/vouchers/${v.id}/cancel`);
+    await loadVouchers();
+  } catch (err) {
+    voucherError.value = err instanceof ApiError ? err.message : "Não foi possível cancelar o voucher.";
+  }
+}
+
+function voucherStatusLabel(status: string) {
+  return { available: "Disponível", used: "Resgatado", cancelled: "Cancelado" }[status] ?? status;
+}
+
 // ── Clientes ───────────────────────────────────────────────────────────────
 interface CustomerSummary { id: string; fullName: string; email: string; phone: string; cpfLast4: string; ordersCount: number; createdAt: string }
 interface CustomerTicket {
@@ -417,7 +629,7 @@ interface OrderReschedule { reason: string; previousDate: string; newDate: strin
 interface OrderDetail extends OrderRow {
   asaasPaymentId: string;
   items: { productTitle: string; activityTitle: string | null; benefitType: string; sessionStartsAt: string | null }[];
-  entitlements: { id: string; label: string; vendorName: string; status: string; validFrom: string; validUntil: string; issuedAt: string; usedAt: string | null; usedByName?: string }[];
+  entitlements: { id: string; label: string; vendorName: string; status: string; validFrom: string; validUntil: string; issuedAt: string; usedAt: string | null; usedByName?: string; noShowRescheduleUsedAt?: string | null }[];
   reschedules: OrderReschedule[];
 }
 
@@ -531,8 +743,33 @@ async function submitReschedule(o: OrderDetail) {
   }
 }
 
+// Remarcação por falta: 1 direito por ingresso (QR), só aparece pra quem ficou "available"
+// depois da própria data de validade — o backend recusa (e devolve o motivo) se a janela
+// já tiver sido usada ou se a próxima turma também já tiver passado.
+function todayInEventTZ() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });
+}
+function isNoShowEligible(e: OrderDetail["entitlements"][number]) {
+  return e.status === "available" && e.validUntil < todayInEventTZ() && !e.noShowRescheduleUsedAt;
+}
+const noShowReschedulingId = ref("");
+const noShowRescheduleError = ref("");
+async function rescheduleNoShow(o: OrderDetail, entitlementId: string) {
+  noShowRescheduleError.value = "";
+  noShowReschedulingId.value = entitlementId;
+  try {
+    await api.post(`/admin/entitlements/${entitlementId}/reschedule-no-show`);
+    await openOrder(o);
+    await loadOrders();
+  } catch (err) {
+    noShowRescheduleError.value = err instanceof ApiError ? err.message : "Não foi possível remarcar por falta.";
+  } finally {
+    noShowReschedulingId.value = "";
+  }
+}
+
 // ── Relatórios ─────────────────────────────────────────────────────────────
-interface Attendee { name: string; email: string; orderNumber: string }
+interface Attendee { name: string; email: string; orderNumber: string; isVoucher: boolean }
 interface SessionRoster { sessionId: string; activityTitle: string; startsAt: string; capacity: number; attendees: Attendee[] }
 interface ProductRoster { productId: string; title: string; buyers: Attendee[] }
 interface ActivityRoster { label: string; attendees: Attendee[] }
@@ -541,6 +778,12 @@ interface EventAttendee {
   purchasedAt: string; orderNumber: string; benefit: string;
   sessionAt: string; eventDate: string; vendorName: string;
   checkedIn: boolean; checkedInAt: string;
+}
+
+// Cortesias (voucher) ficam numa lista separada dos compradores de verdade em todo
+// relatório de presença — não é a mesma coisa pra fins de contagem/receita.
+function splitAttendees(list: Attendee[]) {
+  return { buyers: list.filter((a) => !a.isVoucher), vouchers: list.filter((a) => a.isVoucher) };
 }
 
 const reportView = ref<"turma" | "produto" | "atividade" | "presenca">("turma");
@@ -724,7 +967,11 @@ onMounted(async () => {
     await Promise.all([loadDashboard(), loadOrders(), loadReports()]);
     return;
   }
-  await Promise.all([loadDashboard(), loadVendors(), loadActivities(), loadProducts(), loadTeam(), loadSessions(), loadOrders(), loadReports(), searchCustomers()]);
+  if (isMarketingOnly.value) {
+    await Promise.all([loadDashboard(), loadOrders(), loadReports(), loadVouchers()]);
+    return;
+  }
+  await Promise.all([loadDashboard(), loadVendors(), loadActivities(), loadProducts(), loadTeam(), loadVouchers(), loadSessions(), loadOrders(), loadReports(), searchCustomers()]);
 });
 </script>
 
@@ -1043,13 +1290,15 @@ onMounted(async () => {
                 <option value="staff">Funcionário — check-in e operação</option>
                 <option value="admin">Administrador — gestão completa</option>
                 <option value="reports">Relatórios — só vê os relatórios</option>
+                <option value="marketing">Marketing — relatórios e vouchers (só leitura)</option>
               </select>
               <select v-if="newMember.role === 'staff'" v-model="newMember.vendorId" class="rounded-lg border border-line px-3 py-2 text-sm">
                 <option value="" disabled>Setor deste funcionário...</option>
                 <option v-for="v in vendors" :key="v.id" :value="v.id">{{ v.name }}</option>
               </select>
               <p v-else-if="newMember.role === 'admin'" class="self-center text-xs text-ink-soft">Administrador enxerga e valida todos os setores.</p>
-              <p v-else class="self-center text-xs text-ink-soft">Enxerga todos os relatórios, sem acesso à configuração do admin.</p>
+              <p v-else-if="newMember.role === 'reports'" class="self-center text-xs text-ink-soft">Enxerga todos os relatórios, sem acesso à configuração do admin.</p>
+              <p v-else class="self-center text-xs text-ink-soft">Enxerga dashboard, pedidos, relatórios e vouchers (sem poder criar ou cancelar vouchers).</p>
             </div>
             <p v-if="memberError" class="mt-3 text-sm text-red-600">{{ memberError }}</p>
             <button class="button-magenta mt-4" :disabled="savingMember" @click="createMember">
@@ -1073,17 +1322,410 @@ onMounted(async () => {
                 <tr v-for="m in team" :key="m.ID" class="border-t border-line">
                   <td class="px-5 py-3 text-ink">{{ m.Name }}</td>
                   <td class="px-5 py-3 text-ink-soft">{{ m.Email }}</td>
-                  <td class="px-5 py-3 text-ink-soft">{{ m.Role === "admin" ? "Administrador" : m.Role === "reports" ? "Relatórios" : "Funcionário" }}</td>
+                  <td class="px-5 py-3 text-ink-soft">
+                    <template v-if="editingMemberId === m.ID">
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <select v-model="editRole" class="rounded-lg border border-line px-2 py-1 text-xs">
+                          <option value="staff">Funcionário</option>
+                          <option value="admin">Administrador</option>
+                          <option value="reports">Relatórios</option>
+                          <option value="marketing">Marketing</option>
+                        </select>
+                        <select v-if="editRole === 'staff'" v-model="editVendorId" class="rounded-lg border border-line px-2 py-1 text-xs">
+                          <option value="" disabled>Setor...</option>
+                          <option v-for="v in vendors" :key="v.id" :value="v.id">{{ v.name }}</option>
+                        </select>
+                      </div>
+                      <p v-if="editRoleError" class="mt-1 text-xs text-red-600">{{ editRoleError }}</p>
+                    </template>
+                    <template v-else>{{ teamRoleLabel(m.Role) }}</template>
+                  </td>
                   <td class="px-5 py-3 text-ink-soft">{{ m.VendorName || "Todos" }}</td>
                   <td class="px-5 py-3">
                     <span :class="['rounded-full px-2 py-1 text-xs font-semibold', m.Active ? 'bg-[#e5f5e8] text-[#237438]' : 'bg-warm text-ink-soft']">{{ m.Active ? "Ativo" : "Inativo" }}</span>
                   </td>
                   <td class="px-5 py-3">
-                    <button class="text-xs font-semibold text-magenta" @click="toggleMember(m)">{{ m.Active ? "Desativar" : "Ativar" }}</button>
+                    <div v-if="editingMemberId === m.ID" class="flex items-center gap-3">
+                      <button class="text-xs font-semibold text-magenta disabled:opacity-60" :disabled="savingRole" @click="saveRole(m)">Salvar</button>
+                      <button class="text-xs font-semibold text-ink-soft" @click="cancelEditRole">Cancelar</button>
+                    </div>
+                    <div v-else class="flex items-center gap-3">
+                      <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="startEditRole(m)">Editar papel</button>
+                      <button class="text-xs font-semibold text-magenta" @click="toggleMember(m)">{{ m.Active ? "Desativar" : "Ativar" }}</button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <!-- VOUCHERS -->
+        <section v-else-if="tab === 'vouchers'">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 class="font-serif text-2xl font-bold text-ink">Vouchers & Cortesias</h1>
+              <p class="mt-1 text-sm text-ink-soft">Gerencie códigos de cortesia corporativa e consulte a lista de alunos que resgataram voucher por data de atividade.</p>
+            </div>
+            <div class="flex rounded-xl border border-line bg-warm/50 p-1">
+              <button
+                type="button"
+                :class="['flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors', voucherViewMode === 'codes' ? 'bg-white text-ink shadow-sm' : 'text-ink-soft hover:text-ink']"
+                @click="voucherViewMode = 'codes'"
+              >
+                <Ticket :size="15" /> Gerenciar Códigos ({{ vouchers.length }})
+              </button>
+              <button
+                type="button"
+                :class="['flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors', voucherViewMode === 'redemptions' ? 'bg-white text-ink shadow-sm' : 'text-ink-soft hover:text-ink']"
+                @click="voucherViewMode = 'redemptions'"
+              >
+                <Users :size="15" /> Alunos com Voucher Resgatado ({{ redeemedVouchers.length }})
+              </button>
+            </div>
+          </div>
+
+          <!-- VISÃO 1: GERENCIAR CÓDIGOS -->
+          <div v-if="voucherViewMode === 'codes'">
+            <div v-if="!isMarketingOnly" class="mt-6 rounded-[var(--radius-card)] border border-line bg-white p-6">
+              <h2 class="mb-4 font-serif text-lg font-semibold text-ink">Novo lote de vouchers</h2>
+              <div class="grid gap-4 md:grid-cols-3">
+                <input v-model="newVoucher.name" placeholder="Nome do voucher (ex: Campanha Verão 2026)" class="rounded-lg border border-line px-3 py-2 text-sm md:col-span-1" />
+                <input v-model="newVoucher.companyName" placeholder="Nome da empresa (ex: Coca-Cola)" class="rounded-lg border border-line px-3 py-2 text-sm md:col-span-1" />
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-ink-soft">Quantidade de cortesias</label>
+                  <input v-model.number="newVoucher.count" type="number" min="1" max="500" class="w-full rounded-lg border border-line px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <p v-if="voucherError" class="mt-3 text-sm text-red-600">{{ voucherError }}</p>
+              <button class="button-magenta mt-4" :disabled="savingVoucher" @click="createVoucher">
+                <Plus :size="16" /> {{ newVoucher.count > 1 ? `Criar ${newVoucher.count} vouchers` : "Criar voucher" }}
+              </button>
+
+              <div v-if="lastCreatedCodes.length" class="mt-5 rounded-xl border border-magenta/30 bg-magenta/5 px-4 py-3">
+                <div class="flex items-center justify-between">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+                    {{ lastCreatedCodes.length > 1 ? `${lastCreatedCodes.length} códigos gerados` : "Código gerado" }}
+                  </p>
+                  <button class="inline-flex items-center gap-1.5 text-xs font-semibold text-magenta" @click="copyVoucherCodes">
+                    <Copy :size="13" /> {{ copiedCodes ? "Copiado!" : lastCreatedCodes.length > 1 ? "Copiar todos" : "Copiar" }}
+                  </button>
+                </div>
+                <div :class="['mt-2 font-mono text-ink', lastCreatedCodes.length > 1 ? 'max-h-40 space-y-1 overflow-y-auto text-sm' : 'text-lg font-bold']">
+                  <p v-for="c in lastCreatedCodes" :key="c">{{ c }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 overflow-hidden rounded-[var(--radius-card)] border border-line bg-white">
+              <div class="border-b border-line bg-warm/30 px-5 py-3.5">
+                <h3 class="font-serif text-sm font-semibold text-ink">Todos os Códigos Emitidos</h3>
+              </div>
+              <table class="w-full text-sm">
+                <thead class="bg-warm/60">
+                  <tr class="text-left text-ink-soft">
+                    <th class="px-5 py-3">Código</th>
+                    <th class="px-5 py-3">Campanha</th>
+                    <th class="px-5 py-3">Empresa</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3">Data da atividade</th>
+                    <th class="px-5 py-3">Resgatado por</th>
+                    <th class="px-5 py-3">Criado por</th>
+                    <th class="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="v in vouchers" :key="v.id" class="border-t border-line">
+                    <td class="px-5 py-3 font-mono text-ink">{{ v.code }}</td>
+                    <td class="px-5 py-3 text-ink">{{ v.name }}</td>
+                    <td class="px-5 py-3 text-ink-soft">{{ v.companyName }}</td>
+                    <td class="px-5 py-3">
+                      <span :class="['rounded-full px-2.5 py-1 text-xs font-semibold', v.status === 'available' ? 'bg-[#e5f5e8] text-[#237438]' : v.status === 'used' ? 'bg-magenta/10 text-magenta' : 'bg-[#fdeaea] text-[#b3261e]']">
+                        {{ voucherStatusLabel(v.status) }}
+                      </span>
+                    </td>
+                    <td class="px-5 py-3 text-ink-soft">{{ v.activityDate ? formatDateOnly(v.activityDate) : "—" }}</td>
+                    <td class="px-5 py-3 text-ink-soft">
+                      <template v-if="v.redeemedByName">
+                        <span class="font-medium text-ink">{{ v.redeemedByName }}</span>
+                        <span v-if="v.redeemedAt" class="block text-xs opacity-75">{{ formatDateTime(v.redeemedAt) }}</span>
+                      </template>
+                      <span v-else class="text-xs opacity-50">—</span>
+                    </td>
+                    <td class="px-5 py-3 text-ink-soft">{{ v.createdByName }}</td>
+                    <td class="px-5 py-3 text-right">
+                      <button v-if="v.status === 'used'" type="button" class="inline-flex items-center gap-1 text-xs font-semibold text-magenta hover:underline" @click="openVoucherDetail(v)">
+                        <Info :size="13" /> Detalhes
+                      </button>
+                      <button v-else-if="v.status === 'available' && !isMarketingOnly" class="text-xs font-semibold text-red-600 hover:underline" @click="cancelVoucher(v)">
+                        Cancelar
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="!vouchers.length">
+                    <td colspan="8" class="px-5 py-8 text-center text-ink-soft">Nenhum voucher criado ainda.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- VISÃO 2: LISTAGEM DE RESGATES SEPARADA POR DIA -->
+          <div v-else-if="voucherViewMode === 'redemptions'" class="mt-6 space-y-6">
+            <!-- Filtros da listagem de resgates -->
+            <div class="flex flex-col gap-3 rounded-[var(--radius-card)] border border-line bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                <div class="relative flex-1">
+                  <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    v-model="voucherRedemptionSearch"
+                    type="text"
+                    placeholder="Buscar por aluno, e-mail, telefone, empresa, código ou pedido..."
+                    class="w-full rounded-lg border border-line py-2 pl-9 pr-3 text-sm focus:border-magenta focus:outline-none"
+                  />
+                </div>
+                <select
+                  v-model="voucherRedemptionDateFilter"
+                  class="rounded-lg border border-line bg-white px-3 py-2 text-sm focus:border-magenta focus:outline-none"
+                >
+                  <option value="">Todas as datas ({{ redeemedVouchers.length }})</option>
+                  <option v-for="d in redeemedDates" :key="d" :value="d">
+                    {{ formatDatePtLong(d) }}
+                  </option>
+                </select>
+              </div>
+              <button
+                v-if="voucherRedemptionSearch || voucherRedemptionDateFilter"
+                type="button"
+                class="text-xs font-semibold text-magenta hover:underline"
+                @click="voucherRedemptionSearch = ''; voucherRedemptionDateFilter = ''"
+              >
+                Limpar filtros
+              </button>
+            </div>
+
+            <!-- Listagem agrupada por dia da atividade -->
+            <div v-if="redeemedVouchersByDate.length > 0" class="space-y-6">
+              <div
+                v-for="group in redeemedVouchersByDate"
+                :key="group.date"
+                class="overflow-hidden rounded-[var(--radius-card)] border border-line bg-white shadow-sm"
+              >
+                <!-- Cabeçalho do dia -->
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-warm/40 px-5 py-3.5">
+                  <div class="flex items-center gap-2.5">
+                    <CalendarDays :size="18" class="text-magenta" />
+                    <h3 class="font-serif text-base font-bold text-ink">{{ group.dateFormatted }}</h3>
+                  </div>
+                  <span class="rounded-full bg-magenta/10 px-3 py-0.5 text-xs font-semibold text-magenta">
+                    {{ group.vouchers.length }} {{ group.vouchers.length === 1 ? 'resgate' : 'resgates' }}
+                  </span>
+                </div>
+
+                <!-- Tabela de participantes daquele dia -->
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead class="bg-warm/20 text-left text-xs uppercase tracking-wider text-ink-soft">
+                      <tr>
+                        <th class="px-5 py-3">Aluno</th>
+                        <th class="px-5 py-3">Empresa & Campanha</th>
+                        <th class="px-5 py-3">Atividade / Turma</th>
+                        <th class="px-5 py-3">Resgatado em</th>
+                        <th class="px-5 py-3">Presença (Check-in)</th>
+                        <th class="px-5 py-3 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-line">
+                      <tr v-for="v in group.vouchers" :key="v.id" class="hover:bg-warm/20 transition-colors">
+                        <td class="px-5 py-3.5">
+                          <p class="font-semibold text-ink">{{ v.redeemedByName }}</p>
+                          <p v-if="v.studentEmail" class="text-xs text-ink-soft">{{ v.studentEmail }}</p>
+                          <p v-if="v.studentPhone" class="text-xs text-ink-soft">{{ v.studentPhone }}</p>
+                        </td>
+                        <td class="px-5 py-3.5">
+                          <span class="inline-flex items-center gap-1 rounded bg-warm px-2 py-0.5 text-xs font-semibold text-ink">
+                            <Building2 :size="12" /> {{ v.companyName }}
+                          </span>
+                          <p class="mt-1 text-xs text-ink-soft">{{ v.name }} · <span class="font-mono text-ink">{{ v.code }}</span></p>
+                        </td>
+                        <td class="px-5 py-3.5">
+                          <p class="font-medium text-ink">{{ v.activityTitle || "Atividade padrão" }}</p>
+                          <p v-if="v.sessionStartTime" class="text-xs text-ink-soft">
+                            Horário: {{ formatDateTime(v.sessionStartTime) }}
+                          </p>
+                        </td>
+                        <td class="px-5 py-3.5 text-xs text-ink-soft">
+                          {{ formatDateTime(v.redeemedAt) }}
+                        </td>
+                        <td class="px-5 py-3.5">
+                          <span
+                            v-if="v.entitlementStatus === 'used'"
+                            class="inline-flex items-center gap-1 rounded-full bg-[#e5f5e8] px-2.5 py-1 text-xs font-semibold text-[#237438]"
+                          >
+                            <CheckCircle2 :size="13" /> Presença confirmada
+                          </span>
+                          <span
+                            v-else
+                            class="inline-flex items-center gap-1 rounded-full bg-[#fbefe2] px-2.5 py-1 text-xs font-semibold text-[#946213]"
+                          >
+                            <CalendarClock :size="13" /> Pendente de check-in
+                          </span>
+                        </td>
+                        <td class="px-5 py-3.5 text-right">
+                          <button
+                            type="button"
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink shadow-xs hover:border-magenta hover:text-magenta transition-colors"
+                            @click="openVoucherDetail(v)"
+                          >
+                            <Info :size="14" class="text-magenta" /> Informações do voucher
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Estado vazio de resgates -->
+            <div v-else class="rounded-[var(--radius-card)] border border-line bg-white p-12 text-center">
+              <Ticket :size="36" class="mx-auto text-ink-soft/50" />
+              <h3 class="mt-3 font-serif text-lg font-semibold text-ink">Nenhum resgate encontrado</h3>
+              <p class="mt-1 text-sm text-ink-soft">
+                {{ voucherRedemptionSearch || voucherRedemptionDateFilter ? "Nenhum resultado corresponde aos filtros aplicados." : "Nenhum voucher foi resgatado por alunos até o momento." }}
+              </p>
+            </div>
+          </div>
+
+          <!-- MODAL: INFORMAÇÕES COMPLETAS DO VOUCHER -->
+          <div
+            v-if="selectedVoucherDetail"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-xs"
+            @click.self="selectedVoucherDetail = null"
+          >
+            <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[var(--radius-card)] border border-line bg-white p-6 shadow-2xl">
+              <div class="flex items-start justify-between border-b border-line pb-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="rounded-full bg-magenta/10 px-2.5 py-0.5 text-xs font-semibold text-magenta">Voucher Cortesia</span>
+                    <span class="font-mono text-sm font-bold text-ink">{{ selectedVoucherDetail.code }}</span>
+                  </div>
+                  <h2 class="mt-1.5 font-serif text-xl font-bold text-ink">{{ selectedVoucherDetail.name }}</h2>
+                  <p class="text-xs text-ink-soft">Empresa parceira: <strong class="text-ink">{{ selectedVoucherDetail.companyName }}</strong></p>
+                </div>
+                <button
+                  type="button"
+                  class="rounded-lg p-1.5 text-ink-soft hover:bg-warm hover:text-ink"
+                  aria-label="Fechar"
+                  @click="selectedVoucherDetail = null"
+                >
+                  <X :size="20" />
+                </button>
+              </div>
+
+              <div class="mt-5 space-y-5">
+                <!-- Seção 1: Dados do Aluno -->
+                <div class="rounded-xl border border-line bg-warm/20 p-4">
+                  <h3 class="flex items-center gap-2 font-serif text-sm font-bold text-ink">
+                    <User :size="16" class="text-magenta" /> Dados do Aluno Beneficiário
+                  </h3>
+                  <div class="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
+                    <div>
+                      <p class="text-xs text-ink-soft">Nome Completo</p>
+                      <p class="font-semibold text-ink">{{ selectedVoucherDetail.redeemedByName || "—" }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-ink-soft">E-mail</p>
+                      <p class="font-medium text-ink">{{ selectedVoucherDetail.studentEmail || "—" }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-ink-soft">Telefone</p>
+                      <p class="font-medium text-ink">{{ selectedVoucherDetail.studentPhone || "—" }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-ink-soft">CPF</p>
+                      <p class="font-medium text-ink">
+                        {{ selectedVoucherDetail.studentCpfLast4 ? `***.***.***-${selectedVoucherDetail.studentCpfLast4}` : "—" }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Seção 2: Dados do Agendamento & Pedido -->
+                <div class="rounded-xl border border-line bg-warm/20 p-4">
+                  <h3 class="flex items-center gap-2 font-serif text-sm font-bold text-ink">
+                    <CalendarDays :size="16" class="text-magenta" /> Agendamento & Pedido
+                  </h3>
+                  <div class="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
+                    <div>
+                      <p class="text-xs text-ink-soft">Número do Pedido</p>
+                      <p class="font-mono font-semibold text-ink">{{ selectedVoucherDetail.orderNumber || "—" }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-ink-soft">Data do Resgate</p>
+                      <p class="font-medium text-ink">{{ formatDateTime(selectedVoucherDetail.redeemedAt) || "—" }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-ink-soft">Atividade Escolhida</p>
+                      <p class="font-semibold text-ink">{{ selectedVoucherDetail.activityTitle || "Atividade Padrão" }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-ink-soft">Data da Atividade</p>
+                      <p class="font-medium text-ink">{{ selectedVoucherDetail.activityDate ? formatDatePtLong(selectedVoucherDetail.activityDate) : "—" }}</p>
+                    </div>
+                    <div v-if="selectedVoucherDetail.sessionStartTime" class="sm:col-span-2">
+                      <p class="text-xs text-ink-soft">Horário da Turma</p>
+                      <p class="font-medium text-ink">{{ formatDateTime(selectedVoucherDetail.sessionStartTime) }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Seção 3: Validação de Presença (Check-in) -->
+                <div class="rounded-xl border border-line bg-warm/20 p-4">
+                  <h3 class="flex items-center gap-2 font-serif text-sm font-bold text-ink">
+                    <ScanLine :size="16" class="text-magenta" /> Status de Entrada (Check-in no Evento)
+                  </h3>
+                  <div class="mt-3 space-y-2 text-sm">
+                    <div class="flex items-center gap-2">
+                      <span
+                        v-if="selectedVoucherDetail.entitlementStatus === 'used'"
+                        class="inline-flex items-center gap-1.5 rounded-full bg-[#e5f5e8] px-3 py-1 text-xs font-semibold text-[#237438]"
+                      >
+                        <CheckCircle2 :size="14" /> Presença Confirmada (Check-in Realizado)
+                      </span>
+                      <span
+                        v-else
+                        class="inline-flex items-center gap-1.5 rounded-full bg-[#fbefe2] px-3 py-1 text-xs font-semibold text-[#946213]"
+                      >
+                        <CalendarClock :size="14" /> Pendente de Validação na Portaria
+                      </span>
+                    </div>
+                    <p v-if="selectedVoucherDetail.entitlementUsedAt" class="text-xs text-ink-soft">
+                      Validado em <strong>{{ formatDateTime(selectedVoucherDetail.entitlementUsedAt) }}</strong>
+                      <template v-if="selectedVoucherDetail.entitlementUsedByName"> por <strong>{{ selectedVoucherDetail.entitlementUsedByName }}</strong></template>.
+                    </p>
+                    <p v-else class="text-xs text-ink-soft">
+                      O aluno ainda não apresentou o QR Code ou não foi confirmado na lista de presença do dia.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Seção 4: Origem do Voucher -->
+                <div class="rounded-xl border border-line bg-warm/10 p-4 text-xs text-ink-soft">
+                  <p>Código criado por <strong>{{ selectedVoucherDetail.createdByName }}</strong> em {{ formatDateTime(selectedVoucherDetail.createdAt) }}.</p>
+                </div>
+              </div>
+
+              <div class="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  class="rounded-lg border border-line bg-white px-5 py-2 text-sm font-semibold text-ink hover:bg-warm transition-colors"
+                  @click="selectedVoucherDetail = null"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1273,10 +1915,21 @@ onMounted(async () => {
                   <p class="mt-0.5 text-xs text-ink-soft">
                     Emitido {{ formatDateTime(e.issuedAt) }} · válido até {{ formatDateOnly(e.validUntil) }}
                     <template v-if="e.usedAt"> · usado em {{ formatDateTime(e.usedAt) }}<template v-if="e.usedByName"> por {{ e.usedByName }}</template></template>
+                    <template v-if="e.noShowRescheduleUsedAt"> · remarcação por falta já utilizada</template>
                   </p>
+                  <button
+                    v-if="isNoShowEligible(e)"
+                    type="button"
+                    class="mt-1.5 text-xs font-semibold text-magenta disabled:opacity-60"
+                    :disabled="noShowReschedulingId === e.id"
+                    @click="rescheduleNoShow(selectedOrder, e.id)"
+                  >
+                    {{ noShowReschedulingId === e.id ? "Remarcando..." : "Remarcar por falta (próxima data)" }}
+                  </button>
                 </li>
                 <li v-if="!selectedOrder.entitlements.length" class="py-2 text-sm text-ink-soft">Nenhum benefício emitido (pedido ainda não pago).</li>
               </ul>
+              <p v-if="noShowRescheduleError" class="mt-2 text-sm text-red-600">{{ noShowRescheduleError }}</p>
 
               <template v-if="selectedOrder.reschedules.length">
                 <h4 class="mt-4 mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">Histórico de remarcações</h4>
@@ -1435,12 +2088,21 @@ onMounted(async () => {
                 <span class="shrink-0 font-mono text-xs text-ink-soft">{{ s.attendees.length }}/{{ s.capacity }}</span>
               </div>
               <ul class="mt-3 divide-y divide-line/70">
-                <li v-for="a in s.attendees" :key="a.orderNumber" class="py-2 text-sm">
+                <li v-for="a in splitAttendees(s.attendees).buyers" :key="a.orderNumber" class="py-2 text-sm">
                   <p class="text-ink">{{ a.name }}</p>
                   <p class="text-xs text-ink-soft">{{ a.email }} · {{ a.orderNumber }}</p>
                 </li>
-                <li v-if="!s.attendees.length" class="py-2 text-sm text-ink-soft">Nenhum nome ainda.</li>
+                <li v-if="!splitAttendees(s.attendees).buyers.length" class="py-2 text-sm text-ink-soft">Nenhum comprador ainda.</li>
               </ul>
+              <template v-if="splitAttendees(s.attendees).vouchers.length">
+                <p class="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-ink-soft">Cortesias</p>
+                <ul class="divide-y divide-line/70">
+                  <li v-for="a in splitAttendees(s.attendees).vouchers" :key="a.orderNumber" class="py-2 text-sm">
+                    <p class="text-ink">{{ a.name }}</p>
+                    <p class="text-xs text-ink-soft">{{ a.email }} · {{ a.orderNumber }}</p>
+                  </li>
+                </ul>
+              </template>
             </div>
             <p v-if="!sessionRosters.length" class="text-sm text-ink-soft">Nenhuma turma cadastrada.</p>
           </div>
@@ -1453,12 +2115,21 @@ onMounted(async () => {
                 <span class="shrink-0 font-mono text-xs text-ink-soft">{{ p.buyers.length }}</span>
               </div>
               <ul class="mt-3 divide-y divide-line/70">
-                <li v-for="b in p.buyers" :key="b.orderNumber" class="py-2 text-sm">
+                <li v-for="b in splitAttendees(p.buyers).buyers" :key="b.orderNumber" class="py-2 text-sm">
                   <p class="text-ink">{{ b.name }}</p>
                   <p class="text-xs text-ink-soft">{{ b.email }} · {{ b.orderNumber }}</p>
                 </li>
-                <li v-if="!p.buyers.length" class="py-2 text-sm text-ink-soft">Nenhum nome ainda.</li>
+                <li v-if="!splitAttendees(p.buyers).buyers.length" class="py-2 text-sm text-ink-soft">Nenhum comprador ainda.</li>
               </ul>
+              <template v-if="splitAttendees(p.buyers).vouchers.length">
+                <p class="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-ink-soft">Cortesias</p>
+                <ul class="divide-y divide-line/70">
+                  <li v-for="b in splitAttendees(p.buyers).vouchers" :key="b.orderNumber" class="py-2 text-sm">
+                    <p class="text-ink">{{ b.name }}</p>
+                    <p class="text-xs text-ink-soft">{{ b.email }} · {{ b.orderNumber }}</p>
+                  </li>
+                </ul>
+              </template>
             </div>
             <p v-if="!productRosters.length" class="text-sm text-ink-soft">Nenhum produto cadastrado.</p>
           </div>
@@ -1471,12 +2142,21 @@ onMounted(async () => {
                 <span class="shrink-0 font-mono text-xs text-ink-soft">{{ a.attendees.length }}</span>
               </div>
               <ul class="mt-3 divide-y divide-line/70">
-                <li v-for="(at, i) in a.attendees" :key="`${at.orderNumber}-${i}`" class="py-2 text-sm">
+                <li v-for="(at, i) in splitAttendees(a.attendees).buyers" :key="`${at.orderNumber}-${i}`" class="py-2 text-sm">
                   <p class="text-ink">{{ at.name }}</p>
                   <p class="text-xs text-ink-soft">{{ at.email }} · {{ at.orderNumber }}</p>
                 </li>
-                <li v-if="!a.attendees.length" class="py-2 text-sm text-ink-soft">Nenhum nome ainda.</li>
+                <li v-if="!splitAttendees(a.attendees).buyers.length" class="py-2 text-sm text-ink-soft">Nenhum comprador ainda.</li>
               </ul>
+              <template v-if="splitAttendees(a.attendees).vouchers.length">
+                <p class="mt-4 mb-1 text-xs font-bold uppercase tracking-wider text-ink-soft">Cortesias</p>
+                <ul class="divide-y divide-line/70">
+                  <li v-for="(at, i) in splitAttendees(a.attendees).vouchers" :key="`${at.orderNumber}-${i}`" class="py-2 text-sm">
+                    <p class="text-ink">{{ at.name }}</p>
+                    <p class="text-xs text-ink-soft">{{ at.email }} · {{ at.orderNumber }}</p>
+                  </li>
+                </ul>
+              </template>
             </div>
             <p v-if="!activityRosters.length" class="text-sm text-ink-soft">Nenhuma atividade cadastrada.</p>
           </div>

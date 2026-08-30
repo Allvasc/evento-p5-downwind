@@ -15,6 +15,7 @@ export const router = createRouter({
     { path: "/entrar", name: "entrar", component: () => import("./pages/Entrar.vue") },
     { path: "/acesso-admin", name: "acesso-admin", component: () => import("./pages/AcessoAdmin.vue") },
     { path: "/portal", name: "portal", component: () => import("./pages/Portal.vue") },
+    { path: "/voucher", name: "voucher", component: () => import("./pages/Voucher.vue") },
     { path: "/perfil", name: "perfil", component: () => import("./pages/Perfil.vue") },
     { path: "/check-in", name: "check-in", component: () => import("./pages/CheckIn.vue"), meta: { requiresTeamAuth: true } },
     { path: "/admin", name: "admin", component: () => import("./pages/Admin.vue"), meta: { requiresTeamAuth: true, requiresAdminArea: true } },
@@ -22,10 +23,11 @@ export const router = createRouter({
   ],
 });
 
-// "admin" enxerga o painel inteiro; "reports" enxerga só a aba Relatórios dentro dele
-// (Admin.vue filtra o resto). "staff" não entra no /admin, só no check-in.
+// "admin" enxerga o painel inteiro; "reports" enxerga só a aba Relatórios e "marketing" só
+// a aba Vouchers (em modo leitura) dentro dele (Admin.vue filtra o resto). "staff" não
+// entra no /admin, só no check-in.
 function hasAdminAreaAccess(role: string | null) {
-  return role === "admin" || role === "reports";
+  return role === "admin" || role === "reports" || role === "marketing";
 }
 
 router.beforeEach((to) => {

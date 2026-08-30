@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ScanLine, Video, VideoOff, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, LogOut, WifiOff, RefreshCw, X, LayoutDashboard, ListChecks, Search } from "lucide-vue-next";
+import { ScanLine, Video, VideoOff, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, LogOut, WifiOff, RefreshCw, X, LayoutDashboard, ListChecks, Search, Ticket, CreditCard } from "lucide-vue-next";
 import { api, ApiError } from "@/lib/teamApi";
 import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
 import { enqueueScan, listPendingScans, removeScans, countPendingScans, type PendingScan } from "@/offline/queue";
@@ -171,6 +171,10 @@ type RosterEntry = {
   orderNumber: string;
   status: string;
   usedAt?: string;
+  paymentMethod?: string;
+  isVoucher?: boolean;
+  companyName?: string;
+  voucherCode?: string;
 };
 type RosterGroup = {
   key: string;
@@ -181,6 +185,7 @@ type RosterGroup = {
 const rosterGroups = ref<RosterGroup[]>([]);
 const rosterLoading = ref(false);
 const rosterFilter = ref("");
+const rosterTypeFilter = ref<"all" | "paid" | "voucher">("all");
 const validatingEntitlementId = ref("");
 
 // Which days show up here comes straight from the registered turmas (class_sessions),
@@ -228,10 +233,40 @@ async function loadRoster() {
 
 watch(selectedDate, loadRoster);
 
-function filteredEntries(entries: RosterEntry[]) {
+function groupFilteredEntries(group: RosterGroup) {
   const q = rosterFilter.value.trim().toLowerCase();
-  if (!q) return entries;
-  return entries.filter((e) => e.studentName.toLowerCase().includes(q) || e.orderNumber.toLowerCase().includes(q));
+  let entries = group.entries;
+  if (q) {
+    entries = entries.filter(
+      (e) =>
+        e.studentName.toLowerCase().includes(q) ||
+        e.orderNumber.toLowerCase().includes(q) ||
+        (e.voucherCode && e.voucherCode.toLowerCase().includes(q)) ||
+        (e.companyName && e.companyName.toLowerCase().includes(q))
+    );
+  }
+  const paidEntries = entries.filter((e) => !e.isVoucher);
+  const voucherEntries = entries.filter((e) => e.isVoucher);
+
+  if (rosterTypeFilter.value === "paid") {
+    return { paid: paidEntries, vouchers: [], totalFiltered: paidEntries.length };
+  }
+  if (rosterTypeFilter.value === "voucher") {
+    return { paid: [], vouchers: voucherEntries, totalFiltered: voucherEntries.length };
+  }
+  return { paid: paidEntries, vouchers: voucherEntries, totalFiltered: entries.length };
+}
+
+function countRoster(type: "total" | "paid" | "voucher") {
+  let count = 0;
+  for (const g of rosterGroups.value) {
+    for (const e of g.entries) {
+      if (type === "total") count++;
+      else if (type === "paid" && !e.isVoucher) count++;
+      else if (type === "voucher" && e.isVoucher) count++;
+    }
+  }
+  return count;
 }
 
 async function validateByList(entitlementId: string) {
@@ -425,7 +460,7 @@ onBeforeUnmount(() => {
             </div>
             <div>
               <h2 class="font-serif text-lg font-semibold text-ink">Validar por lista <span class="text-ink-soft">— 2ª via</span></h2>
-              <p class="text-xs text-ink-soft">Sem QR Code à mão? Confirme direto pelo nome de quem já pagou.</p>
+              <p class="text-xs text-ink-soft">Sem QR Code à mão? Confirme direto pelo nome na lista de presença (pagantes e vouchers separados).</p>
             </div>
           </div>
           <button type="button" class="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:border-magenta hover:text-magenta disabled:opacity-60" :disabled="rosterLoading" @click="loadRosterDates">
@@ -433,42 +468,126 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <div class="mb-4 flex flex-col gap-3 sm:flex-row">
-          <select v-if="rosterDates.length" v-model="selectedDate" class="rounded-lg border border-line bg-white px-3 py-2 text-sm focus:border-magenta focus:outline-none">
-            <option v-for="d in rosterDates" :key="d" :value="d">{{ formatDatePt(d) }}</option>
-          </select>
-          <p v-else class="text-sm text-ink-soft">Nenhuma turma cadastrada ainda.</p>
-          <div class="relative flex-1">
-            <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-            <input v-model="rosterFilter" type="text" placeholder="Buscar por nome ou pedido..." class="w-full rounded-lg border border-line py-2 pl-9 pr-3 text-sm focus:border-magenta focus:outline-none" />
+        <!-- Filtros: Data, Busca e Tipo (Todos / Pagantes / Vouchers) -->
+        <div class="mb-5 space-y-3">
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <select v-if="rosterDates.length" v-model="selectedDate" class="rounded-lg border border-line bg-white px-3 py-2 text-sm focus:border-magenta focus:outline-none">
+              <option v-for="d in rosterDates" :key="d" :value="d">{{ formatDatePt(d) }}</option>
+            </select>
+            <p v-else class="text-sm text-ink-soft">Nenhuma turma cadastrada ainda.</p>
+            <div class="relative flex-1">
+              <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+              <input v-model="rosterFilter" type="text" placeholder="Buscar por nome, pedido, voucher ou empresa..." class="w-full rounded-lg border border-line py-2 pl-9 pr-3 text-sm focus:border-magenta focus:outline-none" />
+            </div>
+          </div>
+
+          <!-- Abas de Segmentação: Todos / Pagantes / Vouchers -->
+          <div class="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+            <span class="text-xs font-semibold text-ink-soft mr-1">Filtrar por:</span>
+            <button
+              type="button"
+              :class="['rounded-full px-3 py-1 text-xs font-semibold transition-colors', rosterTypeFilter === 'all' ? 'bg-ink text-white shadow-xs' : 'bg-warm text-ink-soft hover:text-ink']"
+              @click="rosterTypeFilter = 'all'"
+            >
+              Todos ({{ countRoster('total') }})
+            </button>
+            <button
+              type="button"
+              :class="['rounded-full px-3 py-1 text-xs font-semibold transition-colors', rosterTypeFilter === 'paid' ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-50 text-blue-800 hover:bg-blue-100']"
+              @click="rosterTypeFilter = 'paid'"
+            >
+              <CreditCard :size="13" class="inline mr-1" /> Pagantes ({{ countRoster('paid') }})
+            </button>
+            <button
+              type="button"
+              :class="['rounded-full px-3 py-1 text-xs font-semibold transition-colors', rosterTypeFilter === 'voucher' ? 'bg-magenta text-white shadow-xs' : 'bg-magenta/10 text-magenta hover:bg-magenta/20']"
+              @click="rosterTypeFilter = 'voucher'"
+            >
+              <Ticket :size="13" class="inline mr-1" /> Vouchers & Cortesias ({{ countRoster('voucher') }})
+            </button>
           </div>
         </div>
 
-        <p v-if="!rosterLoading && rosterGroups.length === 0" class="text-sm text-ink-soft">Ninguém pago pra {{ selectedDate ? formatDatePt(selectedDate) : "essa data" }} ainda no seu setor.</p>
+        <p v-if="!rosterLoading && rosterGroups.length === 0" class="text-sm text-ink-soft">Nenhum aluno encontrado para {{ selectedDate ? formatDatePt(selectedDate) : "essa data" }} no seu setor.</p>
 
-        <div v-for="group in rosterGroups" :key="group.key" class="mb-5 last:mb-0">
-          <h3 class="mb-2 font-serif text-sm font-semibold text-ink">{{ group.label }}</h3>
-          <ul class="divide-y divide-line rounded-xl border border-line">
-            <li v-for="entry in filteredEntries(group.entries)" :key="entry.entitlementId" class="flex items-center justify-between gap-3 px-4 py-3">
-              <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-ink">{{ entry.studentName }}</p>
-                <p class="text-xs text-ink-soft">pedido {{ entry.orderNumber }}</p>
-              </div>
-              <button
-                v-if="entry.status === 'available'"
-                type="button"
-                class="button-magenta shrink-0 px-4! py-2! text-xs disabled:opacity-60"
-                :disabled="validatingEntitlementId === entry.entitlementId"
-                @click="validateByList(entry.entitlementId)"
-              >
-                {{ validatingEntitlementId === entry.entitlementId ? "Validando..." : "Confirmar" }}
-              </button>
-              <span v-else class="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#e5f5e8] px-3 py-1.5 text-xs font-semibold text-[#237438]">
-                <CheckCircle2 :size="14" /> Validado
+        <!-- Turmas / Grupos de atividades -->
+        <div v-for="group in rosterGroups" :key="group.key" class="mb-6 last:mb-0 rounded-2xl border border-line bg-warm/15 p-4 sm:p-5">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+            <h3 class="font-serif text-base font-bold text-ink">{{ group.label }}</h3>
+            <div class="flex items-center gap-1.5 text-xs">
+              <span class="rounded-full bg-blue-50 px-2.5 py-0.5 font-semibold text-blue-700">
+                {{ group.entries.filter(e => !e.isVoucher).length }} pagantes
               </span>
-            </li>
-            <li v-if="filteredEntries(group.entries).length === 0" class="px-4 py-3 text-sm text-ink-soft">Nenhum nome bate com a busca.</li>
-          </ul>
+              <span class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-semibold text-magenta">
+                {{ group.entries.filter(e => e.isVoucher).length }} vouchers
+              </span>
+            </div>
+          </div>
+
+          <!-- SEÇÃO 1: PAGANTES -->
+          <div v-if="groupFilteredEntries(group).paid.length > 0" class="mb-4 last:mb-0">
+            <div class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-blue-800">
+              <CreditCard :size="14" /> Alunos Pagantes ({{ groupFilteredEntries(group).paid.length }})
+            </div>
+            <ul class="divide-y divide-line rounded-xl border border-blue-200/60 bg-white">
+              <li v-for="entry in groupFilteredEntries(group).paid" :key="entry.entitlementId" class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-blue-50/20 transition-colors">
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-ink">{{ entry.studentName }}</p>
+                  <p class="text-xs text-ink-soft">pedido {{ entry.orderNumber }} · Pagamento confirmado</p>
+                </div>
+                <button
+                  v-if="entry.status === 'available'"
+                  type="button"
+                  class="button-magenta shrink-0 px-4! py-2! text-xs disabled:opacity-60"
+                  :disabled="validatingEntitlementId === entry.entitlementId"
+                  @click="validateByList(entry.entitlementId)"
+                >
+                  {{ validatingEntitlementId === entry.entitlementId ? "Validando..." : "Confirmar" }}
+                </button>
+                <span v-else class="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#e5f5e8] px-3 py-1.5 text-xs font-semibold text-[#237438]">
+                  <CheckCircle2 :size="14" /> Validado
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- SEÇÃO 2: VOUCHERS / CORTESIAS -->
+          <div v-if="groupFilteredEntries(group).vouchers.length > 0" class="mb-4 last:mb-0">
+            <div class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-magenta">
+              <Ticket :size="14" /> Vouchers & Cortesias ({{ groupFilteredEntries(group).vouchers.length }})
+            </div>
+            <ul class="divide-y divide-line rounded-xl border border-magenta/30 bg-white">
+              <li v-for="entry in groupFilteredEntries(group).vouchers" :key="entry.entitlementId" class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-magenta/5 transition-colors">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="truncate text-sm font-semibold text-ink">{{ entry.studentName }}</p>
+                    <span class="rounded-full bg-magenta/10 px-2.5 py-0.5 text-[11px] font-bold text-magenta">
+                      🎟️ Cortesia · {{ entry.companyName || "Voucher" }}
+                    </span>
+                  </div>
+                  <p class="mt-0.5 text-xs text-ink-soft">
+                    pedido {{ entry.orderNumber }} <template v-if="entry.voucherCode">· cód. <span class="font-mono font-medium text-ink">{{ entry.voucherCode }}</span></template>
+                  </p>
+                </div>
+                <button
+                  v-if="entry.status === 'available'"
+                  type="button"
+                  class="button-magenta shrink-0 px-4! py-2! text-xs disabled:opacity-60"
+                  :disabled="validatingEntitlementId === entry.entitlementId"
+                  @click="validateByList(entry.entitlementId)"
+                >
+                  {{ validatingEntitlementId === entry.entitlementId ? "Validando..." : "Confirmar voucher" }}
+                </button>
+                <span v-else class="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#e5f5e8] px-3 py-1.5 text-xs font-semibold text-[#237438]">
+                  <CheckCircle2 :size="14" /> Validado
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <p v-if="groupFilteredEntries(group).totalFiltered === 0" class="py-4 text-center text-xs text-ink-soft">
+            Nenhum aluno encontrado nesta turma para os filtros aplicados.
+          </p>
         </div>
       </section>
     </main>
