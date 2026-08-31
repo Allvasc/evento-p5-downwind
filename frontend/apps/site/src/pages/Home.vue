@@ -17,6 +17,7 @@ import {
   Flag,
   ShieldCheck,
 } from "lucide-vue-next";
+import { formatBRL, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
@@ -29,13 +30,30 @@ function scrollToInclui() {
   document.querySelector("#inclui")?.scrollIntoView({ behavior: "smooth" });
 }
 
-// ── Próxima data ────────────────────────────────────────────────────────────
-// Pulls the real turma date straight from the admin's cadastro so the landing page
-// shows it up front, before checkout.
+// ── Produtos e Próxima data ──────────────────────────────────────────────────
 interface NextSession {
   activityTitle: string;
   startsAt: string;
 }
+
+const { data: productsData } = useQuery({
+  queryKey: ["public-products"],
+  queryFn: () => api.get<{ products: Product[] }>("/public/products"),
+  staleTime: 60_000,
+});
+
+const activeProduct = computed(() => {
+  const list = productsData.value?.products ?? [];
+  return list.find((p) => p.featured) ?? list[0] ?? null;
+});
+
+const formattedPrice = computed(() => {
+  if (!activeProduct.value) return "R$ 120";
+  return formatBRL(activeProduct.value.priceCents);
+});
+
+const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind Day");
+const productDescription = computed(() => activeProduct.value?.description ?? "Percurso guiado da Prainha até a P5 Kite House — transporte, apoio completo e estrutura do início ao fim.");
 
 const { data: nextSessionsData } = useQuery({
   queryKey: ["public-next-sessions"],
@@ -57,7 +75,7 @@ const nextDateLabel = computed(() => {
 });
 
 const included = [
-  { icon: MapPin, title: "Percurso guiado", detail: "Praia do Presídio, com toda a rota acompanhada pela equipe P5." },
+  { icon: MapPin, title: "Percurso guiado", detail: "Prainha, com toda a rota acompanhada pela equipe P5." },
   { icon: Bus, title: "Transporte incluso", detail: "Ida da P5 Kite House até o ponto de partida." },
   { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra." },
   { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },
@@ -70,7 +88,7 @@ const included = [
 const itinerary = [
   { time: "7:30", title: "Concentração", detail: "Chegada na P5 Kite House, checagem de equipamento e briefing." },
   { time: "→", title: "Transporte", detail: "Deslocamento estruturado até o ponto de partida do percurso." },
-  { time: "↝", title: "Percurso", detail: "Downwind da Praia do Presídio até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
+  { time: "↝", title: "Percurso", detail: "Downwind da Prainha até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
   { time: "13h", title: "Chegada", detail: "Receptivo, ajuda na desmontagem e encerramento do dia." },
 ];
 </script>
@@ -90,7 +108,7 @@ const itinerary = [
           <div>
             <p class="eyebrow mb-6 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · PRAIA DO PRESÍDIO
+              P5 KITE HOUSE · PRAINHA
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
@@ -99,12 +117,12 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              O <strong class="font-semibold text-ink">P5 DownWind Day</strong> é o percurso guiado da Praia do Presídio até a P5 Kite House — transporte, apoio completo e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
+              O <strong class="font-semibold text-ink">{{ productTitle }}</strong> é o {{ productDescription }}. Você entra na água, a gente cuida do resto.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
               <button class="button-magenta" @click="router.push('/comprar')">
-                Garantir minha vaga · R$ 120
+                Garantir minha vaga · {{ formattedPrice }}
                 <ArrowRight :size="18" />
               </button>
               <button
@@ -126,7 +144,7 @@ const itinerary = [
           <div class="relative mx-auto w-full max-w-sm">
             <div class="relative rounded-[1.75rem] border border-line/80 bg-white p-6 shadow-2xl">
               <div class="flex items-center justify-between">
-                <img src="/logo-downwind.webp" alt="P5 DownWind Day" class="h-6 w-auto" />
+                <img src="/logo-downwind.webp" :alt="productTitle" class="h-6 w-auto" />
                 <span class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Acesso único</span>
               </div>
 
@@ -139,7 +157,7 @@ const itinerary = [
                 <Wind :size="22" class="shrink-0 text-magenta" />
                 <div class="text-right">
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Percurso</p>
-                  <p class="font-serif text-lg font-bold text-ink">Presídio &rarr; P5</p>
+                  <p class="font-serif text-lg font-bold text-ink">Prainha &rarr; P5</p>
                   <p class="text-xs text-ink-soft">até 13h</p>
                 </div>
               </div>
@@ -153,7 +171,7 @@ const itinerary = [
               <div class="flex items-center justify-between px-1">
                 <div>
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Valor</p>
-                  <p class="font-serif text-2xl font-black text-ink">R$ 120</p>
+                  <p class="font-serif text-2xl font-black text-ink">{{ formattedPrice }}</p>
                 </div>
                 <span class="rounded-full border border-magenta/30 bg-magenta/10 px-3 py-1.5 text-[11px] font-semibold text-magenta">
                   Vagas limitadas
@@ -184,7 +202,7 @@ const itinerary = [
               <span class="text-magenta">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Da concentração na P5 Kite House até a chegada de volta, passando pelo percurso a partir da Praia do Presídio, toda a estrutura já está no seu ingresso.
+              Da concentração na P5 Kite House até a chegada de volta, passando pelo percurso a partir da Prainha, toda a estrutura já está no seu ingresso.
             </p>
           </div>
 
@@ -273,7 +291,7 @@ const itinerary = [
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
             Um valor, <span class="text-magenta">tudo incluso.</span>
           </h2>
-          <p class="mt-4 font-serif text-6xl font-black text-ink md:text-7xl">R$ 120</p>
+          <p class="mt-4 font-serif text-6xl font-black text-ink md:text-7xl">{{ formattedPrice }}</p>
           <p class="mt-3 text-sm text-ink-soft">
             Percurso, transporte, apoio aquático e terrestre e estrutura completa no ponto de saída.
           </p>

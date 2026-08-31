@@ -20,12 +20,12 @@ UPDATE activities SET active = false WHERE id IN (
 -- (coluna NOT NULL desde aquela migration — não existia ainda quando 00002 rodou).
 INSERT INTO activities (id, title, slug, instructor, duration_minutes, description, display_order, vendor_id) VALUES
   ('00000000-0000-0000-0000-000000000201', 'P5 DownWind Day', 'p5-downwind-day', 'Equipe P5', 330,
-   'Percurso guiado da P5 Kite House até a Praia do Presídio, com apoio aquático e terrestre o tempo todo.', 1,
+   'Percurso guiado da Prainha até a P5 Kite House, com apoio aquático e terrestre o tempo todo.', 1,
    '00000000-0000-0000-0000-0000000000f5');
 
 INSERT INTO products (id, title, slug, description, type, includes_breakfast, price_cents, featured, active, display_order, choose_one_activity) VALUES
   ('00000000-0000-0000-0000-000000000301', 'P5 DownWind Day', 'p5-downwind-day',
-   'Percurso Praia do Presídio, transporte, apoio aquático e terrestre, estrutura completa no ponto de saída e monitoramento pelo Wind Maps — tudo incluso.',
+   'Percurso Prainha, transporte, apoio aquático e terrestre, estrutura completa no ponto de saída e monitoramento pelo Wind Maps — tudo incluso.',
    'class', false, 12000, true, true, 1, false);
 
 INSERT INTO product_activities (product_id, activity_id) VALUES

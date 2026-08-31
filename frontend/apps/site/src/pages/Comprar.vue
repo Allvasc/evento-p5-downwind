@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { ShieldCheck, ArrowLeft, ArrowRight } from "lucide-vue-next";
@@ -19,14 +19,18 @@ const { data, isLoading } = useQuery({
 });
 
 const products = computed(() => data.value?.products ?? []);
+
+watch(products, (newProducts) => {
+  if (!selectedId.value && newProducts.length > 0) {
+    const featured = newProducts.find((p) => p.featured) ?? newProducts[0];
+    selectedId.value = featured.id;
+  }
+}, { immediate: true });
+
 const selected = computed(() => products.value.find((p) => p.id === selectedId.value) ?? null);
 
-// What to bring/wear, shown as a highlight under each activity's badge in step 1 — the
-// moment the customer already knows which activities they're booking. Keyed by slug
-// (stable) rather than title (display text, could be reworded in the catalog).
 const ACTIVITY_TIPS: Record<string, string> = {
-  yoga: "Traga seu tapete, toalha ou canga",
-  hyrox: "Use roupas leves e confortáveis",
+  "p5-downwind-day": "Traga seu equipamento de kitesurf, lycra e protetor solar",
 };
 function activityTip(slug: string): string | null {
   return ACTIVITY_TIPS[slug] ?? null;
