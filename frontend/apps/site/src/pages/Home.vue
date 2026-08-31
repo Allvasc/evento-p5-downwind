@@ -64,6 +64,9 @@ const formattedPrice = computed(() => {
 });
 
 const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind + Café da Manhã");
+const productDescription = computed(
+  () => activeProduct.value?.description ?? "Percurso guiado Prainha → P5 com transporte, apoio total e estrutura do início ao fim."
+);
 
 const { data: nextSessionsData } = useQuery({
   queryKey: ["public-next-sessions"],
@@ -127,7 +130,7 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              O <strong class="font-semibold text-ink">P5 DownWind Day (Prainha – P5) + Café da manhã</strong> traz a experiência completa do evento: percurso guiado Prainha &rarr; P5 com transporte, apoio total e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
+              O <strong class="font-semibold text-ink">{{ productTitle }}</strong> traz a experiência do evento: {{ productDescription }} Você entra na água, a gente cuida do resto.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
