@@ -376,11 +376,6 @@ const itinerary = [
           </div>
         </div>
 
-        <div class="mt-10 flex flex-col items-center gap-3 border-t border-white/10 px-6 pt-8">
-          <p class="font-mono text-[10px] font-semibold tracking-widest text-white/40 uppercase">Apoio</p>
-          <img src="/powerade-dark.webp" alt="Powerade" class="h-6 w-auto opacity-90" />
-        </div>
-
         <div class="mt-8 flex justify-center border-t border-white/10 px-6 pt-6">
           <a
             href="https://prolins.com.br"
