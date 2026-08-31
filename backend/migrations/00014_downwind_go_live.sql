@@ -1,17 +1,15 @@
 -- +goose Up
 -- ═══════════════════════════════════════════════════════════════════════════
--- P5 DownWind Day no ar de verdade.
+-- Remove por completo o catálogo de demonstração (Yoga/HYROX + seus 3
+-- produtos, seed 00002). A migration 00009 só o havia desativado
+-- (active = false) por precaução; nesta fase de desenvolvimento nenhum
+-- pedido real depende dele, então apagamos também os pedidos de teste que
+-- o referenciavam — mesmo critério já usado em 00003.
 --
--- 1. Remove por completo o catálogo de demonstração (Yoga/HYROX + seus 3
---    produtos, seed 00002). A migration 00009 só o havia desativado
---    (active = false) por precaução; nesta fase de desenvolvimento nenhum
---    pedido real depende dele, então apagamos também os pedidos de teste que
---    o referenciavam — mesmo critério já usado em 00003.
---
--- 2. Cadastra as turmas (datas) da atividade "P5 DownWind Day". Sem pelo menos
---    uma turma futura com vaga, o checkout não exibe o passo "Selecione sua
---    data" e a landing não mostra o selo "próxima data". Depois disso, a
---    equipe gerencia as datas normalmente pelo painel Admin → Turmas.
+-- As turmas (datas) do P5 DownWind Day NÃO são seedadas aqui: a equipe as
+-- cadastra e gerencia pelo painel Admin → Turmas. Sem pelo menos uma turma
+-- futura com vaga, o checkout não exibe o passo "Selecione sua data" nem a
+-- landing o selo "próxima data".
 --
 -- O setor "AYO Fitness" (vendors) é mantido de propósito: não aparece em
 -- lugar nenhum sem atividades ativas e a suíte de testes o usa como segundo
@@ -59,20 +57,8 @@ DELETE FROM activities WHERE id IN ('00000000-0000-0000-0000-000000000001',
                                     '00000000-0000-0000-0000-000000000002');
 -- +goose StatementEnd
 
--- +goose StatementBegin
--- ── 2. Primeira turma (data) do P5 DownWind Day ──────────────────────────────
--- Sábado 05/09/2026, manhã, horário de Fortaleza (America/Fortaleza = UTC-3,
--- sem horário de verão). Duração de 330 min conforme a atividade (08:00 → 13:30).
--- Ajuste a data/horário/vagas ou adicione novas turmas pelo painel Admin → Turmas.
-INSERT INTO class_sessions (id, activity_id, starts_at, ends_at, capacity, status) VALUES
-  ('00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000201',
-   '2026-09-05 08:00:00-03', '2026-09-05 13:30:00-03', 50, 'scheduled');
--- +goose StatementEnd
-
 -- +goose Down
 -- +goose StatementBegin
-DELETE FROM class_sessions WHERE id = '00000000-0000-0000-0000-000000000401';
-
 -- Recria o catálogo de demonstração (espelho do seed 00002), já desativado,
 -- para manter a reversibilidade sem reabrir Yoga/HYROX na loja.
 INSERT INTO activities (id, title, slug, instructor, duration_minutes, description, display_order, active, vendor_id) VALUES
