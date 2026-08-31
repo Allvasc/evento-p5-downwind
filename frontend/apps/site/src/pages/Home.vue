@@ -127,7 +127,7 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              O <strong class="font-semibold text-ink">{{ productTitle }}</strong> traz a experiência completa do evento: percurso guiado Prainha &rarr; P5 com transporte, apoio total e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
+              O <strong class="font-semibold text-ink">P5 DownWind Day (Prainha – P5) + Café da manhã</strong> traz a experiência completa do evento: percurso guiado Prainha &rarr; P5 com transporte, apoio total e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
@@ -150,65 +150,72 @@ const itinerary = [
             </div>
           </div>
 
-          <!-- TICKET CARD GRAPHIC -->
-          <div class="relative mx-auto w-full max-w-sm">
-            <!-- Tabs de alternância das opções de compra -->
-            <div v-if="products.length > 1" class="mb-3 flex rounded-xl border border-line/80 bg-white/90 p-1 shadow-sm">
-              <button
-                v-for="(p, index) in products"
-                :key="p.id"
-                type="button"
-                :class="[
-                  'flex-1 rounded-lg py-2 px-3 text-xs font-semibold transition-all text-center',
-                  selectedProductIndex === index
-                    ? 'bg-magenta text-white shadow-sm font-bold'
-                    : 'text-ink-soft hover:text-ink',
-                ]"
-                @click="selectedProductIndex = index"
-              >
-                {{ p.includesBreakfast ? 'Com Café (R$ 130)' : 'Ingresso (R$ 100)' }}
-              </button>
-            </div>
-
-            <div class="relative rounded-[1.75rem] border border-line/80 bg-white p-6 shadow-2xl">
-              <div class="flex items-center justify-between">
-                <img src="/logo-downwind.webp" :alt="productTitle" class="h-6 w-auto" />
-                <span class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">
-                  {{ activeProduct?.includesBreakfast ? 'Com Café da Manhã' : 'Ingresso Único' }}
-                </span>
+          <!-- STACKED PRODUCT CARDS CONTAINER (Image 2 style) -->
+          <div class="relative mx-auto w-full max-w-md">
+            <div class="relative rounded-[2rem] border border-line/80 bg-white p-6 shadow-2xl md:p-8">
+              <div class="text-center">
+                <img src="/logo-downwind.webp" :alt="productTitle" class="mx-auto h-7 w-auto" />
+                <p class="mt-2 text-xs font-medium text-ink-soft">
+                  Escolha como você quer viver essa experiência.
+                </p>
               </div>
 
-              <div class="mt-6 flex items-center justify-between gap-2 px-1">
-                <div>
-                  <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Concentração</p>
-                  <p class="font-serif text-lg font-bold text-ink">P5 Kite House</p>
+              <!-- Stacked Product Cards -->
+              <div class="mt-6 space-y-3">
+                <div
+                  v-for="(p, index) in products"
+                  :key="p.id"
+                  :class="[
+                    'relative flex cursor-pointer items-center justify-between rounded-2xl border p-4 transition-all',
+                    selectedProductIndex === index
+                      ? 'border-magenta bg-white ring-2 ring-magenta/20 shadow-md'
+                      : 'border-line/80 bg-warm/30 hover:border-ink/40 hover:bg-white',
+                  ]"
+                  @click="selectedProductIndex = index"
+                >
+                  <div class="pr-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h3 class="font-serif text-sm font-bold text-ink">{{ p.title }}</h3>
+                      <span
+                        v-if="p.includesBreakfast"
+                        class="rounded-full bg-magenta/10 px-2 py-0.5 font-mono text-[9px] font-bold text-magenta uppercase"
+                      >
+                        Com Café
+                      </span>
+                      <span
+                        v-else
+                        class="rounded-full bg-warm px-2 py-0.5 font-mono text-[9px] font-bold text-ink-soft uppercase"
+                      >
+                        Ingresso Único
+                      </span>
+                    </div>
+                    <p class="mt-1 text-xs text-ink-soft">
+                      {{ p.includesBreakfast ? 'Percurso Prainha → P5 + Café da Manhã' : 'Percurso Prainha → P5' }}
+                    </p>
+                  </div>
+
+                  <div class="shrink-0 text-right">
+                    <span class="font-sans text-base font-bold text-ink">{{ formatBRL(p.priceCents) }}</span>
+                  </div>
                 </div>
-                <Wind :size="22" class="shrink-0 text-magenta" />
+              </div>
+
+              <!-- Route details footer inside card -->
+              <div class="mt-6 flex items-center justify-between border-t border-line/60 pt-4 text-xs text-ink-soft">
+                <div>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Concentração</p>
+                  <p class="font-serif font-bold text-ink">P5 Kite House</p>
+                </div>
+                <Wind :size="18" class="text-magenta shrink-0" />
                 <div class="text-right">
-                  <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Percurso</p>
-                  <p class="font-serif text-lg font-bold text-ink">Prainha &rarr; P5</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Percurso</p>
+                  <p class="font-serif font-bold text-ink">Prainha &rarr; P5</p>
                 </div>
-              </div>
-
-              <div class="relative my-6">
-                <div class="ticket-perforation"></div>
-                <span class="ticket-notch -left-9"></span>
-                <span class="ticket-notch -right-9"></span>
-              </div>
-
-              <div class="flex items-center justify-between px-1">
-                <div>
-                  <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Valor</p>
-                  <p class="font-serif text-2xl font-black text-ink">{{ formattedPrice }}</p>
-                </div>
-                <span :class="['rounded-full border px-3 py-1.5 text-[11px] font-semibold', activeProduct?.featured ? 'border-magenta bg-magenta/10 text-magenta' : 'border-line/80 bg-warm/60 text-ink-soft']">
-                  {{ activeProduct?.featured ? 'Destaque' : 'Vagas limitadas' }}
-                </span>
               </div>
             </div>
 
             <!-- Floating Top Badge -->
-            <span v-if="nextDateLabel" class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3 py-1 text-[11px] font-semibold text-magenta shadow-sm">
+            <span v-if="nextDateLabel" class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3.5 py-1 text-[11px] font-semibold text-magenta shadow-sm">
               <Compass :size="12" /> próxima data: {{ nextDateLabel }}
             </span>
 
