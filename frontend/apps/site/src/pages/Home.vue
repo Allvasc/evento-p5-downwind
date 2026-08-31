@@ -47,8 +47,9 @@ const products = computed(() => productsData.value?.products ?? []);
 const selectedProductIndex = ref(0);
 
 watch(products, (list) => {
-  if (list.length > 0 && selectedProductIndex.value >= list.length) {
-    selectedProductIndex.value = 0;
+  if (list.length > 0) {
+    const featuredIdx = list.findIndex((p) => p.featured);
+    selectedProductIndex.value = featuredIdx !== -1 ? featuredIdx : 0;
   }
 }, { immediate: true });
 
@@ -58,12 +59,11 @@ const activeProduct = computed(() => {
 });
 
 const formattedPrice = computed(() => {
-  if (!activeProduct.value) return "R$ 100";
+  if (!activeProduct.value) return "R$ 130";
   return formatBRL(activeProduct.value.priceCents);
 });
 
-const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind Day");
-const productDescription = computed(() => activeProduct.value?.description ?? "Percurso guiado Prainha → P5 com transporte, apoio aquático/terrestre e estrutura inclusa.");
+const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind + Café da Manhã");
 
 const { data: nextSessionsData } = useQuery({
   queryKey: ["public-next-sessions"],
@@ -127,7 +127,7 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              O <strong class="font-semibold text-ink">{{ productTitle }}</strong> é o {{ productDescription }}. Você entra na água, a gente cuida do resto.
+              O <strong class="font-semibold text-ink">{{ productTitle }}</strong> traz a experiência completa do evento: percurso guiado Prainha &rarr; P5 com transporte, apoio total e estrutura do início ao fim. Você entra na água, a gente cuida do resto.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
