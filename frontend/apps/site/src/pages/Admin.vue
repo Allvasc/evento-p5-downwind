@@ -1135,7 +1135,7 @@ onMounted(async () => {
               <div v-if="newProduct.activityIds.length >= 2" class="md:col-span-2">
                 <label class="flex items-center gap-2 text-sm text-ink-soft">
                   <input v-model="newProduct.chooseOneActivity" type="checkbox" />
-                  Cliente escolhe <strong class="text-ink">uma</strong> das atividades acima (em vez de reservar todas) — ex: "Yoga ou HYROX"
+                  Cliente escolhe <strong class="text-ink">uma</strong> das atividades acima (em vez de reservar todas)
                 </label>
               </div>
             </div>
