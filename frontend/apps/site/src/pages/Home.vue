@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import {
@@ -44,12 +44,21 @@ const { data: productsData } = useQuery({
 
 const products = computed(() => productsData.value?.products ?? []);
 
+const selectedProductIndex = ref(0);
+
+watch(products, (list) => {
+  if (list.length > 0 && selectedProductIndex.value >= list.length) {
+    selectedProductIndex.value = 0;
+  }
+}, { immediate: true });
+
 const activeProduct = computed(() => {
-  return products.value.find((p) => p.featured) ?? products.value[0] ?? null;
+  if (!products.value.length) return null;
+  return products.value[selectedProductIndex.value] ?? products.value[0];
 });
 
 const formattedPrice = computed(() => {
-  if (!activeProduct.value) return "R$ 120";
+  if (!activeProduct.value) return "R$ 100";
   return formatBRL(activeProduct.value.priceCents);
 });
 
@@ -143,10 +152,30 @@ const itinerary = [
 
           <!-- TICKET CARD GRAPHIC -->
           <div class="relative mx-auto w-full max-w-sm">
+            <!-- Tabs de alternância das opções de compra -->
+            <div v-if="products.length > 1" class="mb-3 flex rounded-xl border border-line/80 bg-white/90 p-1 shadow-sm">
+              <button
+                v-for="(p, index) in products"
+                :key="p.id"
+                type="button"
+                :class="[
+                  'flex-1 rounded-lg py-2 px-3 text-xs font-semibold transition-all text-center',
+                  selectedProductIndex === index
+                    ? 'bg-magenta text-white shadow-sm font-bold'
+                    : 'text-ink-soft hover:text-ink',
+                ]"
+                @click="selectedProductIndex = index"
+              >
+                {{ p.includesBreakfast ? 'Com Café (R$ 130)' : 'Ingresso (R$ 100)' }}
+              </button>
+            </div>
+
             <div class="relative rounded-[1.75rem] border border-line/80 bg-white p-6 shadow-2xl">
               <div class="flex items-center justify-between">
                 <img src="/logo-downwind.webp" :alt="productTitle" class="h-6 w-auto" />
-                <span class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Acesso único</span>
+                <span class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">
+                  {{ activeProduct?.includesBreakfast ? 'Com Café da Manhã' : 'Ingresso Único' }}
+                </span>
               </div>
 
               <div class="mt-6 flex items-center justify-between gap-2 px-1">
@@ -172,8 +201,8 @@ const itinerary = [
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Valor</p>
                   <p class="font-serif text-2xl font-black text-ink">{{ formattedPrice }}</p>
                 </div>
-                <span class="rounded-full border border-magenta/30 bg-magenta/10 px-3 py-1.5 text-[11px] font-semibold text-magenta">
-                  Vagas limitadas
+                <span :class="['rounded-full border px-3 py-1.5 text-[11px] font-semibold', activeProduct?.featured ? 'border-magenta bg-magenta/10 text-magenta' : 'border-line/80 bg-warm/60 text-ink-soft']">
+                  {{ activeProduct?.featured ? 'Destaque' : 'Vagas limitadas' }}
                 </span>
               </div>
             </div>

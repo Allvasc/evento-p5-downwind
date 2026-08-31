@@ -26,18 +26,14 @@ INSERT INTO activities (id, title, slug, instructor, duration_minutes, descripti
 INSERT INTO products (id, title, slug, description, type, includes_breakfast, price_cents, featured, active, display_order, choose_one_activity) VALUES
   ('00000000-0000-0000-0000-000000000301', 'P5 DownWind Day', 'p5-downwind-day',
    'Percurso Prainha, transporte, apoio aquático e terrestre, estrutura completa no ponto de saída e monitoramento pelo Wind Maps — tudo incluso.',
-   'class', false, 12000, false, true, 1, false),
+   'class', false, 10000, false, true, 1, false),
   ('00000000-0000-0000-0000-000000000302', 'P5 DownWind + Café da Manhã', 'p5-downwind-cafe-da-manha',
-   'Experiência completa do Downwind Day com o bufê de café da manhã especial da P5 Kite House incluso.',
-   'combo', true, 16000, true, true, 2, false),
-  ('00000000-0000-0000-0000-000000000303', 'Ingresso Acompanhante', 'ingresso-acompanhante',
-   'Acesso à estrutura da P5 Kite House, receptivo, transporte de apoio e café da manhã para acompanhantes.',
-   'class', true, 6000, false, true, 3, false);
+   'Percurso Prainha, transporte, apoio aquático e terrestre + bufê de café da manhã especial na P5 Kite House incluso.',
+   'combo', true, 13000, true, true, 2, false);
 
 INSERT INTO product_activities (product_id, activity_id) VALUES
   ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201'),
-  ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000201'),
-  ('00000000-0000-0000-0000-000000000303', '00000000-0000-0000-0000-000000000201');
+  ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000201');
 -- +goose StatementEnd
 
 -- +goose Down
