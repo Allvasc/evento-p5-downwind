@@ -323,25 +323,23 @@ const itinerary = [
             Selecione o ingresso ideal para você e garanta sua vaga com pagamento seguro via Pix.
           </p>
 
-          <div class="mt-12 max-w-xl mx-auto divide-y divide-line/60 rounded-card border border-line/80 bg-white shadow-sm text-left">
+          <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
             <div
               v-for="p in products"
               :key="p.id"
               :class="[
-                'flex flex-col gap-3 p-6 transition-colors first:rounded-t-card last:rounded-b-card',
-                p.featured ? 'bg-magenta/5' : 'hover:bg-warm/40',
+                'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border p-5 transition-all shadow-sm',
+                p.featured ? 'border-magenta/80 bg-white ring-2 ring-magenta/20' : 'border-line/80 bg-white/80 hover:border-ink/40',
               ]"
             >
-              <div class="flex items-start justify-between gap-3">
-                <h3 class="font-serif text-base font-bold text-ink">{{ p.title }}</h3>
-                <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase shrink-0">Destaque</span>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <h3 class="font-sans text-base font-bold text-ink">{{ p.title }}</h3>
+                <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">DESTAQUE</span>
               </div>
 
-              <p class="text-xs leading-relaxed text-ink-soft whitespace-pre-line">{{ p.description }}</p>
-
-              <div class="mt-1 flex items-center justify-between border-t border-line/50 pt-4">
+              <div class="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-5">
                 <span class="font-serif text-2xl font-black text-ink">{{ formatBRL(p.priceCents) }}</span>
-                <button class="button-magenta px-4 py-2 text-xs shrink-0" @click="router.push('/comprar')">
+                <button class="button-magenta px-5 py-2.5 text-xs font-bold shrink-0" @click="router.push('/comprar')">
                   Garantir <ArrowRight :size="14" />
                 </button>
               </div>

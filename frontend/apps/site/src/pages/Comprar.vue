@@ -128,9 +128,8 @@ async function goToPayment() {
                   <div>
                     <div class="flex flex-wrap items-center gap-2">
                       <h3 class="font-sans text-base font-bold text-ink">{{ p.title }}</h3>
-                      <span v-if="p.type === 'combo'" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">COMBO</span>
+                      <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">DESTAQUE</span>
                     </div>
-                    <p class="mt-1.5 text-xs leading-relaxed text-ink-soft">{{ p.description }}</p>
                     <div v-if="p.activities.length" class="mt-3 flex flex-wrap gap-2">
                       <span v-for="a in p.activities" :key="a.id" class="inline-flex items-center gap-1 rounded-md bg-warm/80 px-2.5 py-1 text-[10px] font-semibold text-ink-soft">✦ {{ a.title }}</span>
                     </div>
