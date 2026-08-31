@@ -42,9 +42,10 @@ const { data: productsData } = useQuery({
   staleTime: 60_000,
 });
 
+const products = computed(() => productsData.value?.products ?? []);
+
 const activeProduct = computed(() => {
-  const list = productsData.value?.products ?? [];
-  return list.find((p) => p.featured) ?? list[0] ?? null;
+  return products.value.find((p) => p.featured) ?? products.value[0] ?? null;
 });
 
 const formattedPrice = computed(() => {
@@ -286,23 +287,42 @@ const itinerary = [
 
       <!-- SECTION: PREÇO / CTA -->
       <section id="preco" class="border-t border-line/60 py-20">
-        <div class="mx-auto max-w-4xl px-6 text-center">
-          <p class="eyebrow mb-2 justify-center">INGRESSO ÚNICO</p>
+        <div class="mx-auto max-w-5xl px-6 text-center">
+          <p class="eyebrow mb-2 justify-center">OPÇÕES DE INGRESSO</p>
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
-            Um valor, <span class="text-magenta">tudo incluso.</span>
+            Escolha sua <span class="text-magenta">experiência.</span>
           </h2>
-          <p class="mt-4 font-serif text-6xl font-black text-ink md:text-7xl">{{ formattedPrice }}</p>
           <p class="mt-3 text-sm text-ink-soft">
-            Percurso, transporte, apoio aquático e terrestre e estrutura completa no ponto de saída.
+            Selecione o ingresso ideal para você e garanta sua vaga com pagamento seguro via Pix.
           </p>
 
-          <div class="mt-8">
-            <button class="button-magenta" @click="router.push('/comprar')">
-              Garantir minha vaga
-              <ArrowRight :size="18" />
-            </button>
+          <div class="mt-12 grid gap-6 sm:grid-cols-3 text-left">
+            <div
+              v-for="p in products"
+              :key="p.id"
+              :class="[
+                'flex flex-col justify-between rounded-[var(--radius-card)] border p-6 transition-all shadow-sm',
+                p.featured ? 'border-magenta/80 bg-white ring-2 ring-magenta/20' : 'border-line/80 bg-white/80 hover:border-ink/40',
+              ]"
+            >
+              <div>
+                <div class="flex items-center justify-between gap-2">
+                  <h3 class="font-sans text-base font-bold text-ink">{{ p.title }}</h3>
+                  <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase shrink-0">Destaque</span>
+                </div>
+                <p class="mt-2 text-xs leading-relaxed text-ink-soft">{{ p.description }}</p>
+              </div>
+
+              <div class="mt-6 flex items-center justify-between border-t border-line/50 pt-4">
+                <span class="font-serif text-2xl font-black text-ink">{{ formatBRL(p.priceCents) }}</span>
+                <button class="button-magenta px-4 py-2 text-xs" @click="router.push('/comprar')">
+                  Garantir <ArrowRight :size="14" />
+                </button>
+              </div>
+            </div>
           </div>
-          <p class="mt-4 text-xs italic font-medium text-ink-soft">Vagas limitadas · Pagamento via Pix.</p>
+
+          <p class="mt-8 text-xs italic font-medium text-ink-soft">Vagas limitadas · Pagamento via Pix.</p>
         </div>
       </section>
 
