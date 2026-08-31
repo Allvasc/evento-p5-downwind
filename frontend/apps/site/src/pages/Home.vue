@@ -82,15 +82,15 @@ const included = [
   { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },
   { icon: Radar, title: "Monitoramento Wind Maps", detail: "Condições de vento acompanhadas em tempo real." },
   { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento." },
-  { icon: Clock, title: "Saída às 7:30", detail: "Concentração na P5 Kite House." },
-  { icon: Flag, title: "Chegada até as 13h", detail: "Encerramento dentro do previsto." },
+  { icon: Clock, title: "Concentração", detail: "Ponto de encontro na P5 Kite House." },
+  { icon: Flag, title: "Encerramento", detail: "Receptivo e suporte no retorno à P5 Kite House." },
 ];
 
 const itinerary = [
-  { time: "7:30", title: "Concentração", detail: "Chegada na P5 Kite House, checagem de equipamento e briefing." },
-  { time: "→", title: "Transporte", detail: "Deslocamento estruturado até o ponto de partida do percurso." },
-  { time: "↝", title: "Percurso", detail: "Downwind da Prainha até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
-  { time: "13h", title: "Chegada", detail: "Receptivo, ajuda na desmontagem e encerramento do dia." },
+  { time: "1", title: "Concentração", detail: "Chegada na P5 Kite House, checagem de equipamento e briefing." },
+  { time: "2", title: "Transporte", detail: "Deslocamento estruturado até o ponto de partida do percurso." },
+  { time: "3", title: "Percurso", detail: "Downwind da Prainha até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
+  { time: "4", title: "Chegada", detail: "Receptivo, ajuda na desmontagem e encerramento do dia." },
 ];
 </script>
 
@@ -136,7 +136,7 @@ const itinerary = [
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Vagas limitadas</span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Saída 7:30 da P5 Kite House</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Concentração na P5 Kite House</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Apoio aquático e terrestre</span>
             </div>
           </div>
@@ -153,13 +153,11 @@ const itinerary = [
                 <div>
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Concentração</p>
                   <p class="font-serif text-lg font-bold text-ink">P5 Kite House</p>
-                  <p class="text-xs text-ink-soft">7:30</p>
                 </div>
                 <Wind :size="22" class="shrink-0 text-magenta" />
                 <div class="text-right">
                   <p class="font-mono text-[10px] font-bold tracking-widest text-ink-soft uppercase">Percurso</p>
                   <p class="font-serif text-lg font-bold text-ink">Prainha &rarr; P5</p>
-                  <p class="text-xs text-ink-soft">até 13h</p>
                 </div>
               </div>
 
