@@ -63,7 +63,7 @@ const formattedPrice = computed(() => {
 });
 
 const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind Day");
-const productDescription = computed(() => activeProduct.value?.description ?? "Percurso guiado da Prainha até a P5 Kite House — transporte, apoio completo e estrutura do início ao fim.");
+const productDescription = computed(() => activeProduct.value?.description ?? "Percurso guiado Prainha → P5 com transporte, apoio aquático/terrestre e estrutura inclusa.");
 
 const { data: nextSessionsData } = useQuery({
   queryKey: ["public-next-sessions"],
@@ -323,7 +323,7 @@ const itinerary = [
             Selecione o ingresso ideal para você e garanta sua vaga com pagamento seguro via Pix.
           </p>
 
-          <div class="mt-12 grid gap-6 sm:grid-cols-3 text-left">
+          <div class="mt-12 grid gap-6 sm:grid-cols-2 max-w-3xl mx-auto text-left">
             <div
               v-for="p in products"
               :key="p.id"
