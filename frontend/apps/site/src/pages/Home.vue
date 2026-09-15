@@ -65,7 +65,7 @@ const formattedPrice = computed(() => {
 
 const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind + Café da Manhã");
 const productDescription = computed(
-  () => activeProduct.value?.description ?? "Percurso guiado Aquiraz Riviera → P5 com transporte, apoio total e estrutura do início ao fim."
+  () => activeProduct.value?.description ?? "Percurso guiado Riviera Wind → P5 com transporte, apoio total e estrutura do início ao fim."
 );
 
 const { data: nextSessionsData } = useQuery({
@@ -88,7 +88,7 @@ const nextDateLabel = computed(() => {
 });
 
 const included = [
-  { icon: MapPin, title: "Percurso guiado", detail: "Aquiraz Riviera, com toda a rota acompanhada pela equipe P5." },
+  { icon: MapPin, title: "Percurso guiado", detail: "Riviera Wind, com toda a rota acompanhada pela equipe P5." },
   { icon: Bus, title: "Transporte incluso", detail: "Ida da P5 Kite House até o ponto de partida." },
   { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra." },
   { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },
@@ -101,7 +101,7 @@ const included = [
 const itinerary = [
   { time: "1", title: "Concentração", detail: "Chegada na P5 Kite House, checagem de equipamento e briefing." },
   { time: "2", title: "Transporte", detail: "Deslocamento estruturado até o ponto de partida do percurso." },
-  { time: "3", title: "Percurso", detail: "Downwind do Aquiraz Riviera até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
+  { time: "3", title: "Percurso", detail: "Downwind do Riviera Wind até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
   { time: "4", title: "Chegada", detail: "Receptivo, ajuda na desmontagem e encerramento do dia." },
 ];
 </script>
@@ -121,7 +121,7 @@ const itinerary = [
           <div>
             <p class="eyebrow mb-6 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · AQUIRAZ RIVIERA
+              P5 KITE HOUSE · RIVIERA WIND
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
@@ -193,7 +193,7 @@ const itinerary = [
                       </span>
                     </div>
                     <p class="mt-1 text-xs text-ink-soft">
-                      {{ p.includesBreakfast ? 'Percurso Aquiraz Riviera → P5 + Café da Manhã' : 'Percurso Aquiraz Riviera → P5' }}
+                      {{ p.includesBreakfast ? 'Percurso Riviera Wind → P5 + Café da Manhã' : 'Percurso Riviera Wind → P5' }}
                     </p>
                   </div>
 
@@ -212,7 +212,7 @@ const itinerary = [
                 <Wind :size="18" class="text-magenta shrink-0" />
                 <div class="text-right">
                   <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Percurso</p>
-                  <p class="font-serif font-bold text-ink">Aquiraz Riviera &rarr; P5</p>
+                  <p class="font-serif font-bold text-ink">Riviera Wind &rarr; P5</p>
                 </div>
               </div>
             </div>
@@ -240,7 +240,7 @@ const itinerary = [
               <span class="text-magenta">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Da concentração na P5 Kite House até a chegada de volta, passando pelo percurso a partir do Aquiraz Riviera, toda a estrutura já está no seu ingresso.
+              Da concentração na P5 Kite House até a chegada de volta, passando pelo percurso a partir do Riviera Wind, toda a estrutura já está no seu ingresso.
             </p>
           </div>
 

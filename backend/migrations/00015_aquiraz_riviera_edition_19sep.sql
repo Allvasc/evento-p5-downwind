@@ -1,25 +1,27 @@
 -- +goose Up
 -- ═══════════════════════════════════════════════════════════════════════════
--- Atualiza o percurso para Aquiraz Riviera → P5 (títulos e descrições)
+-- Atualiza o percurso para Riviera Wind → P5 (títulos e descrições)
 -- e cadastra a turma do dia 19/09/2026 para todas as atividades ativas.
 -- ═══════════════════════════════════════════════════════════════════════════
 -- +goose StatementBegin
 UPDATE activities
-   SET title = REPLACE(title, 'Prainha', 'Aquiraz Riviera'),
-       description = REPLACE(description, 'Prainha', 'Aquiraz Riviera')
- WHERE title LIKE '%Prainha%' OR description LIKE '%Prainha%';
+   SET title = REPLACE(REPLACE(title, 'Prainha', 'Riviera Wind'), 'Aquiraz Riviera', 'Riviera Wind'),
+       description = REPLACE(REPLACE(description, 'Prainha', 'Riviera Wind'), 'Aquiraz Riviera', 'Riviera Wind')
+ WHERE title LIKE '%Prainha%' OR description LIKE '%Prainha%'
+    OR title LIKE '%Aquiraz Riviera%' OR description LIKE '%Aquiraz Riviera%';
 
 UPDATE products
-   SET title = REPLACE(title, 'Prainha', 'Aquiraz Riviera'),
-       description = REPLACE(description, 'Prainha', 'Aquiraz Riviera')
- WHERE title LIKE '%Prainha%' OR description LIKE '%Prainha%';
+   SET title = REPLACE(REPLACE(title, 'Prainha', 'Riviera Wind'), 'Aquiraz Riviera', 'Riviera Wind'),
+       description = REPLACE(REPLACE(description, 'Prainha', 'Riviera Wind'), 'Aquiraz Riviera', 'Riviera Wind')
+ WHERE title LIKE '%Prainha%' OR description LIKE '%Prainha%'
+    OR title LIKE '%Aquiraz Riviera%' OR description LIKE '%Aquiraz Riviera%';
 
 UPDATE activities
-   SET description = 'Percurso guiado do Aquiraz Riviera até a P5 Kite House, com apoio aquático e terrestre o tempo todo.'
+   SET description = 'Percurso guiado do Riviera Wind até a P5 Kite House, com apoio aquático e terrestre o tempo todo.'
  WHERE id = '00000000-0000-0000-0000-000000000201';
 
 UPDATE products
-   SET description = 'Percurso guiado Aquiraz Riviera → P5 com transporte, apoio aquático/terrestre e estrutura inclusa.'
+   SET description = 'Percurso guiado Riviera Wind → P5 com transporte, apoio aquático/terrestre e estrutura inclusa.'
  WHERE id = '00000000-0000-0000-0000-000000000301';
 
 -- Garante sessão do dia 19/09/2026 para a atividade principal do P5 DownWind Day
@@ -52,12 +54,12 @@ WHERE active = true
 DELETE FROM class_sessions WHERE id = '00000000-0000-0000-0000-000000000401' OR starts_at::date = '2026-09-19'::date;
 
 UPDATE products
-   SET title = REPLACE(title, 'Aquiraz Riviera', 'Prainha'),
-       description = REPLACE(description, 'Aquiraz Riviera', 'Prainha')
- WHERE title LIKE '%Aquiraz Riviera%' OR description LIKE '%Aquiraz Riviera%';
+   SET title = REPLACE(title, 'Riviera Wind', 'Prainha'),
+       description = REPLACE(description, 'Riviera Wind', 'Prainha')
+ WHERE title LIKE '%Riviera Wind%' OR description LIKE '%Riviera Wind%';
 
 UPDATE activities
-   SET title = REPLACE(title, 'Aquiraz Riviera', 'Prainha'),
-       description = REPLACE(description, 'Aquiraz Riviera', 'Prainha')
- WHERE title LIKE '%Aquiraz Riviera%' OR description LIKE '%Aquiraz Riviera%';
+   SET title = REPLACE(title, 'Riviera Wind', 'Prainha'),
+       description = REPLACE(description, 'Riviera Wind', 'Prainha')
+ WHERE title LIKE '%Riviera Wind%' OR description LIKE '%Riviera Wind%';
 -- +goose StatementEnd
