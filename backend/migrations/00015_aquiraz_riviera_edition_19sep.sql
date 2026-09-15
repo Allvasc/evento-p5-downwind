@@ -17,11 +17,11 @@ UPDATE products
     OR title LIKE '%Aquiraz Riviera%' OR description LIKE '%Aquiraz Riviera%';
 
 UPDATE activities
-   SET description = 'Percurso guiado do Riviera Wind até a P5 Kite House, com apoio aquático e terrestre o tempo todo.'
+   SET description = 'Percurso do Riviera Wind até a P5 Kite House, com apoio aquático e terrestre o tempo todo.'
  WHERE id = '00000000-0000-0000-0000-000000000201';
 
 UPDATE products
-   SET description = 'Percurso guiado Riviera Wind → P5 com transporte, apoio aquático/terrestre e estrutura inclusa.'
+   SET description = 'Percurso Riviera Wind → P5 com transporte, apoio aquático/terrestre e estrutura inclusa.'
  WHERE id = '00000000-0000-0000-0000-000000000301';
 
 -- Garante sessão do dia 19/09/2026 para a atividade principal do P5 DownWind Day

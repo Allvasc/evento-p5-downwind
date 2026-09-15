@@ -65,7 +65,7 @@ const formattedPrice = computed(() => {
 
 const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind + Café da Manhã");
 const productDescription = computed(
-  () => activeProduct.value?.description ?? "Percurso guiado Riviera Wind → P5 com transporte, apoio total e estrutura do início ao fim."
+  () => activeProduct.value?.description ?? "Percurso Riviera Wind → P5 com transporte, apoio total e estrutura do início ao fim."
 );
 
 const { data: nextSessionsData } = useQuery({
@@ -88,7 +88,7 @@ const nextDateLabel = computed(() => {
 });
 
 const included = [
-  { icon: MapPin, title: "Percurso guiado", detail: "Riviera Wind, com toda a rota acompanhada pela equipe P5." },
+  { icon: MapPin, title: "Percurso", detail: "Riviera Wind, com toda a rota acompanhada pela equipe P5." },
   { icon: Bus, title: "Transporte incluso", detail: "Ida da P5 Kite House até o ponto de partida." },
   { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra." },
   { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },

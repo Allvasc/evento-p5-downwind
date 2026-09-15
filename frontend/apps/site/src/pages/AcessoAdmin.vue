@@ -179,7 +179,7 @@ async function submit() {
     </main>
 
     <footer class="py-6 text-center text-xs text-ink-soft border-t border-line/40 space-y-3">
-      <p>&copy; {{ new Date().getFullYear() }} P5 DownWind Day — Operação</p>
+      <p>&copy; {{ new Date().getFullYear() }} P5 DownWind Day</p>
       <a
         href="https://prolins.com.br"
         target="_blank"
