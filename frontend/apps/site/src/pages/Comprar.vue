@@ -3,7 +3,7 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { ShieldCheck, ArrowLeft, ArrowRight } from "lucide-vue-next";
-import { formatBRL, type Product } from "@p5wellness/shared";
+import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
 import { api, ApiError } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import { useProductSlots, formatSlotDay, formatSlotSummary } from "@/composables/useProductSlots";
@@ -127,7 +127,7 @@ async function goToPayment() {
 
                   <div>
                     <div class="flex flex-wrap items-center gap-2">
-                      <h3 class="font-sans text-base font-bold text-ink">{{ p.title }}</h3>
+                      <h3 class="font-sans text-base font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
                       <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">DESTAQUE</span>
                     </div>
                     <div v-if="p.activities.length" class="mt-3 flex flex-wrap gap-2">
@@ -213,7 +213,7 @@ async function goToPayment() {
 
           <div v-if="selected" class="mt-6 space-y-4">
             <div class="border-b border-white/10 pb-4">
-              <p class="text-sm font-bold text-white">{{ selected.title }}</p>
+              <p class="text-sm font-bold text-white">{{ cleanTitle(selected.title) }}</p>
               <p class="mt-1 text-xs text-white/70">{{ selected.description }}</p>
               <p v-if="selectedSlot" class="mt-2 text-xs font-semibold capitalize text-magenta">🗓 {{ formatSlotDay(selectedSlot.day) }} · {{ formatSlotSummary(selectedSlot) }}</p>
             </div>

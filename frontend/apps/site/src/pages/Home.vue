@@ -17,7 +17,7 @@ import {
   Flag,
   ShieldCheck,
 } from "lucide-vue-next";
-import { formatBRL, type Product } from "@p5wellness/shared";
+import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
@@ -63,7 +63,7 @@ const formattedPrice = computed(() => {
   return formatBRL(activeProduct.value.priceCents);
 });
 
-const productTitle = computed(() => activeProduct.value?.title ?? "P5 DownWind + Café da Manhã");
+const productTitle = computed(() => cleanTitle(activeProduct.value?.title ?? "P5 DownWind + Café da Manhã"));
 const productDescription = computed(
   () => activeProduct.value?.description ?? "Percurso Riviera Wind → P5 com transporte, apoio total e estrutura do início ao fim."
 );
@@ -178,7 +178,7 @@ const itinerary = [
                 >
                   <div class="pr-2">
                     <div class="flex flex-wrap items-center gap-2">
-                      <h3 class="font-serif text-sm font-bold text-ink">{{ p.title }}</h3>
+                      <h3 class="font-serif text-sm font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
                       <span
                         v-if="p.includesBreakfast"
                         class="rounded-full bg-magenta/10 px-2 py-0.5 font-mono text-[9px] font-bold text-magenta uppercase"
@@ -343,7 +343,7 @@ const itinerary = [
               ]"
             >
               <div class="flex flex-wrap items-center gap-2.5">
-                <h3 class="font-sans text-base font-bold text-ink">{{ p.title }}</h3>
+                <h3 class="font-sans text-base font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
                 <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">DESTAQUE</span>
               </div>
 

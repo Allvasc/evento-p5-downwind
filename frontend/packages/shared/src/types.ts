@@ -29,3 +29,9 @@ export function formatBRL(cents: number): string {
     currency: "BRL",
   }).format(cents / 100);
 }
+
+export function cleanTitle(title: string): string {
+  if (!title) return "";
+  return title.replace(/^(P5 DownWind(?: Day)?)\s*[—\-–].*$/i, "$1").trim();
+}
+
