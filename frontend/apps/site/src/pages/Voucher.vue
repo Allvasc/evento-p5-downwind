@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { ArrowLeft, ArrowRight, Ticket, CheckCircle2 } from "lucide-vue-next";
@@ -58,18 +58,22 @@ function changeCode() {
   selectedId.value = null;
 }
 
-// ── Etapa 1/2: mesma escolha de experiência e data da compra normal, mas o voucher só
-// vale pra uma aula (Yoga OU HYROX, à escolha do cliente) + café da manhã — não o combo
-// das duas aulas, nem uma aula avulsa sem café.
+// ── Etapa 1/2: mesma escolha de experiência e data da compra normal — o voucher vale
+// para qualquer ingresso à venda.
 const { data, isLoading } = useQuery({
   queryKey: ["public-products"],
   queryFn: () => api.get<{ products: Product[] }>("/public/products"),
 });
-const products = computed(() => (data.value?.products ?? []).filter((p) => p.chooseOneActivity && p.includesBreakfast));
+const products = computed(() => data.value?.products ?? []);
 
 const selectedId = ref<string | null>(null);
 const selected = computed(() => products.value.find((p) => p.id === selectedId.value) ?? null);
 const { chosenActivityId, selectedSlotKey, loadingSlots, slotsError, slots, selectedSlot, chooseActivity } = useProductSlots(selected);
+
+// Com um único ingresso à venda (ex.: Downwind do Luau P5), já deixa selecionado.
+watch([codeChecked, products], ([checked, list]) => {
+  if (checked && !selectedId.value && list.length === 1) selectedId.value = list[0].id;
+});
 
 function selectProduct(id: string) {
   selectedId.value = id;

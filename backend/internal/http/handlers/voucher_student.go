@@ -78,12 +78,9 @@ func (h *VoucherStudentHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "experiência não encontrada")
 		return
 	}
-	// A voucher only covers one activity (the customer's choice, e.g. Yoga ou HYROX) plus
-	// breakfast — not the two-class combo, and not a class without breakfast.
-	if !prod.ChooseOneActivity || !prod.IncludesBreakfast {
-		writeJSONError(w, http.StatusBadRequest, "esse produto não pode ser resgatado com voucher")
-		return
-	}
+	// A voucher covers any active product (GetProductByID only returns active ones). It
+	// used to be limited to "one class of your choice + breakfast" from the Yoga/HYROX
+	// catalog, a shape no DownWind product has — which made every voucher unredeemable.
 
 	voucherID, err := h.vouchers.Claim(r.Context(), code, claims.UserID())
 	if err != nil {
