@@ -34,6 +34,8 @@ function scrollToInclui() {
 interface NextSession {
   activityTitle: string;
   startsAt: string;
+  capacity: number;
+  booked: number;
 }
 
 const { data: productsData } = useQuery({
@@ -85,6 +87,17 @@ const nextDateLabel = computed(() => {
   const sessions = nextSessions.value;
   if (!sessions.length) return null;
   return formatEventDate(sessions[0].startsAt);
+});
+
+// Downwind do Luau P5: apenas 10 vagas — a capacidade vem da turma, 10 é só o fallback.
+const totalSpots = computed(() => nextSessions.value[0]?.capacity ?? 10);
+const spotsLeft = computed(() => {
+  const s = nextSessions.value[0];
+  return s ? Math.max(s.capacity - s.booked, 0) : null;
+});
+const spotsLeftLabel = computed(() => {
+  if (spotsLeft.value === null || spotsLeft.value >= totalSpots.value) return null;
+  return spotsLeft.value === 1 ? "resta 1 vaga" : `restam ${spotsLeft.value} vagas`;
 });
 
 const included = [
@@ -148,7 +161,7 @@ const itinerary = [
             </div>
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Vagas limitadas</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template></span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Lycra exclusiva P5 2026</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Kites com LEDs + Luau P5</span>
             </div>
@@ -220,7 +233,7 @@ const itinerary = [
 
             <!-- Floating Top Badge -->
             <span v-if="nextDateLabel" class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3.5 py-1 text-[11px] font-semibold text-magenta shadow-sm">
-              <Compass :size="12" /> próxima data: {{ nextDateLabel }}
+              <Compass :size="12" /> {{ nextDateLabel }} · apenas {{ totalSpots }} vagas
             </span>
 
             <!-- Bottom Label -->
@@ -331,7 +344,7 @@ const itinerary = [
             Garanta seu lugar <span class="text-magenta">no luau.</span>
           </h2>
           <p class="mt-3 text-sm text-ink-soft">
-            Ingresso com lycra exclusiva P5 — Temporada 2026. Pagamento seguro via Pix.
+            Apenas {{ totalSpots }} vagas. Ingresso com lycra exclusiva P5 — Temporada 2026. Pagamento seguro via Pix.
           </p>
 
           <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
@@ -357,7 +370,7 @@ const itinerary = [
             </div>
           </div>
 
-          <p class="mt-8 text-xs italic font-medium text-ink-soft">Vagas limitadas · Pagamento via Pix.</p>
+          <p class="mt-8 text-xs italic font-medium text-ink-soft">Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template> · Pagamento via Pix.</p>
         </div>
       </section>
 
