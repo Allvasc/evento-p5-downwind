@@ -6,16 +6,16 @@ import {
   ArrowRight,
   Check,
   Compass,
-  Wind,
   MapPin,
   Bus,
   LifeBuoy,
-  Droplets,
-  Radar,
   HandHelping,
-  Clock,
-  Flag,
-  ShieldCheck,
+  Shirt,
+  Sparkles,
+  Video,
+  Music,
+  Moon,
+  Sunset,
 } from "lucide-vue-next";
 import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
@@ -59,13 +59,13 @@ const activeProduct = computed(() => {
 });
 
 const formattedPrice = computed(() => {
-  if (!activeProduct.value) return "R$ 130";
+  if (!activeProduct.value) return "R$ 200";
   return formatBRL(activeProduct.value.priceCents);
 });
 
-const productTitle = computed(() => cleanTitle(activeProduct.value?.title ?? "P5 DownWind + Café da Manhã"));
+const productTitle = computed(() => cleanTitle(activeProduct.value?.title ?? "Downwind do Luau P5"));
 const productDescription = computed(
-  () => activeProduct.value?.description ?? "Percurso Riviera Wind → P5 com transporte, apoio total e estrutura do início ao fim."
+  () => activeProduct.value?.description ?? "Downwind Sababa → P5 Kite House do pôr do sol à lua, com kites iluminados por LEDs e Luau P5 na chegada."
 );
 
 const { data: nextSessionsData } = useQuery({
@@ -88,21 +88,22 @@ const nextDateLabel = computed(() => {
 });
 
 const included = [
-  { icon: MapPin, title: "Percurso", detail: "Riviera Wind, com toda a rota acompanhada pela equipe P5." },
-  { icon: Bus, title: "Transporte incluso", detail: "Ida da P5 Kite House até o ponto de partida." },
-  { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra." },
-  { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },
-  { icon: Radar, title: "Monitoramento Wind Maps", detail: "Condições de vento acompanhadas em tempo real." },
-  { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento." },
-  { icon: Clock, title: "Concentração", detail: "Ponto de encontro na P5 Kite House." },
-  { icon: Flag, title: "Encerramento", detail: "Receptivo e suporte no retorno à P5 Kite House." },
+  { icon: Shirt, title: "Lycra exclusiva", detail: "Kit do participante com a lycra P5 — Temporada 2026." },
+  { icon: Sparkles, title: "LEDs nos kites", detail: "Instalação dos LEDs no Sababa para navegar com o kite iluminado." },
+  { icon: Bus, title: "Concentração na P5", detail: "Concentração às 15h na P5 Kite House e ida ao Sababa." },
+  { icon: LifeBuoy, title: "Apoio na água", detail: "Acompanhamento da equipe do LPD na água durante todo o percurso." },
+  { icon: MapPin, title: "Percurso", detail: "Sababa → P5 Kite House, do pôr do sol à noite de lua." },
+  { icon: Video, title: "Registro da experiência", detail: "Equipe filmando tudo, da preparação à chegada." },
+  { icon: HandHelping, title: "Beach Boys na chegada", detail: "Ajuda na desmontagem dos equipamentos na P5." },
+  { icon: Music, title: "Luau P5", detail: "A chegada é só o começo da noite: música, lua e aquela energia P5." },
 ];
 
 const itinerary = [
-  { time: "1", title: "Concentração", detail: "Chegada na P5 Kite House, checagem de equipamento e briefing." },
-  { time: "2", title: "Transporte", detail: "Deslocamento estruturado até o ponto de partida do percurso." },
-  { time: "3", title: "Percurso", detail: "Downwind do Riviera Wind até a P5 Kite House, com apoio aquático e terrestre o tempo todo." },
-  { time: "4", title: "Chegada", detail: "Receptivo, ajuda na desmontagem e encerramento do dia." },
+  { time: "1", title: "15h · Concentração", detail: "Concentração na P5 Kite House e ida ao Sababa." },
+  { time: "2", title: "Preparação no Sababa", detail: "Preparamos os equipamentos e instalamos os LEDs nos kites." },
+  { time: "3", title: "17h30 · Nascer da lua", detail: "Com a lua começando a nascer, saímos do Sababa rumo à P5, na transição do pôr do sol para a noite." },
+  { time: "4", title: "18h · Chegada na P5", detail: "Chegada prevista entre 18h e 18h30, com os Beach Boys ajudando na desmontagem." },
+  { time: "5", title: "Luau P5", detail: "Você só guarda o kite e entra no clima. A chegada é só o começo da noite." },
 ];
 </script>
 
@@ -121,16 +122,16 @@ const itinerary = [
           <div>
             <p class="eyebrow mb-6 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · RIVIERA WIND
+              P5 KITE HOUSE · DOWNWIND DO LUAU P5
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
-              Vento a favor,<br />
-              <span class="text-magenta">mar em movimento.</span>
+              Começamos com o sol.<br />
+              <span class="text-magenta">Navegamos com a lua.</span>
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              O <strong class="font-semibold text-ink">{{ productTitle }}</strong> traz a experiência do evento: {{ productDescription }} Você entra na água, a gente cuida do resto.
+              Terminamos no Luau P5. 🔥 O <strong class="font-semibold text-ink">{{ productTitle }}</strong> é uma experiência diferente no mar: {{ productDescription }}
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
@@ -148,8 +149,8 @@ const itinerary = [
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Vagas limitadas</span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Concentração na P5 Kite House</span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Apoio aquático e terrestre</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Lycra exclusiva P5 2026</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Kites com LEDs + Luau P5</span>
             </div>
           </div>
 
@@ -193,7 +194,7 @@ const itinerary = [
                       </span>
                     </div>
                     <p class="mt-1 text-xs text-ink-soft">
-                      {{ p.includesBreakfast ? 'Percurso Riviera Wind → P5 + Café da Manhã' : 'Percurso Riviera Wind → P5' }}
+                      {{ p.includesBreakfast ? 'Sababa → P5 + Café da Manhã' : 'Sababa → P5 · lycra exclusiva inclusa' }}
                     </p>
                   </div>
 
@@ -206,13 +207,13 @@ const itinerary = [
               <!-- Route details footer inside card -->
               <div class="mt-6 flex items-center justify-between border-t border-line/60 pt-4 text-xs text-ink-soft">
                 <div>
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Concentração</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Concentração · 15h</p>
                   <p class="font-serif font-bold text-ink">P5 Kite House</p>
                 </div>
-                <Wind :size="18" class="text-magenta shrink-0" />
+                <Moon :size="18" class="text-magenta shrink-0" />
                 <div class="text-right">
                   <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Percurso</p>
-                  <p class="font-serif font-bold text-ink">Riviera Wind &rarr; P5</p>
+                  <p class="font-serif font-bold text-ink">Sababa &rarr; P5</p>
                 </div>
               </div>
             </div>
@@ -240,7 +241,7 @@ const itinerary = [
               <span class="text-magenta">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Da concentração na P5 Kite House até a chegada de volta, passando pelo percurso a partir do Riviera Wind, toda a estrutura já está no seu ingresso.
+              Da concentração na P5 Kite House à chegada no Luau, passando pela preparação no Sababa e pela navegação com os kites iluminados, tudo já está no seu ingresso.
             </p>
           </div>
 
@@ -265,12 +266,12 @@ const itinerary = [
       <!-- SECTION: PERCURSO / COMO FUNCIONA -->
       <section id="percurso" class="py-20">
         <div class="mx-auto max-w-6xl px-6">
-          <p class="eyebrow mb-2"><WaveIcon :size="14" /> DO EMBARQUE AO DESEMBARQUE</p>
+          <p class="eyebrow mb-2"><WaveIcon :size="14" /> DO SOL À LUA</p>
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
-            Como funciona <span class="text-magenta">o seu dia.</span>
+            Como funciona <span class="text-magenta">a sua noite.</span>
           </h2>
 
-          <div class="mt-14 grid gap-8 md:grid-cols-4">
+          <div class="mt-14 grid gap-8 md:grid-cols-5">
             <div v-for="(step, i) in itinerary" :key="step.title" class="relative">
               <div class="flex items-center gap-3">
                 <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-sm font-bold text-white">
@@ -291,31 +292,31 @@ const itinerary = [
           <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
             <KitesurferIcon :size="34" class="text-sky-300" />
           </div>
-          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">SEGURANÇA E ESTRUTURA</p>
+          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">MAR · LUA · KITE · LEDS · MÚSICA</p>
           <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
-            Feito para quem leva o vento <span class="text-sky-300">a sério.</span>
+            Do sol à lua. <span class="text-sky-300">Do mar ao luau.</span>
           </h2>
 
           <div class="mt-12 grid gap-8 md:grid-cols-3">
             <div class="flex flex-col gap-3">
+              <Sunset :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Do pôr do sol à noite</h3>
+              <p class="text-sm leading-relaxed text-white/70">
+                Navegação Sababa → P5 na transição do pôr do sol para a noite, com a lua nascendo por volta das 17h30.
+              </p>
+            </div>
+            <div class="flex flex-col gap-3">
               <LifeBuoy :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Apoio o tempo todo</h3>
+              <h3 class="font-serif text-lg font-bold">Apoio na água</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Equipe P5 acompanhando na água e em terra durante todo o percurso, do início ao fim.
+                Acompanhamento da equipe do LPD na água durante todo o percurso, com os kites iluminados por LEDs.
               </p>
             </div>
             <div class="flex flex-col gap-3">
-              <Radar :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Monitoramento em tempo real</h3>
+              <Music :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Luau P5 na chegada</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Condições de vento acompanhadas pelo aplicativo Wind Maps antes e durante o dia.
-              </p>
-            </div>
-            <div class="flex flex-col gap-3">
-              <ShieldCheck :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Estrutura completa</h3>
-              <p class="text-sm leading-relaxed text-white/70">
-                Compressor, banheiro e hidratação no ponto de saída, mais receptivo na chegada.
+                Beach Boys ajudam na desmontagem. Você só precisa guardar o kite e entrar no clima. 🔥
               </p>
             </div>
           </div>
@@ -327,10 +328,10 @@ const itinerary = [
         <div class="mx-auto max-w-5xl px-6 text-center">
           <p class="eyebrow mb-2 justify-center">OPÇÕES DE INGRESSO</p>
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
-            Escolha sua <span class="text-magenta">experiência.</span>
+            Garanta seu lugar <span class="text-magenta">no luau.</span>
           </h2>
           <p class="mt-3 text-sm text-ink-soft">
-            Selecione o ingresso ideal para você e garanta sua vaga com pagamento seguro via Pix.
+            Ingresso com lycra exclusiva P5 — Temporada 2026. Pagamento seguro via Pix.
           </p>
 
           <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
@@ -367,7 +368,7 @@ const itinerary = [
 
           <p class="text-xs text-white/60 text-center md:text-left">
             P5 Kite House.<br />
-            Vento a favor, sempre.
+            Do sol à lua. Do mar ao luau.
           </p>
 
           <div class="flex items-center gap-6 text-xs font-medium text-white/80">
