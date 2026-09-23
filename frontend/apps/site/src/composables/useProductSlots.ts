@@ -83,7 +83,9 @@ export function useProductSlots(selected: Ref<Product | null>) {
     } finally {
       loadingSlots.value = false;
     }
-  });
+    // immediate: the product list is usually already cached (vindo da landing), so the
+    // page opens with a product preselected — without this, its dates were never fetched.
+  }, { immediate: true });
 
   const slots = computed<Slot[]>(() => {
     const product = selected.value;
