@@ -350,6 +350,68 @@ func (r *OrderRepository) MarkStatusByAsaasPaymentID(ctx context.Context, asaasP
 	return err
 }
 
+// PendingOrderTTL is how long a Pix order may stay unpaid while holding its seats. After
+// that the pending-order expirer deletes the Asaas charge (so the QR code can no longer be
+// paid) and marks the order expired, which frees the seat — booked-seat counts only
+// include 'paid' and 'pending' orders.
+const PendingOrderTTL = 10 * time.Minute
+
+type StalePendingOrder struct {
+	ID             string
+	OrderNumber    string
+	AsaasPaymentID string
+}
+
+// ListStalePending returns orders still pending longer than ttl after creation.
+func (r *OrderRepository) ListStalePending(ctx context.Context, ttl time.Duration) ([]StalePendingOrder, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, order_number, COALESCE(asaas_payment_id, '')
+		FROM orders
+		WHERE status = 'pending' AND created_at < now() - $1::interval
+		ORDER BY created_at
+		LIMIT 100
+	`, ttl.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := make([]StalePendingOrder, 0)
+	for rows.Next() {
+		var o StalePendingOrder
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.AsaasPaymentID); err != nil {
+			return nil, err
+		}
+		list = append(list, o)
+	}
+	return list, rows.Err()
+}
+
+// MarkExpired transitions a still-pending order to expired, releasing its seats. A no-op
+// if the order was paid (or otherwise settled) in the meantime.
+func (r *OrderRepository) MarkExpired(ctx context.Context, orderID string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE orders SET status = 'expired', updated_at = now()
+		WHERE id = $1 AND status = 'pending'
+	`, orderID)
+	return err
+}
+
+// PaymentStatus is what the checkout payment page polls: the order status plus, while it
+// is pending, how many seconds are left before its Pix expires (computed in the database
+// so the countdown doesn't depend on the customer's clock).
+func (r *OrderRepository) PaymentStatus(ctx context.Context, orderID string) (status string, secondsLeft int, err error) {
+	err = r.pool.QueryRow(ctx, `
+		SELECT status,
+		       GREATEST(0, CEIL(EXTRACT(EPOCH FROM (created_at + $2::interval - now()))))::int
+		FROM orders WHERE id = $1
+	`, orderID, PendingOrderTTL.String()).Scan(&status, &secondsLeft)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", 0, ErrNotFound
+	}
+	return
+}
+
 func (r *OrderRepository) FindByID(ctx context.Context, orderID string) (asaasPaymentID string, status string, err error) {
 	err = r.pool.QueryRow(ctx, `SELECT COALESCE(asaas_payment_id, ''), status FROM orders WHERE id = $1`, orderID).Scan(&asaasPaymentID, &status)
 	if errors.Is(err, pgx.ErrNoRows) {

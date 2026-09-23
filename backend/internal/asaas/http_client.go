@@ -54,6 +54,9 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body any, out 
 	if err != nil {
 		return err
 	}
+	if res.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("%w (status 404): %s", ErrNotFound, string(respBody))
+	}
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("asaas api error (status %d): %s", res.StatusCode, string(respBody))
 	}
@@ -135,13 +138,18 @@ func (c *HTTPClient) RefundPayment(ctx context.Context, paymentID string) error 
 	return c.do(ctx, http.MethodPost, "/payments/"+paymentID+"/refund", map[string]string{}, nil)
 }
 
+func (c *HTTPClient) DeletePayment(ctx context.Context, paymentID string) error {
+	return c.do(ctx, http.MethodDelete, "/payments/"+paymentID, nil, nil)
+}
+
 func (c *HTTPClient) GetPayment(ctx context.Context, paymentID string) (Payment, error) {
 	var out struct {
-		ID     string `json:"id"`
-		Status string `json:"status"`
+		ID      string `json:"id"`
+		Status  string `json:"status"`
+		Deleted bool   `json:"deleted"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/payments/"+paymentID, nil, &out); err != nil {
 		return Payment{}, err
 	}
-	return Payment{ID: out.ID, Status: out.Status}, nil
+	return Payment{ID: out.ID, Status: out.Status, Deleted: out.Deleted}, nil
 }

@@ -44,7 +44,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	router := apphttp.NewRouter(cfg, pool, logger)
+	router := apphttp.NewRouter(ctx, cfg, pool, logger)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

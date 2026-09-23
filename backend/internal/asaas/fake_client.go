@@ -42,13 +42,29 @@ func (c *FakeClient) GetPayment(_ context.Context, paymentID string) (Payment, e
 	c.mu.Lock()
 	status := c.payments[paymentID]
 	c.mu.Unlock()
-	return Payment{ID: paymentID, Status: status}, nil
+	if status == "" {
+		return Payment{}, ErrNotFound
+	}
+	return Payment{ID: paymentID, Status: status, Deleted: status == "DELETED"}, nil
 }
 
 func (c *FakeClient) RefundPayment(_ context.Context, paymentID string) error {
 	c.mu.Lock()
 	c.payments[paymentID] = "REFUNDED"
 	c.mu.Unlock()
+	return nil
+}
+
+func (c *FakeClient) DeletePayment(_ context.Context, paymentID string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	switch c.payments[paymentID] {
+	case "":
+		return ErrNotFound
+	case "CONFIRMED", "RECEIVED":
+		return fmt.Errorf("asaas fake: cobrança %s já recebida não pode ser removida", paymentID)
+	}
+	c.payments[paymentID] = "DELETED"
 	return nil
 }
 

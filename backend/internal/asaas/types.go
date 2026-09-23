@@ -23,8 +23,9 @@ type Charge struct {
 }
 
 type Payment struct {
-	ID     string
-	Status string
+	ID      string
+	Status  string
+	Deleted bool // charge was removed (DELETE /payments/{id}) and can no longer be paid
 }
 
 // WebhookEvent is the subset of the Asaas webhook payload we act on.

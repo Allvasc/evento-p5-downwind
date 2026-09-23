@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -17,11 +18,14 @@ import (
 	"p5wellness/backend/internal/domain/auth"
 	"p5wellness/backend/internal/http/handlers"
 	appmw "p5wellness/backend/internal/http/middleware"
+	"p5wellness/backend/internal/jobs"
 	"p5wellness/backend/internal/mailer"
 	"p5wellness/backend/internal/repository/postgres"
 )
 
-func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Handler {
+// NewRouter wires every handler and starts the background jobs that share their
+// dependencies (the pending-order expirer), which stop when ctx is cancelled.
+func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -75,6 +79,8 @@ func NewRouter(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger) http.Ha
 		fakeAsaasClient = asaas.NewFakeClient()
 		asaasClient = fakeAsaasClient
 	}
+
+	go jobs.NewPendingOrderExpirer(orderRepo, asaasClient, log).Run(ctx)
 
 	checkout := handlers.NewCheckoutHandler(catalogRepo, orderRepo, studentRepo, asaasClient, cfg.PasswordPepper, log)
 	webhookAsaas := handlers.NewWebhookAsaasHandler(orderRepo, webhookRepo, emailSender, cfg.AsaasWebhookToken, cfg.QRHMACSecret, log)

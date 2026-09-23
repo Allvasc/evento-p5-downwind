@@ -143,10 +143,11 @@ func activityFromError(err error) string {
 
 func (h *CheckoutHandler) Status(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
-	_, status, err := h.orders.FindByID(r.Context(), orderID)
+	status, secondsLeft, err := h.orders.PaymentStatus(r.Context(), orderID)
 	if err != nil {
 		writeJSONError(w, http.StatusNotFound, "pedido não encontrado")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": status})
+	// secondsLeft: tempo até o Pix expirar e a vaga ser liberada (postgres.PendingOrderTTL).
+	writeJSON(w, http.StatusOK, map[string]any{"status": status, "secondsLeft": secondsLeft})
 }
