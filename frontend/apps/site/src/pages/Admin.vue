@@ -775,6 +775,7 @@ interface ProductRoster { productId: string; title: string; buyers: Attendee[] }
 interface ActivityRoster { label: string; attendees: Attendee[] }
 interface EventAttendee {
   fullName: string; phone: string; email: string; cpf: string;
+  emergencyContactName: string; emergencyContactPhone: string;
   purchasedAt: string; orderNumber: string; benefit: string;
   sessionAt: string; eventDate: string; vendorName: string;
   checkedIn: boolean; checkedInAt: string;
@@ -873,6 +874,7 @@ function attendanceListHtml() {
         <td>${escapeHtml(a.fullName)}</td>
         <td>${escapeHtml(a.phone || "—")}</td>
         <td class="mono">${escapeHtml(a.cpf || "—")}</td>
+        <td>${a.emergencyContactName ? escapeHtml(a.emergencyContactName) + "<br>" + escapeHtml(a.emergencyContactPhone) : "—"}</td>
         <td>${escapeHtml(a.email)}</td>
         <td class="mono">${escapeHtml(a.purchasedAt)}</td>
         <td>${escapeHtml(a.benefit)}${a.sessionAt ? " · " + escapeHtml(a.sessionAt) : ""}</td>
@@ -908,9 +910,9 @@ function attendanceListHtml() {
 <table>
   <thead><tr>
     <th class="num">#</th><th class="chk">Pres.</th><th>Nome</th><th>Telefone</th>
-    <th>CPF</th><th>E-mail</th><th>Data da compra</th><th>Ingresso / turma</th>
+    <th>CPF</th><th>Emergência</th><th>E-mail</th><th>Data da compra</th><th>Ingresso / turma</th>
   </tr></thead>
-  <tbody>${rows || `<tr><td colspan="8" style="text-align:center;padding:20px">Nenhum participante para o período.</td></tr>`}</tbody>
+  <tbody>${rows || `<tr><td colspan="9" style="text-align:center;padding:20px">Nenhum participante para o período.</td></tr>`}</tbody>
 </table>
 <footer>Confira a identidade no check-in e marque o quadradinho à caneta para confirmar a presença.</footer>
 </body></html>`;
@@ -2187,6 +2189,7 @@ onMounted(async () => {
                     <th class="px-4 py-3">Telefone</th>
                     <th class="px-4 py-3">E-mail</th>
                     <th class="px-4 py-3">CPF</th>
+                    <th class="px-4 py-3">Contato de emergência</th>
                     <th class="px-4 py-3">Data da compra</th>
                     <th class="px-4 py-3">Ingresso</th>
                     <th class="px-4 py-3">Check-in</th>
@@ -2199,6 +2202,10 @@ onMounted(async () => {
                     <td class="px-4 py-3 text-ink-soft">{{ a.phone || "—" }}</td>
                     <td class="px-4 py-3 text-ink-soft">{{ a.email }}</td>
                     <td class="px-4 py-3 font-mono text-ink-soft">{{ a.cpf || "—" }}</td>
+                    <td class="px-4 py-3 text-ink-soft">
+                      <template v-if="a.emergencyContactName">{{ a.emergencyContactName }}<br />{{ a.emergencyContactPhone }}</template>
+                      <template v-else>—</template>
+                    </td>
                     <td class="px-4 py-3 text-ink-soft">{{ a.purchasedAt }}</td>
                     <td class="px-4 py-3 text-ink-soft">
                       {{ a.benefit }}<template v-if="a.sessionAt"> · {{ a.sessionAt }}</template>
@@ -2209,7 +2216,7 @@ onMounted(async () => {
                     </td>
                   </tr>
                   <tr v-if="!attendees.length">
-                    <td colspan="8" class="px-4 py-8 text-center text-ink-soft">Nenhum participante para o período.</td>
+                    <td colspan="9" class="px-4 py-8 text-center text-ink-soft">Nenhum participante para o período.</td>
                   </tr>
                 </tbody>
               </table>

@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Ticket, CheckCircle2 } from "lucide-vue-next";
 import { type Product } from "@p5wellness/shared";
 import { api, ApiError } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
+import EmergencyContactForm from "@/components/EmergencyContactForm.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useProductSlots, formatSlotDay, formatSlotSummary } from "@/composables/useProductSlots";
 
@@ -83,8 +84,17 @@ function selectProduct(id: string) {
 
 const needsSlot = computed(() => (selected.value?.activities.length ?? 0) > 0);
 const needsActivityChoice = computed(() => selected.value?.chooseOneActivity ?? false);
+// Contas criadas antes do contato de emergência ser obrigatório preenchem aqui, antes do
+// resgate (o backend também recusa o resgate sem ele).
+const needsEmergencyContact = computed(
+  () => !!authStore.me && !(authStore.me.emergencyContactName && authStore.me.emergencyContactPhone),
+);
 const canRedeem = computed(
-  () => !!selected.value && (!needsActivityChoice.value || !!chosenActivityId.value) && (!needsSlot.value || !!selectedSlot.value),
+  () =>
+    !!selected.value &&
+    (!needsActivityChoice.value || !!chosenActivityId.value) &&
+    (!needsSlot.value || !!selectedSlot.value) &&
+    !needsEmergencyContact.value,
 );
 
 const submitting = ref(false);
@@ -259,6 +269,16 @@ async function redeem() {
                 </div>
               </template>
             </div>
+
+            <!-- STEP 4: Contato de emergência — contas antigas preenchem antes de resgatar o voucher -->
+            <div v-if="needsEmergencyContact" class="border-t border-line/60 pt-4">
+              <div class="mb-3 flex items-center gap-3">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-magenta text-xs font-bold text-white">4</span>
+                <h2 class="font-serif text-xl font-bold text-ink">Contato de emergência</h2>
+              </div>
+              <p class="mb-4 text-sm text-ink-soft">Obrigatório para participar: quem a equipe P5 deve avisar se algo acontecer durante o evento.</p>
+              <EmergencyContactForm save-label="Salvar e continuar" />
+            </div>
           </div>
 
           <!-- RESUMO -->
@@ -283,6 +303,7 @@ async function redeem() {
                 <ArrowRight :size="16" />
               </button>
               <p v-if="needsSlot && !selectedSlot" class="text-center text-[11px] text-white/50">Escolha uma data para continuar.</p>
+              <p v-else-if="needsEmergencyContact" class="text-center text-[11px] text-white/50">Informe o contato de emergência para continuar.</p>
 
               <p v-if="errorMessage" class="text-xs font-medium text-red-400">{{ errorMessage }}</p>
             </div>

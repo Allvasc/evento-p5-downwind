@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { ArrowLeft, UserCircle, Check, Mail } from "lucide-vue-next";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
+import EmergencyContactForm from "@/components/EmergencyContactForm.vue";
 import { useAuthStore } from "@/stores/auth";
 import { api, ApiError } from "@/lib/api";
 
@@ -125,6 +126,15 @@ onMounted(async () => {
         </form>
         <p v-if="cpfError" class="mt-2 text-xs font-medium text-red-600">{{ cpfError }}</p>
         <p v-if="cpfSuccess" class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#237438]"><Check :size="14" /> {{ cpfSuccess }}</p>
+      </section>
+
+      <section class="mt-8 rounded-[var(--radius-card)] border border-line bg-white p-8">
+        <h2 class="mb-1 font-serif text-lg font-semibold text-ink">Contato de emergência</h2>
+        <p class="mb-4 text-sm text-ink-soft">
+          Obrigatório para comprar ou resgatar voucher: quem a equipe P5 deve avisar se algo acontecer durante o evento.
+          <span v-if="authStore.me && !authStore.me.emergencyContactName" class="font-semibold text-magenta"> Você ainda não informou.</span>
+        </p>
+        <EmergencyContactForm v-if="authStore.me" />
       </section>
 
       <section class="mt-8 rounded-[var(--radius-card)] border border-line bg-white p-8">

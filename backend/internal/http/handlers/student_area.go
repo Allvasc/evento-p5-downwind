@@ -157,6 +157,9 @@ func (h *StudentAreaHandler) Me(w http.ResponseWriter, r *http.Request) {
 		"email":    student.Email,
 		"phone":    student.Phone,
 		"cpfLast4": student.CPFLast4,
+
+		"emergencyContactName":  student.EmergencyContactName,
+		"emergencyContactPhone": student.EmergencyContactPhone,
 	})
 }
 

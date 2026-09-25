@@ -1,14 +1,27 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { ShieldCheck, ArrowLeft, ArrowRight } from "lucide-vue-next";
 import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
 import { api, ApiError } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
+import EmergencyContactForm from "@/components/EmergencyContactForm.vue";
+import { useAuthStore } from "@/stores/auth";
 import { useProductSlots, formatSlotDay, formatSlotSummary } from "@/composables/useProductSlots";
 
 const router = useRouter();
+const authStore = useAuthStore();
+onMounted(() => {
+  if (authStore.token && !authStore.me) authStore.fetchMe();
+});
+
+// Contas criadas antes do contato de emergência ser obrigatório preenchem aqui, antes de
+// gerar o Pix (o backend também recusa a compra sem ele). Quem ainda não entrou é levado
+// ao login/cadastro — e o cadastro novo já exige o contato.
+const needsEmergencyContact = computed(
+  () => !!authStore.token && !!authStore.me && !(authStore.me.emergencyContactName && authStore.me.emergencyContactPhone),
+);
 const selectedId = ref<string | null>(null);
 const submitting = ref(false);
 const errorMessage = ref("");
@@ -47,7 +60,11 @@ function selectProduct(id: string) {
 const needsSlot = computed(() => (selected.value?.activities.length ?? 0) > 0);
 const needsActivityChoice = computed(() => selected.value?.chooseOneActivity ?? false);
 const canCheckout = computed(
-  () => !!selected.value && (!needsActivityChoice.value || !!chosenActivityId.value) && (!needsSlot.value || !!selectedSlot.value),
+  () =>
+    !!selected.value &&
+    (!needsActivityChoice.value || !!chosenActivityId.value) &&
+    (!needsSlot.value || !!selectedSlot.value) &&
+    !needsEmergencyContact.value,
 );
 
 async function goToPayment() {
@@ -204,6 +221,16 @@ async function goToPayment() {
             </div>
             </template>
           </div>
+
+          <!-- STEP 3: Contato de emergência — contas antigas preenchem antes de gerar o Pix -->
+          <div v-if="needsEmergencyContact" class="border-t border-line/60 pt-4">
+            <div class="mb-3 flex items-center gap-3">
+              <span class="flex h-7 w-7 items-center justify-center rounded-full bg-magenta text-xs font-bold text-white">3</span>
+              <h2 class="font-serif text-xl font-bold text-ink">Contato de emergência</h2>
+            </div>
+            <p class="mb-4 text-sm text-ink-soft">Obrigatório para participar: quem a equipe P5 deve avisar se algo acontecer durante o evento.</p>
+            <EmergencyContactForm save-label="Salvar e continuar" />
+          </div>
         </div>
 
         <!-- RESUMO -->
@@ -228,6 +255,7 @@ async function goToPayment() {
               <ArrowRight :size="16" />
             </button>
             <p v-if="needsSlot && !selectedSlot" class="text-center text-[11px] text-white/50">Escolha uma data para continuar.</p>
+            <p v-else-if="needsEmergencyContact" class="text-center text-[11px] text-white/50">Informe o contato de emergência para continuar.</p>
 
             <p class="flex items-start gap-2 pt-2 text-[11px] leading-relaxed text-white/60">
               <ShieldCheck :size="16" class="mt-0.5 shrink-0 text-magenta" />

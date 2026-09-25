@@ -8,6 +8,8 @@ interface Me {
   email: string;
   phone: string;
   cpfLast4: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
 }
 
 const TOKEN_KEY = "p5_student_token";

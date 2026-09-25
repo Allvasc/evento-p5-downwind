@@ -104,7 +104,7 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 	adminReports := handlers.NewAdminReportsHandler(adminReportsRepo, cfg.PasswordPepper, log)
 
 	voucherRepo := postgres.NewVoucherRepository(pool)
-	voucherStudent := handlers.NewVoucherStudentHandler(catalogRepo, orderRepo, voucherRepo, emailSender, cfg.QRHMACSecret, log)
+	voucherStudent := handlers.NewVoucherStudentHandler(catalogRepo, studentRepo, orderRepo, voucherRepo, emailSender, cfg.QRHMACSecret, log)
 	adminVouchers := handlers.NewAdminVouchersHandler(voucherRepo, log)
 
 	authRateLimit := httprate.LimitByIP(10, time.Minute)
@@ -140,6 +140,7 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 			me.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectStudent))
 			me.Get("/", studentArea.Me)
 			me.Put("/cpf", studentArea.UpdateCPF)
+			me.Put("/emergency-contact", studentArea.UpdateEmergencyContact)
 			me.Get("/orders", studentArea.ListOrders)
 			me.With(authRateLimit).Post("/orders/{id}/resend-email", studentArea.ResendEmail)
 			me.Get("/tickets", studentArea.ListTickets)

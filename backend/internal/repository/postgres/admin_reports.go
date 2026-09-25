@@ -160,6 +160,9 @@ type EventAttendee struct {
 	Phone       string `json:"phone"`
 	Email       string `json:"email"`
 	CPF         string `json:"cpf"`         // 000.000.000-00, or "" when the buyer never provided one
+	// Contato de emergência do comprador — "" em contas antigas que ainda não preencheram.
+	EmergencyContactName  string `json:"emergencyContactName"`
+	EmergencyContactPhone string `json:"emergencyContactPhone"`
 	PurchasedAt string `json:"purchasedAt"` // dd/mm/aaaa hh:mm, Fortaleza — pagamento (cai pra criação se não houver)
 	OrderNumber string `json:"orderNumber"`
 	Benefit     string `json:"benefit"`   // "P5 DownWind Day", "Café da Manhã", "Yoga + HYROX"...
@@ -184,6 +187,8 @@ func (r *AdminReportsRepository) EventAttendees(ctx context.Context, from, to *t
 		       CASE WHEN s.cpf_encrypted IS NOT NULL
 		            THEN pgp_sym_decrypt(s.cpf_encrypted, $3)
 		            ELSE '' END,
+		       COALESCE(s.emergency_contact_name, ''),
+		       COALESCE(s.emergency_contact_phone, ''),
 		       to_char(COALESCE(o.paid_at, o.created_at) AT TIME ZONE 'America/Fortaleza', 'DD/MM/YYYY HH24:MI'),
 		       o.order_number,
 		       string_agg(DISTINCT COALESCE(a.title, 'Café da Manhã'), ' + ' ORDER BY COALESCE(a.title, 'Café da Manhã')),
@@ -204,6 +209,7 @@ func (r *AdminReportsRepository) EventAttendees(ctx context.Context, from, to *t
 		  AND ($1::date IS NULL OR e.valid_until >= $1::date)
 		  AND ($2::date IS NULL OR e.valid_until <= $2::date)
 		GROUP BY e.id, s.full_name, s.phone, s.email, s.cpf_encrypted,
+		         s.emergency_contact_name, s.emergency_contact_phone,
 		         o.paid_at, o.created_at, o.order_number, e.valid_until, v.name, e.status, e.used_at
 		ORDER BY e.valid_until, MIN(cs.starts_at) NULLS FIRST, s.full_name
 	`, from, to, encryptionKey)
@@ -216,7 +222,8 @@ func (r *AdminReportsRepository) EventAttendees(ctx context.Context, from, to *t
 	for rows.Next() {
 		var a EventAttendee
 		var cpfDigits string
-		if err := rows.Scan(&a.FullName, &a.Phone, &a.Email, &cpfDigits, &a.PurchasedAt, &a.OrderNumber,
+		if err := rows.Scan(&a.FullName, &a.Phone, &a.Email, &cpfDigits,
+			&a.EmergencyContactName, &a.EmergencyContactPhone, &a.PurchasedAt, &a.OrderNumber,
 			&a.Benefit, &a.SessionAt, &a.EventDate, &a.VendorName, &a.CheckedIn, &a.CheckedInAt); err != nil {
 			return nil, err
 		}

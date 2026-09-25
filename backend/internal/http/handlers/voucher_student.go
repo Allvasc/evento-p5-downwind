@@ -16,6 +16,7 @@ import (
 
 type VoucherStudentHandler struct {
 	catalog  *postgres.CatalogRepository
+	students *postgres.StudentRepository
 	orders   *postgres.OrderRepository
 	vouchers *postgres.VoucherRepository
 	mailer   mailer.Sender
@@ -23,8 +24,8 @@ type VoucherStudentHandler struct {
 	log      *slog.Logger
 }
 
-func NewVoucherStudentHandler(catalog *postgres.CatalogRepository, orders *postgres.OrderRepository, vouchers *postgres.VoucherRepository, sender mailer.Sender, qrSecret string, log *slog.Logger) *VoucherStudentHandler {
-	return &VoucherStudentHandler{catalog: catalog, orders: orders, vouchers: vouchers, mailer: sender, qrSecret: qrSecret, log: log}
+func NewVoucherStudentHandler(catalog *postgres.CatalogRepository, students *postgres.StudentRepository, orders *postgres.OrderRepository, vouchers *postgres.VoucherRepository, sender mailer.Sender, qrSecret string, log *slog.Logger) *VoucherStudentHandler {
+	return &VoucherStudentHandler{catalog: catalog, students: students, orders: orders, vouchers: vouchers, mailer: sender, qrSecret: qrSecret, log: log}
 }
 
 func normalizeVoucherCode(raw string) string {
@@ -72,6 +73,17 @@ func (h *VoucherStudentHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	code := normalizeVoucherCode(req.Code)
+
+	student, err := h.students.FindByID(r.Context(), claims.UserID())
+	if err != nil {
+		writeJSONError(w, http.StatusUnauthorized, "sessão inválida")
+		return
+	}
+	// Contas criadas antes do contato de emergência ser obrigatório preenchem no resgate.
+	if !student.HasEmergencyContact() {
+		writeJSONError(w, http.StatusBadRequest, errEmergencyContactRequired)
+		return
+	}
 
 	prod, err := h.catalog.GetProductByID(r.Context(), req.ProductID)
 	if err != nil {

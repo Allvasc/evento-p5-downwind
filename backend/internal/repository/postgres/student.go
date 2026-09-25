@@ -18,6 +18,15 @@ type Student struct {
 	Phone        string
 	PasswordHash string
 	CPFLast4     string
+	// Contato de emergência — vazio em contas criadas antes de ele ser obrigatório.
+	EmergencyContactName  string
+	EmergencyContactPhone string
+}
+
+// HasEmergencyContact reports whether the student already filled in the emergency
+// contact required before a purchase or voucher redemption.
+func (s *Student) HasEmergencyContact() bool {
+	return s.EmergencyContactName != "" && s.EmergencyContactPhone != ""
 }
 
 type StudentRepository struct {
@@ -37,6 +46,9 @@ type CreateStudentParams struct {
 	CPFHash       string // empty when CPF is empty
 	CPFLast4      string
 	EncryptionKey string
+
+	EmergencyContactName  string
+	EmergencyContactPhone string
 }
 
 func (r *StudentRepository) Create(ctx context.Context, p CreateStudentParams) (*Student, error) {
@@ -50,12 +62,14 @@ func (r *StudentRepository) Create(ctx context.Context, p CreateStudentParams) (
 	}
 
 	row := r.pool.QueryRow(ctx, `
-		INSERT INTO students (full_name, email, phone, password_hash, cpf_encrypted, cpf_hash, cpf_last4)
+		INSERT INTO students (full_name, email, phone, password_hash, cpf_encrypted, cpf_hash, cpf_last4,
+		                      emergency_contact_name, emergency_contact_phone)
 		VALUES ($1, $2, $3, $4,
 			CASE WHEN $5 <> '' THEN pgp_sym_encrypt($5, $6) ELSE NULL END,
-			$7, $8)
+			$7, $8, $9, $10)
 		RETURNING id
-	`, p.FullName, p.Email, p.Phone, p.PasswordHash, p.CPF, p.EncryptionKey, cpfHash, cpfLast4)
+	`, p.FullName, p.Email, p.Phone, p.PasswordHash, p.CPF, p.EncryptionKey, cpfHash, cpfLast4,
+		p.EmergencyContactName, p.EmergencyContactPhone)
 
 	if err := row.Scan(&id); err != nil {
 		if isUniqueViolation(err) {
@@ -65,15 +79,18 @@ func (r *StudentRepository) Create(ctx context.Context, p CreateStudentParams) (
 	}
 	_ = cpfEncrypted
 
-	return &Student{ID: id, FullName: p.FullName, Email: p.Email, Phone: p.Phone, CPFLast4: p.CPFLast4}, nil
+	return &Student{ID: id, FullName: p.FullName, Email: p.Email, Phone: p.Phone, CPFLast4: p.CPFLast4,
+		EmergencyContactName: p.EmergencyContactName, EmergencyContactPhone: p.EmergencyContactPhone}, nil
 }
 
 func (r *StudentRepository) FindByEmail(ctx context.Context, email string) (*Student, error) {
 	var s Student
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, full_name, email, phone, password_hash, COALESCE(cpf_last4, '')
+		SELECT id, full_name, email, COALESCE(phone, ''), password_hash, COALESCE(cpf_last4, ''),
+		       COALESCE(emergency_contact_name, ''), COALESCE(emergency_contact_phone, '')
 		FROM students WHERE email = $1 AND deleted_at IS NULL
-	`, email).Scan(&s.ID, &s.FullName, &s.Email, &s.Phone, &s.PasswordHash, &s.CPFLast4)
+	`, email).Scan(&s.ID, &s.FullName, &s.Email, &s.Phone, &s.PasswordHash, &s.CPFLast4,
+		&s.EmergencyContactName, &s.EmergencyContactPhone)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -86,9 +103,11 @@ func (r *StudentRepository) FindByEmail(ctx context.Context, email string) (*Stu
 func (r *StudentRepository) FindByID(ctx context.Context, id string) (*Student, error) {
 	var s Student
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, full_name, email, phone, password_hash, COALESCE(cpf_last4, '')
+		SELECT id, full_name, email, COALESCE(phone, ''), password_hash, COALESCE(cpf_last4, ''),
+		       COALESCE(emergency_contact_name, ''), COALESCE(emergency_contact_phone, '')
 		FROM students WHERE id = $1 AND deleted_at IS NULL
-	`, id).Scan(&s.ID, &s.FullName, &s.Email, &s.Phone, &s.PasswordHash, &s.CPFLast4)
+	`, id).Scan(&s.ID, &s.FullName, &s.Email, &s.Phone, &s.PasswordHash, &s.CPFLast4,
+		&s.EmergencyContactName, &s.EmergencyContactPhone)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -136,6 +155,17 @@ func (r *StudentRepository) UpdateCPF(ctx context.Context, id, cpf, cpfHash, cpf
 	return err
 }
 
+// UpdateEmergencyContact sets or replaces the student's emergency contact — how accounts
+// created before it became mandatory fill it in (prompted at their next purchase or
+// voucher redemption), and how anyone corrects it later from the profile.
+func (r *StudentRepository) UpdateEmergencyContact(ctx context.Context, id, name, phone string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE students SET emergency_contact_name = $1, emergency_contact_phone = $2, updated_at = now()
+		WHERE id = $3
+	`, name, phone, id)
+	return err
+}
+
 // Anonymize scrubs a student's personal data in place (LGPD art. 18 deletion request),
 // keeping the row itself so historical orders/payments remain intact for fiscal
 // retention. The account can no longer log in or be found by e-mail/CPF afterwards.
@@ -145,6 +175,8 @@ func (r *StudentRepository) Anonymize(ctx context.Context, id string) error {
 			full_name = 'Cliente removido',
 			email = ('removido-' || substr(id::text, 1, 8) || '@anonimizado.p5wellness')::citext,
 			phone = NULL,
+			emergency_contact_name = NULL,
+			emergency_contact_phone = NULL,
 			cpf_encrypted = NULL,
 			cpf_hash = NULL,
 			cpf_last4 = NULL,

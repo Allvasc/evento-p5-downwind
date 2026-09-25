@@ -34,6 +34,9 @@ type registerRequest struct {
 	CPF      string `json:"cpf"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+
+	EmergencyContactName  string `json:"emergencyContactName"`
+	EmergencyContactPhone string `json:"emergencyContactPhone"`
 }
 
 func (h *AuthStudentHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +60,11 @@ func (h *AuthStudentHandler) Register(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "CPF inválido")
 		return
 	}
+	emergencyName, emergencyPhone, msg := normalizeEmergencyContact(req.EmergencyContactName, req.EmergencyContactPhone)
+	if msg != "" {
+		writeJSONError(w, http.StatusBadRequest, msg)
+		return
+	}
 
 	passwordHash, err := auth.HashPassword(req.Password, h.pepper)
 	if err != nil {
@@ -71,6 +79,9 @@ func (h *AuthStudentHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Phone:         req.Phone,
 		PasswordHash:  passwordHash,
 		EncryptionKey: h.pepper,
+
+		EmergencyContactName:  emergencyName,
+		EmergencyContactPhone: emergencyPhone,
 	}
 	if req.CPF != "" {
 		params.CPF = auth.NormalizeCPF(req.CPF)

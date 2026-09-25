@@ -61,6 +61,12 @@ func (h *CheckoutHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Contas criadas antes do contato de emergência ser obrigatório preenchem na compra.
+	if !student.HasEmergencyContact() {
+		writeJSONError(w, http.StatusBadRequest, errEmergencyContactRequired)
+		return
+	}
+
 	// A Asaas exige CPF/CNPJ no cliente para gerar qualquer cobrança — checar isso antes
 	// de criar o pedido evita um pedido "pending" órfão quando a cobrança for recusada.
 	cpf, err := h.students.DecryptedCPF(r.Context(), student.ID, h.encryptionKey)

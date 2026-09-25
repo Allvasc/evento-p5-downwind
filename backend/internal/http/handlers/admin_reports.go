@@ -92,7 +92,8 @@ func (h *AdminReportsHandler) AttendeesCSV(w http.ResponseWriter, r *http.Reques
 	cw := csv.NewWriter(w)
 	cw.UseCRLF = true
 	_ = cw.Write([]string{
-		"Presença", "Nome", "Telefone", "E-mail", "CPF", "Data da compra",
+		"Presença", "Nome", "Telefone", "E-mail", "CPF",
+		"Contato de emergência", "Telefone de emergência", "Data da compra",
 		"Pedido", "Ingresso", "Turma", "Dia do evento", "Setor", "Check-in no sistema",
 	})
 	for _, a := range list {
@@ -104,7 +105,8 @@ func (h *AdminReportsHandler) AttendeesCSV(w http.ResponseWriter, r *http.Reques
 			}
 		}
 		_ = cw.Write([]string{
-			"☐", a.FullName, a.Phone, a.Email, a.CPF, a.PurchasedAt,
+			"☐", a.FullName, a.Phone, a.Email, a.CPF,
+			a.EmergencyContactName, a.EmergencyContactPhone, a.PurchasedAt,
 			a.OrderNumber, a.Benefit, a.SessionAt, a.EventDate, a.VendorName, checkedIn,
 		})
 	}

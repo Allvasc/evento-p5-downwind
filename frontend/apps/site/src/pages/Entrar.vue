@@ -19,6 +19,8 @@ const successMessage = ref("");
 const name = ref("");
 const phone = ref("");
 const cpf = ref("");
+const emergencyName = ref("");
+const emergencyPhone = ref("");
 const email = ref("");
 const password = ref("");
 const resetToken = ref("");
@@ -69,6 +71,8 @@ async function submit() {
         fullName: name.value,
         phone: phone.value,
         cpf: cpf.value || undefined,
+        emergencyContactName: emergencyName.value,
+        emergencyContactPhone: emergencyPhone.value,
         email: email.value,
         password: password.value,
       });
@@ -192,6 +196,31 @@ async function submit() {
                   </div>
                 </div>
                 <p class="-mt-2 text-[11px] text-ink-soft">O CPF é necessário para finalizar o pagamento — pode preencher agora ou depois, no seu perfil.</p>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label for="emergency-name" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink">Contato de emergência</label>
+                    <input
+                      id="emergency-name"
+                      v-model="emergencyName"
+                      required
+                      placeholder="Nome"
+                      class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-soft/50 focus:border-magenta focus:outline-none focus:ring-1 focus:ring-magenta"
+                    />
+                  </div>
+                  <div>
+                    <label for="emergency-phone" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink">Telefone de emergência</label>
+                    <input
+                      id="emergency-phone"
+                      v-model="emergencyPhone"
+                      required
+                      type="tel"
+                      placeholder="(00) 00000-0000"
+                      class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-soft/50 focus:border-magenta focus:outline-none focus:ring-1 focus:ring-magenta"
+                    />
+                  </div>
+                </div>
+                <p class="-mt-2 text-[11px] text-ink-soft">Obrigatório: quem a equipe P5 deve avisar se algo acontecer durante o evento.</p>
               </template>
 
               <div v-if="mode === 'reset'">
