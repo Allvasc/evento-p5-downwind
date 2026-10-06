@@ -10,12 +10,10 @@ import {
   Bus,
   LifeBuoy,
   HandHelping,
-  Shirt,
-  Sparkles,
-  Video,
-  Music,
-  Moon,
-  Sunset,
+  Wind,
+  Droplets,
+  Clock,
+  Flag,
 } from "lucide-vue-next";
 import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
@@ -61,14 +59,15 @@ const activeProduct = computed(() => {
 });
 
 const formattedPrice = computed(() => {
-  if (!activeProduct.value) return "R$ 200";
+  if (!activeProduct.value) return "R$ 100";
   return formatBRL(activeProduct.value.priceCents);
 });
 
-const productTitle = computed(() => cleanTitle(activeProduct.value?.title ?? "Downwind do Luau P5"));
-const productDescription = computed(
-  () => activeProduct.value?.description ?? "Downwind Sababa → P5 Kite House do pôr do sol à lua, com kites iluminados por LEDs e Luau P5 na chegada."
-);
+const productTitle = computed(() => cleanTitle(activeProduct.value?.title ?? "P5 DownWind Day"));
+
+function hasLycra(p: Product) {
+  return /com lycra/i.test(p.title);
+}
 
 const { data: nextSessionsData } = useQuery({
   queryKey: ["public-next-sessions"],
@@ -89,8 +88,8 @@ const nextDateLabel = computed(() => {
   return formatEventDate(sessions[0].startsAt);
 });
 
-// Downwind do Luau P5: apenas 10 vagas — a capacidade vem da turma, 10 é só o fallback.
-const totalSpots = computed(() => nextSessions.value[0]?.capacity ?? 10);
+// Apenas 16 vagas — a capacidade vem da turma, 16 é só o fallback.
+const totalSpots = computed(() => nextSessions.value[0]?.capacity ?? 16);
 const spotsLeft = computed(() => {
   const s = nextSessions.value[0];
   return s ? Math.max(s.capacity - s.booked, 0) : null;
@@ -101,22 +100,22 @@ const spotsLeftLabel = computed(() => {
 });
 
 const included = [
-  { icon: Shirt, title: "Lycra exclusiva", detail: "Kit do participante com a lycra P5 — Temporada 2026." },
-  { icon: Sparkles, title: "LEDs nos kites", detail: "Instalação dos LEDs no Sababa para navegar com o kite iluminado." },
-  { icon: Bus, title: "Concentração na P5", detail: "Concentração às 15h na P5 Kite House e ida ao Sababa." },
-  { icon: LifeBuoy, title: "Apoio na água", detail: "Acompanhamento da equipe do LPD na água durante todo o percurso." },
-  { icon: MapPin, title: "Percurso", detail: "Sababa → P5 Kite House, do pôr do sol à noite de lua." },
-  { icon: Video, title: "Registro da experiência", detail: "Equipe filmando tudo, da preparação à chegada." },
-  { icon: HandHelping, title: "Beach Boys na chegada", detail: "Ajuda na desmontagem dos equipamentos na P5." },
-  { icon: Music, title: "Luau P5", detail: "A chegada é só o começo da noite: música, lua e aquela energia P5." },
+  { icon: MapPin, title: "Percurso guiado", detail: "Praia do Presídio, com toda a rota acompanhada pela equipe P5." },
+  { icon: Bus, title: "Transporte incluso", detail: "Saída da P5 Kite House até o ponto de partida." },
+  { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra." },
+  { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },
+  { icon: Wind, title: "Monitoramento Wind Maps", detail: "Condições de vento acompanhadas em tempo real." },
+  { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento." },
+  { icon: Clock, title: "Saída às 7h30", detail: "Concentração na P5 Kite House." },
+  { icon: Flag, title: "Chegada até às 13h", detail: "Encerramento dentro do previsto." },
 ];
 
 const itinerary = [
-  { time: "1", title: "15h · Concentração", detail: "Concentração na P5 Kite House e ida ao Sababa." },
-  { time: "2", title: "Preparação no Sababa", detail: "Preparamos os equipamentos e instalamos os LEDs nos kites." },
-  { time: "3", title: "17h30 · Nascer da lua", detail: "Com a lua começando a nascer, saímos do Sababa rumo à P5, na transição do pôr do sol para a noite." },
-  { time: "4", title: "18h · Chegada na P5", detail: "Chegada prevista entre 18h e 18h30, com os Beach Boys ajudando na desmontagem." },
-  { time: "5", title: "Luau P5", detail: "Você só guarda o kite e entra no clima. A chegada é só o começo da noite." },
+  { time: "1", title: "7h30 · Concentração", detail: "Concentração na P5 Kite House e saída de transporte rumo à Praia do Presídio." },
+  { time: "2", title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida para preparar o equipamento." },
+  { time: "3", title: "Vento monitorado", detail: "Condições acompanhadas pelo Wind Maps antes e durante o dia." },
+  { time: "4", title: "Presídio → P5", detail: "Percurso guiado com a equipe P5 acompanhando na água e em terra, do início ao fim." },
+  { time: "5", title: "Até 13h · Chegada", detail: "Receptivo na P5 Kite House com auxílio na desmontagem do equipamento." },
 ];
 </script>
 
@@ -135,16 +134,17 @@ const itinerary = [
           <div>
             <p class="eyebrow mb-6 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · DOWNWIND DO LUAU P5
+              P5 KITE HOUSE · P5 DOWNWIND DAY
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
-              Começamos com o sol.<br />
-              <span class="text-magenta">Navegamos com a lua.</span>
+              Feito para quem leva o vento
+              <span class="text-magenta">a sério.</span>
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              Terminamos no Luau P5. 🔥 O <strong class="font-semibold text-ink">{{ productTitle }}</strong> é uma experiência diferente no mar: {{ productDescription }}
+              <strong class="font-semibold text-ink">Sábado, 10 de outubro</strong> · Praia do Presídio → P5 Kite House.
+              Um valor, tudo incluso: transporte, apoio aquático e terrestre, estrutura na saída e receptivo na chegada.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
@@ -161,9 +161,9 @@ const itinerary = [
             </div>
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Saída 7h30 · chegada até 13h</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Transporte + apoio na água e em terra</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template></span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Lycra exclusiva P5 2026</span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Kites com LEDs + Luau P5</span>
             </div>
           </div>
 
@@ -173,7 +173,7 @@ const itinerary = [
               <div class="text-center">
                 <img src="/logo-downwind.webp" :alt="productTitle" class="mx-auto h-7 w-auto" />
                 <p class="mt-2 text-xs font-medium text-ink-soft">
-                  Escolha como você quer viver essa experiência.
+                  Um valor, tudo incluso. Escolha seu ingresso.
                 </p>
               </div>
 
@@ -194,20 +194,14 @@ const itinerary = [
                     <div class="flex flex-wrap items-center gap-2">
                       <h3 class="font-serif text-sm font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
                       <span
-                        v-if="p.includesBreakfast"
+                        v-if="hasLycra(p)"
                         class="rounded-full bg-magenta/10 px-2 py-0.5 font-mono text-[9px] font-bold text-magenta uppercase"
                       >
-                        Com Café
-                      </span>
-                      <span
-                        v-else
-                        class="rounded-full bg-warm px-2 py-0.5 font-mono text-[9px] font-bold text-ink-soft uppercase"
-                      >
-                        Ingresso Único
+                        + Lycra P5
                       </span>
                     </div>
                     <p class="mt-1 text-xs text-ink-soft">
-                      {{ p.includesBreakfast ? 'Sababa → P5 + Café da Manhã' : 'Sababa → P5 · lycra exclusiva inclusa' }}
+                      {{ hasLycra(p) ? 'Presídio → P5 · tudo incluso + lycra exclusiva P5' : 'Presídio → P5 · tudo incluso' }}
                     </p>
                   </div>
 
@@ -220,20 +214,20 @@ const itinerary = [
               <!-- Route details footer inside card -->
               <div class="mt-6 flex items-center justify-between border-t border-line/60 pt-4 text-xs text-ink-soft">
                 <div>
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Concentração · 15h</p>
-                  <p class="font-serif font-bold text-ink">P5 Kite House</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Saída · 7h30</p>
+                  <p class="font-serif font-bold text-ink">Praia do Presídio</p>
                 </div>
-                <Moon :size="18" class="text-magenta shrink-0" />
+                <Wind :size="18" class="text-magenta shrink-0" />
                 <div class="text-right">
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Percurso</p>
-                  <p class="font-serif font-bold text-ink">Sababa &rarr; P5</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Chegada · até 13h</p>
+                  <p class="font-serif font-bold text-ink">P5 Kite House</p>
                 </div>
               </div>
             </div>
 
             <!-- Floating Top Badge -->
-            <span v-if="nextDateLabel" class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3.5 py-1 text-[11px] font-semibold text-magenta shadow-sm">
-              <Compass :size="12" /> {{ nextDateLabel }} · apenas {{ totalSpots }} vagas
+            <span class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3.5 py-1 text-[11px] font-semibold text-magenta shadow-sm">
+              <Compass :size="12" /> {{ nextDateLabel ?? "Sábado, 10 de outubro" }} · apenas {{ totalSpots }} vagas
             </span>
 
             <!-- Bottom Label -->
@@ -254,7 +248,7 @@ const itinerary = [
               <span class="text-magenta">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Da concentração na P5 Kite House à chegada no Luau, passando pela preparação no Sababa e pela navegação com os kites iluminados, tudo já está no seu ingresso.
+              Da concentração às 7h30 na P5 Kite House à chegada até as 13h, passando pelo transporte, pela estrutura na Praia do Presídio e pelo apoio da equipe P5 na água e em terra, tudo já está no seu ingresso.
             </p>
           </div>
 
@@ -279,9 +273,9 @@ const itinerary = [
       <!-- SECTION: PERCURSO / COMO FUNCIONA -->
       <section id="percurso" class="py-20">
         <div class="mx-auto max-w-6xl px-6">
-          <p class="eyebrow mb-2"><WaveIcon :size="14" /> DO SOL À LUA</p>
+          <p class="eyebrow mb-2"><WaveIcon :size="14" /> PRAIA DO PRESÍDIO → P5 KITE HOUSE</p>
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
-            Como funciona <span class="text-magenta">a sua noite.</span>
+            Como funciona <span class="text-magenta">o seu dia.</span>
           </h2>
 
           <div class="mt-14 grid gap-8 md:grid-cols-5">
@@ -305,31 +299,31 @@ const itinerary = [
           <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
             <KitesurferIcon :size="34" class="text-sky-300" />
           </div>
-          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">MAR · LUA · KITE · LEDS · MÚSICA</p>
+          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">VENTO · MAR · KITE · APOIO</p>
           <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
-            Do sol à lua. <span class="text-sky-300">Do mar ao luau.</span>
+            Vento a favor, <span class="text-sky-300">mar em movimento.</span>
           </h2>
 
           <div class="mt-12 grid gap-8 md:grid-cols-3">
             <div class="flex flex-col gap-3">
-              <Sunset :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Do pôr do sol à noite</h3>
-              <p class="text-sm leading-relaxed text-white/70">
-                Navegação Sababa → P5 na transição do pôr do sol para a noite, com a lua nascendo por volta das 17h30.
-              </p>
-            </div>
-            <div class="flex flex-col gap-3">
               <LifeBuoy :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Apoio na água</h3>
+              <h3 class="font-serif text-lg font-bold">Apoio o tempo todo</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Acompanhamento da equipe do LPD na água durante todo o percurso, com os kites iluminados por LEDs.
+                Equipe P5 acompanhando na água e em terra durante todo o percurso, do início ao fim.
               </p>
             </div>
             <div class="flex flex-col gap-3">
-              <Music :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Luau P5 na chegada</h3>
+              <Wind :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Monitoramento em tempo real</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Beach Boys ajudam na desmontagem. Você só precisa guardar o kite e entrar no clima. 🔥
+                Condições de vento acompanhadas pelo aplicativo Wind Maps antes e durante o dia.
+              </p>
+            </div>
+            <div class="flex flex-col gap-3">
+              <Droplets :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Estrutura completa</h3>
+              <p class="text-sm leading-relaxed text-white/70">
+                Compressor, banheiro e hidratação no ponto de saída, mais receptivo na chegada.
               </p>
             </div>
           </div>
@@ -341,10 +335,10 @@ const itinerary = [
         <div class="mx-auto max-w-5xl px-6 text-center">
           <p class="eyebrow mb-2 justify-center">OPÇÕES DE INGRESSO</p>
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
-            Garanta seu lugar <span class="text-magenta">no luau.</span>
+            Um valor, <span class="text-magenta">tudo incluso.</span>
           </h2>
           <p class="mt-3 text-sm text-ink-soft">
-            Apenas {{ totalSpots }} vagas. Ingresso com lycra exclusiva P5 — Temporada 2026. Pagamento seguro via Pix.
+            Apenas {{ totalSpots }} vagas. Sábado, 10 de outubro · Praia do Presídio → P5 Kite House. Escolha com ou sem a lycra exclusiva P5. Pagamento seguro via Pix.
           </p>
 
           <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
@@ -358,7 +352,7 @@ const itinerary = [
             >
               <div class="flex flex-wrap items-center gap-2.5">
                 <h3 class="font-sans text-base font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
-                <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">DESTAQUE</span>
+                <span v-if="hasLycra(p)" class="rounded-full bg-yellow-300 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-ink uppercase">LYCRA EXCLUSIVA P5</span>
               </div>
 
               <div class="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-5">
@@ -381,7 +375,7 @@ const itinerary = [
 
           <p class="text-xs text-white/60 text-center md:text-left">
             P5 Kite House.<br />
-            Do sol à lua. Do mar ao luau.
+            Vento a favor, mar em movimento.
           </p>
 
           <div class="flex items-center gap-6 text-xs font-medium text-white/80">

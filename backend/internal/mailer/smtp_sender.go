@@ -132,7 +132,7 @@ func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string) error
 	html := fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
 		<p style="font-family:monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#0b63d6;margin-bottom:8px">P5 Kite House</p>
 		<h1 style="color:#0a0f1a;margin-top:0">Bem-vindo(a), %s!</h1>
-		<p style="color:#57677e;line-height:1.5">Seu cadastro foi criado com sucesso. O próximo evento é o Downwind do Luau P5: saída da P5 para o Sababa, LEDs nos kites e navegação Sababa → P5 Kite House do pôr do sol à lua, com Luau P5 na chegada.</p>
+		<p style="color:#57677e;line-height:1.5">Seu cadastro foi criado com sucesso. O próximo evento é o P5 DownWind Day, sábado, 10 de outubro: percurso Praia do Presídio → P5 Kite House, com transporte, apoio aquático e terrestre, estrutura na saída e receptivo na chegada. Saída às 7h30 da P5.</p>
 		<p style="margin:28px 0">
 			<a href="%s/comprar" style="background:#0b63d6;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Garantir minha vaga</a>
 		</p>

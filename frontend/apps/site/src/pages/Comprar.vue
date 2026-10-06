@@ -44,6 +44,7 @@ const selected = computed(() => products.value.find((p) => p.id === selectedId.v
 
 const ACTIVITY_TIPS: Record<string, string> = {
   "p5-downwind-day": "Traga seu equipamento de kitesurf, lycra e protetor solar",
+  "p5-downwind-day-presidio": "Concentração às 7h30 na P5 Kite House. Traga seu equipamento de kitesurf e protetor solar",
 };
 function activityTip(slug: string): string | null {
   return ACTIVITY_TIPS[slug] ?? null;
