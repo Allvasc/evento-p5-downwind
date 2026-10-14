@@ -143,7 +143,7 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              <strong class="font-semibold text-ink">Sábado, 10 de outubro</strong> · Praia do Presídio → P5 Kite House.
+              <strong class="font-semibold text-ink">Sábado, 24 de outubro</strong> · Praia do Presídio → P5 Kite House.
               Um valor, tudo incluso: transporte, apoio aquático e terrestre, estrutura na saída e receptivo na chegada.
             </p>
 
@@ -227,7 +227,7 @@ const itinerary = [
 
             <!-- Floating Top Badge -->
             <span class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3.5 py-1 text-[11px] font-semibold text-magenta shadow-sm">
-              <Compass :size="12" /> {{ nextDateLabel ?? "Sábado, 10 de outubro" }} · apenas {{ totalSpots }} vagas
+              <Compass :size="12" /> {{ nextDateLabel ?? "Sábado, 24 de outubro" }} · apenas {{ totalSpots }} vagas
             </span>
 
             <!-- Bottom Label -->
@@ -338,7 +338,7 @@ const itinerary = [
             Um valor, <span class="text-magenta">tudo incluso.</span>
           </h2>
           <p class="mt-3 text-sm text-ink-soft">
-            Apenas {{ totalSpots }} vagas. Sábado, 10 de outubro · Praia do Presídio → P5 Kite House. Escolha com ou sem a lycra exclusiva P5. Pagamento seguro via Pix.
+            Apenas {{ totalSpots }} vagas. Sábado, 24 de outubro · Praia do Presídio → P5 Kite House. Escolha com ou sem a lycra exclusiva P5. Pagamento seguro via Pix.
           </p>
 
           <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
