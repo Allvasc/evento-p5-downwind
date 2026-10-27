@@ -99,6 +99,12 @@ const spotsLeftLabel = computed(() => {
   return spotsLeft.value === 1 ? "resta 1 vaga" : `restam ${spotsLeft.value} vagas`;
 });
 
+// Ativa o tema Halloween enquanto o produto halloween estiver ativo no banco.
+// Quando a próxima migration desativar esse produto, os estilos somem automaticamente.
+const isHalloween = computed(() =>
+  products.value.some(p => /halloween/i.test(p.title))
+);
+
 const included = [
   { icon: MapPin, title: "Percurso guiado", detail: "Sababa → P5 Kite House, com toda a rota acompanhada pela equipe P5." },
   { icon: Bus, title: "Transporte incluso", detail: "Saída da P5 Kite House às 10h em direção ao Sababa." },
@@ -127,8 +133,55 @@ const itinerary = [
     <main>
       <!-- HERO -->
       <section class="relative overflow-hidden pt-4 pb-16 md:py-20">
-        <div class="hero-orb hero-orb--blue"></div>
-        <div class="hero-orb hero-orb--cream"></div>
+        <!-- orbs normais -->
+        <template v-if="!isHalloween">
+          <div class="hero-orb hero-orb--blue"></div>
+          <div class="hero-orb hero-orb--cream"></div>
+        </template>
+        <!-- orbs Halloween -->
+        <template v-else>
+          <div class="hero-orb" style="background:radial-gradient(circle,rgba(124,58,237,.18) 0%,transparent 70%);top:-80px;left:-120px;width:600px;height:600px;"></div>
+          <div class="hero-orb" style="background:radial-gradient(circle,rgba(249,115,22,.13) 0%,transparent 70%);bottom:-100px;right:-80px;width:500px;height:500px;"></div>
+        </template>
+
+        <!-- abóbora watermark -->
+        <svg v-if="isHalloween" class="halloween-pumpkin" viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M100 32 C100 32 112 10 118 4 C122 0 128 2 124 10 C120 18 110 28 110 38" fill="#f97316"/>
+          <ellipse cx="70" cy="118" rx="52" ry="72" fill="#f97316"/>
+          <ellipse cx="100" cy="120" rx="42" ry="74" fill="#ea580c"/>
+          <ellipse cx="130" cy="118" rx="52" ry="72" fill="#f97316"/>
+          <ellipse cx="100" cy="118" rx="60" ry="70" fill="#f97316"/>
+          <!-- linhas de nervura -->
+          <path d="M100 50 Q85 118 100 188" stroke="#ea580c" stroke-width="2" opacity=".4"/>
+          <path d="M100 50 Q70 110 72 188" stroke="#ea580c" stroke-width="2" opacity=".3"/>
+          <path d="M100 50 Q130 110 128 188" stroke="#ea580c" stroke-width="2" opacity=".3"/>
+          <!-- olhos -->
+          <polygon points="76,100 66,120 86,120" fill="#1a0a00"/>
+          <polygon points="124,100 114,120 134,120" fill="#1a0a00"/>
+          <!-- nariz -->
+          <polygon points="100,120 94,134 106,134" fill="#1a0a00"/>
+          <!-- boca -->
+          <path d="M72,148 L80,140 L88,150 L96,138 L104,150 L112,138 L120,150 L128,140 L136,148" stroke="#1a0a00" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+
+        <!-- morcegos decorativos -->
+        <template v-if="isHalloween">
+        <svg class="bat bat--1" viewBox="0 0 80 40" fill="currentColor" aria-hidden="true">
+          <path d="M40 20 C35 10 20 5 0 12 C10 16 18 20 20 24 C22 28 18 34 14 36 C20 34 26 28 28 24 C30 20 34 18 40 20 Z"/>
+          <path d="M40 20 C45 10 60 5 80 12 C70 16 62 20 60 24 C58 28 62 34 66 36 C60 34 54 28 52 24 C50 20 46 18 40 20 Z"/>
+          <ellipse cx="40" cy="18" rx="5" ry="6"/>
+        </svg>
+        <svg class="bat bat--2" viewBox="0 0 60 30" fill="currentColor" aria-hidden="true">
+          <path d="M30 15 C26 8 15 4 0 9 C8 12 14 15 15 18 C16 21 14 26 11 27 C15 26 20 21 21 18 C22 15 26 14 30 15 Z"/>
+          <path d="M30 15 C34 8 45 4 60 9 C52 12 46 15 45 18 C44 21 46 26 49 27 C45 26 40 21 39 18 C38 15 34 14 30 15 Z"/>
+          <ellipse cx="30" cy="14" rx="4" ry="5"/>
+        </svg>
+        <svg class="bat bat--3" viewBox="0 0 50 25" fill="currentColor" aria-hidden="true">
+          <path d="M25 12 C22 7 12 3 0 7 C6 10 11 12 12 15 C13 17 11 21 9 22 C12 21 16 17 17 15 C18 12 21 11 25 12 Z"/>
+          <path d="M25 12 C28 7 38 3 50 7 C44 10 39 12 38 15 C37 17 39 21 41 22 C38 21 34 17 33 15 C32 12 29 11 25 12 Z"/>
+          <ellipse cx="25" cy="11" rx="3" ry="4"/>
+        </svg>
+        </template>
 
         <div class="relative z-10 mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div>
@@ -139,7 +192,7 @@ const itinerary = [
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
               Prepare sua fantasia e
-              <span class="text-magenta">venha pro mar.</span>
+              <span :style="isHalloween ? 'color:#c2410c;' : ''" :class="!isHalloween ? 'text-magenta' : ''">venha pro mar.</span>
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
@@ -161,9 +214,9 @@ const itinerary = [
             </div>
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Concentração 9h30 · saída às 10h</span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Transporte + apoio na água e em terra</span>
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template></span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" :style="isHalloween ? 'color:#f97316;' : ''" :class="!isHalloween ? 'text-magenta' : ''" /> Concentração 9h30 · saída às 10h</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" :style="isHalloween ? 'color:#f97316;' : ''" :class="!isHalloween ? 'text-magenta' : ''" /> Transporte + apoio na água e em terra</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" :style="isHalloween ? 'color:#7c3aed;' : ''" :class="!isHalloween ? 'text-magenta' : ''" /> Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template></span>
             </div>
           </div>
 
@@ -173,7 +226,7 @@ const itinerary = [
               <div class="text-center">
                 <div class="inline-flex items-center gap-2">
                   <img src="/logo-downwind.webp" :alt="productTitle" class="h-7 w-auto" />
-                  <span class="rounded-full border border-orange-400/40 bg-orange-50 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-orange-600 uppercase">🎃 Halloween</span>
+                  <span v-if="isHalloween" class="rounded-full border border-orange-400/40 bg-orange-50 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-orange-600 uppercase">🎃 Halloween</span>
                 </div>
                 <p class="mt-2 text-xs font-medium text-ink-soft">
                   Um valor, tudo incluso. Escolha seu ingresso.
@@ -242,26 +295,50 @@ const itinerary = [
       </section>
 
       <!-- SECTION: O QUE ESTÁ INCLUSO -->
-      <section id="inclui" class="border-t border-line/60 bg-warm/40 py-20">
+      <section
+        id="inclui"
+        class="relative overflow-hidden border-t border-line/60 py-20"
+        :style="isHalloween ? 'background:linear-gradient(135deg,#fdf4ff 0%,#fff7ed 50%,#fdf4ff 100%);' : ''"
+        :class="!isHalloween ? 'bg-warm/40' : ''"
+      >
+        <!-- teia de aranha decorativa -->
+        <svg v-if="isHalloween" class="spiderweb" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+          <g stroke="#6d28d9" stroke-width="0.6" opacity="0.5">
+            <line x1="60" y1="0" x2="60" y2="120"/><line x1="0" y1="60" x2="120" y2="60"/>
+            <line x1="17" y1="17" x2="103" y2="103"/><line x1="103" y1="17" x2="17" y2="103"/>
+            <circle cx="60" cy="60" r="15" fill="none"/><circle cx="60" cy="60" r="30" fill="none"/>
+            <circle cx="60" cy="60" r="45" fill="none"/><circle cx="60" cy="60" r="58" fill="none"/>
+          </g>
+          <circle cx="60" cy="60" r="3" fill="#6d28d9" opacity="0.4"/>
+        </svg>
         <div class="mx-auto max-w-6xl px-6">
-          <p class="eyebrow mb-2">TUDO INCLUÍDO NO SEU INGRESSO</p>
+          <p class="eyebrow mb-2" :style="isHalloween ? 'color:#7c3aed;' : ''">
+            <template v-if="isHalloween">🎃 </template>TUDO INCLUÍDO NO SEU INGRESSO
+          </p>
           <div class="grid gap-6 md:grid-cols-[1.2fr_1fr] md:items-end">
             <h2 class="font-serif text-3xl font-bold leading-tight text-ink md:text-5xl">
               O que está<br />
-              <span class="text-magenta">incluso.</span>
+              <span :style="isHalloween ? 'color:#c2410c;' : ''" :class="!isHalloween ? 'text-magenta' : ''">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Da concentração às 7h30 na P5 Kite House à chegada até as 13h, passando pelo transporte, pela estrutura na Praia do Presídio e pelo apoio da equipe P5 na água e em terra, tudo já está no seu ingresso.
+              Da concentração às 9h30 na P5 Kite House à chegada no percurso Sababa → P5, passando pelo transporte e pelo apoio da equipe na água e em terra, tudo já está no seu ingresso.
             </p>
           </div>
 
           <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div
-              v-for="item in included"
+              v-for="(item, i) in included"
               :key="item.title"
-              class="flex flex-col gap-4 rounded-[var(--radius-card)] border border-line/80 bg-white p-6"
+              class="flex flex-col gap-4 rounded-[var(--radius-card)] border bg-white p-6"
+              :style="isHalloween ? (i % 2 === 0 ? 'border-color:rgba(249,115,22,.25)' : 'border-color:rgba(124,58,237,.2)') : 'border-color:rgba(0,0,0,.08)'"
             >
-              <span class="flex h-10 w-10 items-center justify-center rounded-full bg-magenta/10 text-magenta">
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full"
+                :style="isHalloween
+                  ? (i % 2 === 0 ? 'background:rgba(249,115,22,.1);color:#f97316;' : 'background:rgba(124,58,237,.1);color:#7c3aed;')
+                  : 'background:rgba(var(--color-magenta),.1);color:var(--color-magenta,#e11d48);'"
+                :class="!isHalloween ? 'bg-magenta/10 text-magenta' : ''"
+              >
                 <component :is="item.icon" :size="19" />
               </span>
               <div>
@@ -402,3 +479,42 @@ const itinerary = [
     </main>
   </div>
 </template>
+
+<style scoped>
+/* ── Abóbora watermark ─────────────────────────────────────────── */
+.halloween-pumpkin {
+  position: absolute;
+  right: -6%;
+  bottom: -8%;
+  width: 420px;
+  opacity: 0.045;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Morcegos ──────────────────────────────────────────────────── */
+.bat {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  color: #6d28d9;
+}
+.bat--1 { top: 12%; left: 8%;   width: 56px; opacity: 0.07; animation: bat-float 9s  ease-in-out infinite; }
+.bat--2 { top: 6%;  left: 38%;  width: 42px; opacity: 0.06; animation: bat-float 7s  ease-in-out infinite 1.5s; }
+.bat--3 { top: 22%; right: 12%; width: 34px; opacity: 0.05; animation: bat-float 11s ease-in-out infinite 3s; }
+
+@keyframes bat-float {
+  0%, 100% { transform: translateY(0)     rotate(-4deg); }
+  50%       { transform: translateY(-10px) rotate(4deg); }
+}
+
+/* ── Teia de aranha ────────────────────────────────────────────── */
+.spiderweb {
+  position: absolute;
+  top: -10px;
+  right: 0;
+  width: 140px;
+  opacity: 0.18;
+  pointer-events: none;
+}
+</style>
