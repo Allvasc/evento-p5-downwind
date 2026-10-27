@@ -101,21 +101,21 @@ const spotsLeftLabel = computed(() => {
 
 const included = [
   { icon: MapPin, title: "Percurso guiado", detail: "Sababa → P5 Kite House, com toda a rota acompanhada pela equipe P5." },
-  { icon: Bus, title: "Transporte incluso", detail: "Saída da P5 Kite House até o ponto de partida no Sababa." },
-  { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra." },
+  { icon: Bus, title: "Transporte incluso", detail: "Saída da P5 Kite House às 10h em direção ao Sababa." },
+  { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra durante todo o percurso." },
   { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida." },
   { icon: Wind, title: "Monitoramento Wind Maps", detail: "Condições de vento acompanhadas em tempo real." },
-  { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento." },
-  { icon: Clock, title: "Saída às 15h", detail: "Concentração na P5 Kite House." },
-  { icon: Flag, title: "Chegada até às 18h30", detail: "Encerramento dentro do previsto." },
+  { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento na P5 Kite House." },
+  { icon: Clock, title: "Concentração às 9h30", detail: "Concentração na P5 Kite House." },
+  { icon: Flag, title: "Evento à fantasia", detail: "Venha caracterizado e entre no clima do Halloween!" },
 ];
 
 const itinerary = [
-  { time: "1", title: "15h · Concentração", detail: "Concentração na P5 Kite House e saída de transporte rumo ao Sababa." },
-  { time: "2", title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida para preparar o equipamento." },
-  { time: "3", title: "Vento monitorado", detail: "Condições acompanhadas pelo Wind Maps antes e durante o percurso." },
+  { time: "1", title: "9h30 · Concentração", detail: "Concentração na P5 Kite House." },
+  { time: "2", title: "10h · Saída para o Sababa", detail: "Saída de transporte da P5 rumo ao ponto de partida no Sababa." },
+  { time: "3", title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida para preparar o equipamento." },
   { time: "4", title: "Sababa → P5", detail: "Percurso guiado com a equipe P5 acompanhando na água e em terra, do início ao fim." },
-  { time: "5", title: "Até 18h30 · Chegada", detail: "Receptivo na P5 Kite House com auxílio na desmontagem do equipamento." },
+  { time: "5", title: "Chegada · P5 Kite House", detail: "Receptivo com auxílio na desmontagem do equipamento." },
 ];
 </script>
 
@@ -134,17 +134,17 @@ const itinerary = [
           <div>
             <p class="eyebrow mb-6 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · DOWNWIND DO LUAU P5
+              P5 KITE HOUSE · DOWNWIND HALLOWEEN P5
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
-              Feito para quem leva o vento
-              <span class="text-magenta">a sério.</span>
+              Prepare sua fantasia e
+              <span class="text-magenta">venha pro mar.</span>
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              <strong class="font-semibold text-ink">Sábado, 24 de outubro</strong> · Sababa → P5 Kite House.
-              Um valor, tudo incluso: transporte, apoio aquático e terrestre, estrutura na saída e receptivo na chegada.
+              <strong class="font-semibold text-ink">Sexta, 31 de outubro</strong> · Sababa → P5 Kite House.
+              Concentração às 9h30 na P5. Evento à fantasia com suporte aquático e terrestre incluídos.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
@@ -161,7 +161,7 @@ const itinerary = [
             </div>
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
-              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Saída 15h · chegada até 18h30</span>
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Concentração 9h30 · saída às 10h</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Transporte + apoio na água e em terra</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template></span>
             </div>
@@ -173,7 +173,7 @@ const itinerary = [
               <div class="text-center">
                 <div class="inline-flex items-center gap-2">
                   <img src="/logo-downwind.webp" :alt="productTitle" class="h-7 w-auto" />
-                  <span class="rounded-full border border-magenta/30 bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">Luau P5</span>
+                  <span class="rounded-full border border-orange-400/40 bg-orange-50 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-orange-600 uppercase">🎃 Halloween</span>
                 </div>
                 <p class="mt-2 text-xs font-medium text-ink-soft">
                   Um valor, tudo incluso. Escolha seu ingresso.
@@ -204,7 +204,7 @@ const itinerary = [
                       </span>
                     </div>
                     <p class="mt-1 text-xs text-ink-soft">
-                      {{ hasLycra(p) ? 'Sababa → P5 · tudo incluso + lycra exclusiva P5' : 'Sababa → P5 · tudo incluso' }}
+                      Sababa → P5 · suporte aquático e terrestre incluídos
                     </p>
                   </div>
 
@@ -217,12 +217,12 @@ const itinerary = [
               <!-- Route details footer inside card -->
               <div class="mt-6 flex items-center justify-between border-t border-line/60 pt-4 text-xs text-ink-soft">
                 <div>
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Saída · 15h</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Saída · 10h</p>
                   <p class="font-serif font-bold text-ink">Sababa</p>
                 </div>
                 <Wind :size="18" class="text-magenta shrink-0" />
                 <div class="text-right">
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Chegada · até 18h30</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Concentração · 9h30</p>
                   <p class="font-serif font-bold text-ink">P5 Kite House</p>
                 </div>
               </div>
@@ -230,7 +230,7 @@ const itinerary = [
 
             <!-- Floating Top Badge -->
             <span class="absolute -top-3 -right-2 inline-flex items-center gap-1.5 rounded-full border border-magenta/20 bg-white px-3.5 py-1 text-[11px] font-semibold text-magenta shadow-sm">
-              <Compass :size="12" /> {{ nextDateLabel ?? "Sábado, 24 de outubro" }} · apenas {{ totalSpots }} vagas
+              <Compass :size="12" /> {{ nextDateLabel ?? "Sexta, 31 de outubro" }} · apenas {{ totalSpots }} vagas
             </span>
 
             <!-- Bottom Label -->
@@ -276,7 +276,7 @@ const itinerary = [
       <!-- SECTION: PERCURSO / COMO FUNCIONA -->
       <section id="percurso" class="py-20">
         <div class="mx-auto max-w-6xl px-6">
-          <p class="eyebrow mb-2"><WaveIcon :size="14" /> SABABA → P5 KITE HOUSE</p>
+          <p class="eyebrow mb-2"><WaveIcon :size="14" /> SABABA → P5 KITE HOUSE · 31 DE OUTUBRO</p>
           <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
             Como funciona <span class="text-magenta">o seu dia.</span>
           </h2>
@@ -341,7 +341,7 @@ const itinerary = [
             Um valor, <span class="text-magenta">tudo incluso.</span>
           </h2>
           <p class="mt-3 text-sm text-ink-soft">
-            Apenas {{ totalSpots }} vagas. Sábado, 24 de outubro · Sababa → P5 Kite House. Escolha com ou sem a lycra exclusiva P5. Pagamento seguro via Pix.
+            Apenas {{ totalSpots }} vagas. Sexta, 31 de outubro · Sababa → P5 Kite House. Evento à fantasia, ingresso único. Pagamento seguro via Pix.
           </p>
 
           <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
