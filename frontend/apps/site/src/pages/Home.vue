@@ -377,30 +377,30 @@ const itinerary = [
       <section class="border-t border-line/60 bg-ink py-20 text-white">
         <div class="mx-auto max-w-6xl px-6">
           <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
-            <KitesurferIcon :size="34" class="text-sky-300" />
+            <KitesurferIcon :size="34" class="text-violet-300" />
           </div>
           <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">VENTO · MAR · KITE · APOIO</p>
           <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
-            Vento a favor, <span class="text-sky-300">mar em movimento.</span>
+            Vento a favor, <span class="text-violet-300">mar em movimento.</span>
           </h2>
 
           <div class="mt-12 grid gap-8 md:grid-cols-3">
             <div class="flex flex-col gap-3">
-              <LifeBuoy :size="26" class="text-sky-300" />
+              <LifeBuoy :size="26" class="text-violet-300" />
               <h3 class="font-serif text-lg font-bold">Apoio o tempo todo</h3>
               <p class="text-sm leading-relaxed text-white/70">
                 Equipe P5 acompanhando na água e em terra durante todo o percurso, do início ao fim.
               </p>
             </div>
             <div class="flex flex-col gap-3">
-              <Wind :size="26" class="text-sky-300" />
+              <Wind :size="26" class="text-violet-300" />
               <h3 class="font-serif text-lg font-bold">Monitoramento em tempo real</h3>
               <p class="text-sm leading-relaxed text-white/70">
                 Condições de vento acompanhadas pelo aplicativo Wind Maps antes e durante o dia.
               </p>
             </div>
             <div class="flex flex-col gap-3">
-              <Droplets :size="26" class="text-sky-300" />
+              <Droplets :size="26" class="text-violet-300" />
               <h3 class="font-serif text-lg font-bold">Estrutura completa</h3>
               <p class="text-sm leading-relaxed text-white/70">
                 Compressor, banheiro e hidratação no ponto de saída, mais receptivo na chegada.
