@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
-/* Identidade visual P5 DownWind Day — preto, branco e roxo, inspirada em vento e mar. */
+/* Identidade visual P5 DownWind Day — roxo profundo e preto, inspirada em vento e mar. */
 @theme {
-  --color-ink: #0a0a14;
-  --color-ink-soft: #5c547a;
-  --color-paper: #f8f7fc;
-  --color-warm: #f0eeff;
-  --color-sun: #a78bfa;
-  --color-magenta: #6d28d9;
-  --color-magenta-dark: #4c1d95;
-  --color-sky: #ede9fe;
-  --color-line: #e2dff0;
+  --color-ink: #1a0533;
+  --color-ink-soft: #7c5cbf;
+  --color-paper: #fdf8ff;
+  --color-warm: #ede0ff;
+  --color-sun: #a855f7;
+  --color-magenta: #7c3aed;
+  --color-magenta-dark: #2e1065;
+  --color-sky: #c084fc;
+  --color-line: #e9d5ff;
 
   --font-serif: "Archivo", "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
@@ -61,7 +61,7 @@ label[for] {
   align-items: center;
   gap: 0.5rem;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 8px 24px -8px rgba(109, 40, 217, 0.45);
+  box-shadow: 0 10px 40px -6px rgba(124, 58, 237, 0.7);
   cursor: pointer;
 }
 .button-magenta:hover {
@@ -106,25 +106,25 @@ label[for] {
 .hero-orb {
   position: absolute;
   border-radius: 999px;
-  filter: blur(2px);
-  opacity: 0.65;
+  filter: blur(60px);
+  opacity: 0.55;
   pointer-events: none;
   z-index: 0;
 }
 .hero-orb--blue {
   background: var(--color-sky);
-  width: 22rem;
-  height: 22rem;
-  top: -6rem;
-  left: -8rem;
+  width: 28rem;
+  height: 28rem;
+  top: -8rem;
+  left: -10rem;
 }
 .hero-orb--cream {
   background: var(--color-sun);
-  opacity: 0.35;
-  width: 26rem;
-  height: 26rem;
-  bottom: -10rem;
-  right: -10rem;
+  opacity: 0.45;
+  width: 30rem;
+  height: 30rem;
+  bottom: -12rem;
+  right: -12rem;
 }
 
 .ticket-perforation {
