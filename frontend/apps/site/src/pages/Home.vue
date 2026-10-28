@@ -144,6 +144,8 @@ const included = computed(() => {
       {
         icon: LifeBuoy,
         title: "Apoio Aquático e Terrestre",
+        detail: "Translado da P5 para ponto de partida (Sababa) e acompanhamento da equipe P5 no mar.",
+        tag: "Segurança Total",
       },
       {
         icon: Droplets,
@@ -175,7 +177,12 @@ const included = computed(() => {
   return [
     { icon: MapPin, title: "Percurso guiado", detail: "Sababa → P5 Kite House, com toda a rota acompanhada pela equipe P5.", tag: "Rota Guiada" },
     { icon: Bus, title: "Transporte incluso", detail: "Saída prevista às 10h da P5 Kite House em direção ao Sababa.", tag: "Transporte P5" },
-    { icon: LifeBuoy, title: "Apoio aquático e terrestre" },
+    {
+      icon: LifeBuoy,
+      title: "Apoio aquático e terrestre",
+      detail: "Translado da P5 para ponto de partida (Sababa) e acompanhamento da equipe P5 no mar.",
+      tag: "Segurança Total",
+    },
     { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida.", tag: "Estrutura" },
     { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento na P5 Kite House.", tag: "Receptivo" },
     { icon: Clock, title: "Concentração às 9h30", detail: "Concentração na P5 Kite House.", tag: "Horário" },
@@ -684,6 +691,9 @@ const itinerary = computed(() => {
                 </div>
                 <h3 class="font-serif text-lg font-bold text-white">Apoio aquático e terrestre</h3>
               </div>
+              <p class="text-sm leading-relaxed text-purple-200/70">
+                Translado da P5 para ponto de partida (Sababa) e acompanhamento da equipe P5 no mar.
+              </p>
             </div>
 
             <div class="flex flex-col gap-3 rounded-2xl bg-white/5 border border-white/10 p-6 backdrop-blur-xs">
