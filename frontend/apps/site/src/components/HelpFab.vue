@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { HelpCircle, X, ChevronDown, Mail, QrCode, KeyRound, Backpack, CreditCard, CalendarClock } from "lucide-vue-next";
+import { HelpCircle, X, ChevronDown, Mail, QrCode, KeyRound, Backpack, CreditCard, CalendarClock, Flag } from "lucide-vue-next";
 
 const open = ref(false);
 const openQuestion = ref<number | null>(0);
@@ -38,6 +38,15 @@ const faqs: FaqItem[] = [
     icon: KeyRound,
     question: "Esqueci minha senha do Portal do Aluno",
     answer: ["Na tela de login, clique em \"Esqueci minha senha\" e siga as instruções enviadas por e-mail."],
+  },
+  {
+    icon: Flag,
+    question: "Como funciona o evento à fantasia de Halloween?",
+    answer: [
+      "O Downwind de Halloween é um evento temático e festivo! Você pode velejar usando fantasias confortáveis, capas, adereços ou pinturas.",
+      "Recomendamos que a fantasia não comprometa a mobilidade, nem o uso seguro do colete e do trapézio.",
+      "Haverá fotos e registros na água e premiação simbólica para a caracterização mais criativa!",
+    ],
   },
   {
     icon: Backpack,
