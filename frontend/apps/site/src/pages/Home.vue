@@ -13,7 +13,6 @@ import {
   Droplets,
   Clock,
   Flag,
-  Sun,
   Award,
 } from "lucide-vue-next";
 import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
@@ -289,9 +288,14 @@ const itinerary = computed(() => {
           <div class="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <!-- COLUNA DA ESQUERDA: TEXTOS E CALL TO ACTION -->
             <div>
-              <!-- Eyebrow temático -->
-              <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-orange-400/50 bg-orange-100/70 px-3.5 py-1 text-xs font-bold text-orange-800 shadow-xs backdrop-blur-xs">
-                <Sun :size="14" class="text-amber-500 animate-spin [animation-duration:12s]" />
+              <!-- Eyebrow temático com mascote fantasma transparente -->
+              <div class="mb-5 inline-flex items-center gap-3 rounded-full border border-orange-300/80 bg-orange-100/70 py-1 pl-1.5 pr-4 text-xs font-bold text-orange-950 shadow-2xs backdrop-blur-xs">
+                <img
+                  v-if="isHalloween"
+                  src="/halloween-ghost-kiter.png"
+                  alt="Fantasma Kiter"
+                  class="h-7 w-7 object-contain"
+                />
                 <span class="tracking-wider uppercase font-mono text-[11px]">
                   P5 KITE HOUSE · DOWNWIND HALLOWEEN DE DIA
                 </span>
@@ -305,7 +309,7 @@ const itinerary = computed(() => {
                   :class="[
                     'relative inline-block transition-all',
                     isHalloween
-                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 underline decoration-orange-400/50 decoration-wavy decoration-2'
+                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500'
                       : 'text-magenta'
                   ]"
                 >
@@ -338,7 +342,6 @@ const itinerary = computed(() => {
                   @click="scrollToInclui"
                 >
                   <span>Ver o que está incluído</span>
-                  <span v-if="isHalloween">👻</span>
                 </button>
               </div>
 
@@ -361,144 +364,142 @@ const itinerary = computed(() => {
                   Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template>
                 </span>
               </div>
-            </div>
 
-            <!-- COLUNA DA DIREITA: CARD DO PRODUTO + ARTEFATO DE HALLOWEEN BEM DEFINIDO -->
-            <div class="relative mx-auto w-full max-w-md">
-              <!-- Artefato 1: Sticker 3D de Fantasma Kitesurfista flutuando alegremente -->
+              <!-- Banner interativo da Abóbora de praia (sem sobrepor textos) -->
               <div
                 v-if="isHalloween"
-                class="absolute -top-14 -left-10 z-30 hidden sm:block w-28 h-28 transform -rotate-12 transition-transform hover:scale-110 hover:rotate-0 drop-shadow-xl pointer-events-auto cursor-pointer"
-                title="Vento a favor com estilo!"
+                class="mt-6 flex items-center gap-4 rounded-2xl border-2 border-orange-300/80 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 p-4 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer relative select-none max-w-lg"
                 @click="triggerPumpkinBoo"
               >
                 <img
-                  src="/halloween-ghost-kiter.jpg"
-                  alt="Fantasma velejador com óculos e guirlanda tropical"
-                  class="w-full h-full object-contain filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.18)]"
+                  src="/halloween-beach-pumpkin.png"
+                  alt="Abóbora com óculos escuros na praia"
+                  class="w-16 h-16 sm:w-20 sm:h-20 object-contain shrink-0 filter drop-shadow-md"
                 />
-              </div>
-
-              <!-- Artefato 2: Sticker 3D Abóbora de praia com óculos de sol e chapéu -->
-              <div
-                v-if="isHalloween"
-                class="absolute -bottom-10 -right-8 z-30 w-32 h-32 transform rotate-6 transition-transform hover:scale-110 hover:-rotate-3 drop-shadow-2xl pointer-events-auto cursor-pointer"
-                title="Clique na abóbora para liberar os ventos!"
-                @click="triggerPumpkinBoo"
-              >
-                <img
-                  src="/halloween-beach-pumpkin.jpg"
-                  alt="Abóbora de Halloween na areia da praia com óculos escuros"
-                  class="w-full h-full object-contain filter drop-shadow-[0_8px_16px_rgba(234,88,12,0.3)] animate-pulse [animation-duration:4s]"
-                />
-                <!-- Tooltip / Balão de fala interativo "BOO!" -->
-                <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform scale-75 opacity-0" enter-to-class="transform scale-100 opacity-100" leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="rounded-full bg-orange-600 px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider font-mono">
+                      Velejo à Fantasia
+                    </span>
+                    <span class="text-[11px] font-bold text-orange-700">Clique na abóbora! 🎃</span>
+                  </div>
+                  <p class="mt-1 font-serif text-sm font-bold text-slate-900">
+                    Venha caracterizado sob o sol do Ceará!
+                  </p>
+                  <p class="text-xs text-slate-600 mt-0.5">
+                    Traga sua fantasia leve para a água. A mais criativa ganha brinde da P5!
+                  </p>
+                </div>
+                <!-- Balão interativo BOO -->
+                <transition enter-active-class="transition duration-200 ease-out" enter-from-class="transform scale-75 opacity-0" enter-to-class="transform scale-100 opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
                   <div
                     v-if="pumpkinBoo"
-                    class="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-orange-600 px-3 py-1 text-xs font-black text-white shadow-xl border-2 border-yellow-300 animate-bounce"
+                    class="absolute -top-3 right-4 whitespace-nowrap rounded-xl bg-orange-600 px-3 py-1 text-xs font-black text-white shadow-xl border-2 border-yellow-300 animate-bounce"
                   >
                     🎃 BOO! Vento a favor! 👻
                   </div>
                 </transition>
               </div>
+            </div>
 
-              <!-- FOTOGRAFIA / CENÁRIO REALÍSTICO HALLOWEEN DE DIA -->
-              <div
-                v-if="isHalloween"
-                class="mb-4 overflow-hidden rounded-2xl border-2 border-orange-400/40 bg-white shadow-lg relative group"
-              >
-                <img
-                  src="/halloween-day-hero.jpg"
-                  alt="Downwind de Halloween de dia no Ceará - Velejador fantasiado na praia ensolarada"
-                  class="w-full h-44 sm:h-48 object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                />
-                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                  <div class="text-white">
-                    <p class="text-[11px] font-mono uppercase tracking-wider text-amber-300 font-bold flex items-center gap-1.5">
-                      <span>☀️</span> Edição Especial de Dia · Sababa → P5
-                    </p>
-                    <p class="font-serif text-sm font-bold text-white drop-shadow-sm">
-                      Fantasias, sol, água morna e 210 minutos de kite!
-                    </p>
-                  </div>
-                </div>
-              </div>
-
+            <!-- COLUNA DA DIREITA: CARD DO PRODUTO UNIFICADO COM FOTO INTEGRADA -->
+            <div class="relative mx-auto w-full max-w-md">
               <!-- CARD PRINCIPAL DE INGRESSO -->
-              <div class="relative rounded-[2rem] border-2 border-orange-400/30 bg-white p-6 shadow-xl md:p-8 backdrop-blur-sm">
-                <div class="text-center">
-                  <div class="inline-flex items-center gap-2">
-                    <img src="/logo-downwind.webp" :alt="productTitle" class="h-7 w-auto" />
-                    <span
-                      v-if="isHalloween"
-                      class="rounded-full border border-orange-500/50 bg-orange-500/10 px-3 py-0.5 font-mono text-[10px] font-black tracking-wider text-orange-600 uppercase shadow-2xs"
-                    >
-                      🎃 Ed. Halloween
-                    </span>
-                  </div>
-                  <p class="mt-2 text-xs font-medium text-slate-600">
-                    Ingresso único com tudo incluso. Vagas estritamente limitadas.
-                  </p>
-                </div>
-
-                <!-- Stacked Product Cards -->
-                <div class="mt-6 space-y-3">
-                  <div
-                    v-for="(p, index) in products"
-                    :key="p.id"
-                    :class="[
-                      'relative flex cursor-pointer items-center justify-between rounded-2xl border-2 p-4 transition-all',
-                      selectedProductIndex === index
-                        ? 'border-orange-500 bg-orange-50/50 ring-2 ring-orange-500/20 shadow-md'
-                        : 'border-slate-200 bg-slate-50/60 hover:border-orange-400/60 hover:bg-white',
-                    ]"
-                    @click="selectedProductIndex = index"
-                  >
-                    <div class="pr-2">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <h3 class="font-serif text-sm font-bold text-slate-900">{{ cleanTitle(p.title) }}</h3>
-                        <span
-                          v-if="hasLycra(p)"
-                          class="rounded-full bg-purple-100 border border-purple-300 px-2 py-0.5 font-mono text-[9px] font-bold text-purple-700 uppercase"
-                        >
-                          + Lycra P5
-                        </span>
-                      </div>
-                      <p class="mt-1 text-xs text-slate-500">
-                        Sababa → P5 · apoio aquático e terrestre incluídos
+              <div class="relative rounded-[2rem] border-2 border-orange-400/40 bg-white shadow-xl overflow-hidden backdrop-blur-sm">
+                <!-- Foto de capa do evento de dia integrada ao card -->
+                <div v-if="isHalloween" class="relative h-44 overflow-hidden bg-slate-950">
+                  <img
+                    src="/halloween-day-hero.jpg"
+                    alt="Downwind de Halloween de dia no Ceará - Velejador fantasiado"
+                    class="w-full h-full object-cover object-center"
+                  />
+                  <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-4">
+                    <div class="text-white">
+                      <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-600 px-2 py-0.5 font-mono text-[9px] font-bold text-white uppercase tracking-wider">
+                        ☀️ Edição de Dia · 31 de Outubro
+                      </span>
+                      <p class="font-serif text-sm font-bold text-white mt-1 drop-shadow-sm">
+                        Sababa → P5 Kite House
                       </p>
                     </div>
-
-                    <div class="shrink-0 text-right">
-                      <span class="font-sans text-base font-bold text-orange-600">{{ formatBRL(p.priceCents) }}</span>
-                    </div>
                   </div>
                 </div>
 
-                <!-- Route details footer inside card -->
-                <div class="mt-6 flex items-center justify-between border-t border-slate-200 pt-4 text-xs text-slate-600">
-                  <div>
-                    <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-orange-600">Saída · 10h</p>
-                    <p class="font-serif font-bold text-slate-900">Sababa</p>
+                <div class="p-6">
+                  <div class="text-center">
+                    <div class="inline-flex items-center gap-2">
+                      <img src="/logo-downwind.webp" :alt="productTitle" class="h-6 w-auto" />
+                      <span
+                        v-if="isHalloween"
+                        class="rounded-full border border-orange-500/40 bg-orange-50 px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-orange-600 uppercase"
+                      >
+                        🎃 Ed. Halloween
+                      </span>
+                    </div>
+                    <p class="mt-2 text-xs font-medium text-slate-600">
+                      Ingresso único com tudo incluso. Vagas estritamente limitadas.
+                    </p>
                   </div>
-                  <div class="flex flex-col items-center">
-                    <Wind :size="18" class="text-orange-500 shrink-0" />
-                    <span class="font-mono text-[9px] text-slate-400">mar e sol</span>
+
+                  <!-- Stacked Product Cards -->
+                  <div class="mt-5 space-y-3">
+                    <div
+                      v-for="(p, index) in products"
+                      :key="p.id"
+                      :class="[
+                        'relative flex cursor-pointer items-center justify-between rounded-2xl border-2 p-3.5 transition-all',
+                        selectedProductIndex === index
+                          ? 'border-orange-500 bg-orange-50/50 ring-2 ring-orange-500/20 shadow-md'
+                          : 'border-slate-200 bg-slate-50/60 hover:border-orange-400/60 hover:bg-white',
+                      ]"
+                      @click="selectedProductIndex = index"
+                    >
+                      <div class="pr-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <h3 class="font-serif text-sm font-bold text-slate-900">{{ cleanTitle(p.title) }}</h3>
+                          <span
+                            v-if="hasLycra(p)"
+                            class="rounded-full bg-purple-100 border border-purple-300 px-2 py-0.5 font-mono text-[9px] font-bold text-purple-700 uppercase"
+                          >
+                            + Lycra P5
+                          </span>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">
+                          Sababa → P5 · apoio aquático e terrestre incluídos
+                        </p>
+                      </div>
+
+                      <div class="shrink-0 text-right">
+                        <span class="font-sans text-base font-bold text-orange-600">{{ formatBRL(p.priceCents) }}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="text-right">
-                    <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-purple-600">Concentração · 9h30</p>
-                    <p class="font-serif font-bold text-slate-900">P5 Kite House</p>
+
+                  <!-- Route details footer inside card -->
+                  <div class="mt-5 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-600">
+                    <div>
+                      <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-orange-600">Saída · 10h</p>
+                      <p class="font-serif font-bold text-slate-900">Sababa</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                      <Wind :size="16" class="text-orange-500 shrink-0" />
+                      <span class="font-mono text-[9px] text-slate-400">vento a favor</span>
+                    </div>
+                    <div class="text-right">
+                      <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-purple-600">Concentração · 9h30</p>
+                      <p class="font-serif font-bold text-slate-900">P5 Kite House</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <!-- Floating Top Badge -->
-              <span class="absolute -top-3.5 -right-2 inline-flex items-center gap-1.5 rounded-full border-2 border-orange-400 bg-orange-500 px-3.5 py-1 text-[11px] font-bold text-white shadow-md">
+              <span class="absolute -top-3.5 -right-2 z-20 inline-flex items-center gap-1.5 rounded-full border-2 border-orange-400 bg-orange-500 px-3.5 py-1 text-[11px] font-bold text-white shadow-md">
                 <Compass :size="12" /> {{ nextDateLabel }} · apenas {{ totalSpots }} vagas
               </span>
 
               <!-- Bottom Label -->
-              <span class="absolute -bottom-3 left-6 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+              <span class="absolute -bottom-3 left-6 z-20 rounded-full border border-slate-200 bg-white px-3.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
                 por P5 Kite House
               </span>
             </div>
@@ -513,29 +514,29 @@ const itinerary = computed(() => {
         id="inclui"
         class="relative overflow-hidden border-t border-orange-200/60 py-20 bg-gradient-to-b from-orange-50/60 via-purple-50/40 to-white"
       >
-        <!-- Artefato 3: Caldeirão de Bruxa borbulhando com poção mágica -->
-        <div v-if="isHalloween" class="pointer-events-none absolute -bottom-10 right-4 w-40 h-40 opacity-20 lg:opacity-40 z-0">
-          <img src="/halloween-cauldron.jpg" alt="Caldeirão de bruxa" class="w-full h-full object-contain mix-blend-multiply" />
-        </div>
-
         <div class="relative z-10 mx-auto max-w-6xl px-6">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-xl">🎃</span>
-            <p class="eyebrow" :style="isHalloween ? 'color:#c2410c;' : ''">
-              100% INCLUÍDO NO SEU INGRESSO
-            </p>
-          </div>
-
-          <div class="grid gap-6 md:grid-cols-[1.2fr_1fr] md:items-end">
-            <h2 class="font-serif text-3xl font-bold leading-tight text-slate-900 md:text-5xl">
-              Tudo o que está<br />
-              <span :class="isHalloween ? 'text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500' : 'text-magenta'">
-                incluso no seu dia.
-              </span>
-            </h2>
-            <p class="text-base leading-relaxed text-slate-600">
-              Da concentração às 9h30 na P5 Kite House à chegada ao percurso Sababa → P5, passando pelo transporte e pelo apoio de elite na água e em terra, tudo já está coberto pelo seu ingresso.
-            </p>
+          <!-- Cabeçalho da seção com o Caldeirão de Bruxa bem integrado -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-5 mb-10">
+            <img
+              v-if="isHalloween"
+              src="/halloween-cauldron.png"
+              alt="Caldeirão Mágico de Halloween"
+              class="w-20 h-20 sm:w-24 sm:h-24 object-contain filter drop-shadow-lg shrink-0"
+            />
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xl">🎃</span>
+                <p class="eyebrow" :style="isHalloween ? 'color:#c2410c;' : ''">
+                  100% INCLUÍDO NO SEU INGRESSO
+                </p>
+              </div>
+              <h2 class="font-serif text-3xl font-bold leading-tight text-slate-900 md:text-5xl">
+                Tudo o que está <span :class="isHalloween ? 'text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500' : 'text-magenta'">incluso no seu dia.</span>
+              </h2>
+              <p class="mt-2 text-base leading-relaxed text-slate-600 max-w-2xl">
+                Da concentração às 9h30 na P5 Kite House à chegada ao percurso Sababa → P5, passando pelo transporte e pelo apoio de elite na água e em terra, tudo já está coberto pelo seu ingresso.
+              </p>
+            </div>
           </div>
 
           <!-- Cards dos itens inclusos -->
