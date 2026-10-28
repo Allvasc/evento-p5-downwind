@@ -223,63 +223,91 @@ const itinerary = computed(() => {
           <div class="hero-orb" style="background: radial-gradient(circle, rgba(168, 85, 247, 0.16) 0%, rgba(56, 189, 248, 0.10) 50%, transparent 70%); bottom: -80px; right: -80px; width: 560px; height: 560px;"></div>
         </template>
 
-        <!-- Morcegos voando no céu azul com asas batendo -->
+        <!-- Morcegos voando no céu com silhueta pontiaguda e asas predatórias batendo -->
         <template v-if="isHalloween">
           <div class="pointer-events-none absolute inset-0 overflow-hidden z-10" aria-hidden="true">
-            <!-- Morcego 1 -->
-            <svg class="bat-day bat-day--1" viewBox="0 0 100 50" fill="#4c1d95">
-              <path class="bat-wing-left" d="M50 25 C40 10, 20 2, 0 12 C12 18, 22 24, 25 30 C28 35, 22 42, 18 45 C25 42, 32 35, 35 30 C38 25, 42 22, 50 25 Z" />
-              <path class="bat-wing-right" d="M50 25 C60 10, 80 2, 100 12 C88 18, 78 24, 75 30 C72 35, 78 42, 82 45 C75 42, 68 35, 65 30 C62 25, 58 22, 50 25 Z" />
-              <ellipse cx="50" cy="24" rx="6" ry="8" fill="#3b0764" />
-              <!-- orelhinhas -->
-              <polygon points="46,18 48,12 50,18" fill="#3b0764" />
-              <polygon points="54,18 52,12 50,18" fill="#3b0764" />
+            <!-- Morcego 1: Líder maior com asas pontiagudas recortadas e olhinhos âmbar -->
+            <svg class="bat-day bat-day--1" viewBox="0 0 120 60" fill="none">
+              <path class="bat-wing-left" d="M 56 26 C 50 16, 38 7, 28 8 L 26 5 L 25 9 C 17 11, 8 18, 0 28 C 4 33, 9 37, 15 39 C 20 42, 25 45, 32 47 C 38 49, 46 47, 54 42 Z" fill="#1e1b4b" />
+              <path class="bat-wing-right" d="M 64 26 C 70 16, 82 7, 92 8 L 94 5 L 95 9 C 103 11, 112 18, 120 28 C 116 33, 111 37, 105 39 C 100 42, 95 45, 88 47 C 82 49, 74 47, 66 42 Z" fill="#1e1b4b" />
+              <path d="M 60 19 L 56 12 L 54 22 C 52 26, 54 32, 55 38 C 56 44, 58 50, 60 54 C 62 50, 64 44, 65 38 C 66 32, 68 26, 66 22 L 64 12 L 60 19 Z" fill="#0f172a" />
+              <circle cx="58.5" cy="20" r="0.9" fill="#f97316" />
+              <circle cx="61.5" cy="20" r="0.9" fill="#f97316" />
             </svg>
-            <!-- Morcego 2 -->
-            <svg class="bat-day bat-day--2" viewBox="0 0 100 50" fill="#6d28d9">
-              <path class="bat-wing-left" d="M50 25 C40 10, 20 2, 0 12 C12 18, 22 24, 25 30 C28 35, 22 42, 18 45 C25 42, 32 35, 35 30 C38 25, 42 22, 50 25 Z" />
-              <path class="bat-wing-right" d="M50 25 C60 10, 80 2, 100 12 C88 18, 78 24, 75 30 C72 35, 78 42, 82 45 C75 42, 68 35, 65 30 C62 25, 58 22, 50 25 Z" />
-              <ellipse cx="50" cy="24" rx="6" ry="8" fill="#581c87" />
+
+            <!-- Morcego 2: Médio sobrevoando o centro -->
+            <svg class="bat-day bat-day--2" viewBox="0 0 120 60" fill="none">
+              <path class="bat-wing-left" d="M 56 26 C 50 16, 38 7, 28 8 L 26 5 L 25 9 C 17 11, 8 18, 0 28 C 4 33, 9 37, 15 39 C 20 42, 25 45, 32 47 C 38 49, 46 47, 54 42 Z" fill="#2e1065" />
+              <path class="bat-wing-right" d="M 64 26 C 70 16, 82 7, 92 8 L 94 5 L 95 9 C 103 11, 112 18, 120 28 C 116 33, 111 37, 105 39 C 100 42, 95 45, 88 47 C 82 49, 74 47, 66 42 Z" fill="#2e1065" />
+              <path d="M 60 19 L 56 12 L 54 22 C 52 26, 54 32, 55 38 C 56 44, 58 50, 60 54 C 62 50, 64 44, 65 38 C 66 32, 68 26, 66 22 L 64 12 L 60 19 Z" fill="#180e29" />
             </svg>
-            <!-- Morcego 3 -->
-            <svg class="bat-day bat-day--3" viewBox="0 0 100 50" fill="#ea580c">
-              <path class="bat-wing-left" d="M50 25 C40 10, 20 2, 0 12 C12 18, 22 24, 25 30 C28 35, 22 42, 18 45 C25 42, 32 35, 35 30 C38 25, 42 22, 50 25 Z" />
-              <path class="bat-wing-right" d="M50 25 C60 10, 80 2, 100 12 C88 18, 78 24, 75 30 C72 35, 78 42, 82 45 C75 42, 68 35, 65 30 C62 25, 58 22, 50 25 Z" />
-              <ellipse cx="50" cy="24" rx="6" ry="8" fill="#c2410c" />
+
+            <!-- Morcego 3: Distante no horizonte à direita -->
+            <svg class="bat-day bat-day--3" viewBox="0 0 120 60" fill="none">
+              <path class="bat-wing-left" d="M 56 26 C 50 16, 38 7, 28 8 L 26 5 L 25 9 C 17 11, 8 18, 0 28 C 4 33, 9 37, 15 39 C 20 42, 25 45, 32 47 C 38 49, 46 47, 54 42 Z" fill="#3b0764" />
+              <path class="bat-wing-right" d="M 64 26 C 70 16, 82 7, 92 8 L 94 5 L 95 9 C 103 11, 112 18, 120 28 C 116 33, 111 37, 105 39 C 100 42, 95 45, 88 47 C 82 49, 74 47, 66 42 Z" fill="#3b0764" />
+              <path d="M 60 19 L 56 12 L 54 22 C 52 26, 54 32, 55 38 C 56 44, 58 50, 60 54 C 62 50, 64 44, 65 38 C 66 32, 68 26, 66 22 L 64 12 L 60 19 Z" fill="#1e1b4b" />
             </svg>
           </div>
         </template>
 
-        <!-- Teia decorativa e aranha que balança no canto -->
-        <div v-if="isHalloween" class="spider-corner pointer-events-none absolute -top-2 right-4 z-20 hidden sm:block">
-          <svg class="spiderweb-svg" viewBox="0 0 120 120" fill="none">
-            <g stroke="#9333ea" stroke-width="1" opacity="0.45">
-              <line x1="120" y1="0" x2="0" y2="120"/>
-              <line x1="120" y1="40" x2="40" y2="120"/>
-              <line x1="120" y1="80" x2="80" y2="120"/>
-              <line x1="80" y1="0" x2="0" y2="80"/>
-              <line x1="40" y1="0" x2="0" y2="40"/>
-              <path d="M120 20 Q100 20 100 0" stroke-width="1.2"/>
-              <path d="M120 50 Q80 50 80 0" stroke-width="1.2"/>
-              <path d="M120 85 Q50 85 50 0" stroke-width="1.2"/>
+        <!-- Teia de aranha autêntica no canto superior direito e aranha balançando -->
+        <div v-if="isHalloween" class="spider-corner pointer-events-none absolute top-0 right-0 z-20 hidden sm:block">
+          <svg class="spiderweb-svg" viewBox="0 0 180 180" fill="none">
+            <!-- Raios estruturais da teia partindo do vértice superior direito (180, 0) -->
+            <g stroke="#581c87" stroke-width="1.1" opacity="0.38" stroke-linecap="round">
+              <line x1="180" y1="0" x2="180.0" y2="180.0" />
+              <line x1="180" y1="0" x2="133.4" y2="173.9" />
+              <line x1="180" y1="0" x2="90.0" y2="155.9" />
+              <line x1="180" y1="0" x2="52.7" y2="127.3" />
+              <line x1="180" y1="0" x2="24.1" y2="90.0" />
+              <line x1="180" y1="0" x2="6.1" y2="46.6" />
+              <line x1="180" y1="0" x2="0.0" y2="0.0" />
+            </g>
+            <!-- Fios espirais concêntricos com curvatura côncava natural -->
+            <g stroke="#7c3aed" stroke-width="1.2" opacity="0.45" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M 180.0 25.0 Q 177.1 21.8 173.5 24.1 Q 171.6 20.3 167.5 21.7 Q 166.6 17.5 162.3 17.7 Q 162.5 13.4 158.3 12.5 Q 159.7 8.4 155.9 6.5 Q 158.2 2.9 155.0 0.0" fill="none" />
+              <path d="M 180.0 55.0 Q 173.7 48.0 165.8 53.1 Q 161.5 44.7 152.5 47.6 Q 150.5 38.4 141.1 38.9 Q 141.6 29.5 132.4 27.5 Q 135.3 18.5 126.9 14.2 Q 132.0 6.3 125.0 0.0" fill="none" />
+              <path d="M 180.0 90.0 Q 169.7 78.5 156.7 86.9 Q 149.7 73.2 135.0 77.9 Q 131.8 62.8 116.4 63.6 Q 117.2 48.2 102.1 45.0 Q 106.8 30.3 93.1 23.3 Q 101.5 10.3 90.0 0.0" fill="none" stroke-width="1.3" />
+              <path d="M 180.0 130.0 Q 165.1 113.4 146.4 125.6 Q 136.2 105.7 115.0 112.6 Q 110.4 90.8 88.1 91.9 Q 89.2 69.6 67.4 65.0 Q 74.3 43.8 54.4 33.6 Q 66.6 14.9 50.0 0.0" fill="none" />
+              <path d="M 180.0 175.0 Q 159.9 152.7 134.7 169.0 Q 121.1 142.3 92.5 151.6 Q 86.3 122.2 56.3 123.7 Q 57.8 93.7 28.4 87.5 Q 37.7 58.9 11.0 45.3 Q 27.3 20.1 5.0 0.0" fill="none" />
+            </g>
+            <!-- Gotinhas sutis de orvalho violeta -->
+            <g fill="#c084fc" opacity="0.6">
+              <circle cx="156.7" cy="86.9" r="1.4" />
+              <circle cx="115.0" cy="112.6" r="1.4" />
+              <circle cx="67.4" cy="65.0" r="1.4" />
+              <circle cx="141.1" cy="38.9" r="1.2" />
             </g>
           </svg>
-          <!-- Aranha pendurada no fio de seda -->
+
+          <!-- Aranha pendurada no fio de seda com 8 pernas articuladas -->
           <div class="spider-dangle">
             <div class="spider-thread"></div>
-            <svg class="spider-body" viewBox="0 0 24 24" fill="#581c87">
-              <ellipse cx="12" cy="14" rx="5" ry="6" />
-              <circle cx="12" cy="7" r="3.5" fill="#3b0764" />
-              <!-- olhos vermelhos -->
-              <circle cx="11" cy="6.5" r="0.7" fill="#ef4444" />
-              <circle cx="13" cy="6.5" r="0.7" fill="#ef4444" />
-              <!-- perninhas -->
-              <path d="M7 6 Q3 4 2 8" stroke="#581c87" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-              <path d="M17 6 Q21 4 22 8" stroke="#581c87" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-              <path d="M6 10 Q1 9 1 13" stroke="#581c87" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-              <path d="M18 10 Q23 9 23 13" stroke="#581c87" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-              <path d="M7 14 Q2 16 3 20" stroke="#581c87" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-              <path d="M17 14 Q22 16 21 20" stroke="#581c87" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+            <svg class="spider-body" viewBox="0 0 24 24" fill="none">
+              <!-- Pernas Esquerdas articuladas -->
+              <path d="M 10 9 C 6 6, 3 5, 2 8 C 1 10, 2 12, 1 14" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+              <path d="M 9 11 C 5 9, 2 9, 1 12 C 0 14, 1 16, 1 17" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+              <path d="M 9 13 C 5 14, 2 16, 2 18 C 2 20, 3 22, 3 23" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+              <path d="M 10 15 C 6 18, 4 20, 5 23" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+
+              <!-- Pernas Direitas articuladas -->
+              <path d="M 14 9 C 18 6, 21 5, 22 8 C 23 10, 22 12, 23 14" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+              <path d="M 15 11 C 19 9, 22 9, 23 12 C 24 14, 23 16, 23 17" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+              <path d="M 15 13 C 19 14, 22 16, 22 18 C 22 20, 21 22, 21 23" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+              <path d="M 14 15 C 18 18, 20 20, 19 23" stroke="#2e1065" stroke-width="1.3" stroke-linecap="round" fill="none" />
+
+              <!-- Abdômen (Corpo) -->
+              <ellipse cx="12" cy="15" rx="4.5" ry="5.5" fill="#1e1b4b" stroke="#3b0764" stroke-width="1" />
+              <ellipse cx="12" cy="14" rx="1.5" ry="2.5" fill="#f97316" opacity="0.9" />
+
+              <!-- Cefalotórax (Cabeça) -->
+              <circle cx="12" cy="8.5" r="3" fill="#0f172a" />
+              <!-- Olhos Vermelhos de Aranha -->
+              <circle cx="11" cy="8" r="0.8" fill="#ef4444" />
+              <circle cx="13" cy="8" r="0.8" fill="#ef4444" />
+              <!-- Presas / Quelíceras -->
+              <path d="M 11 11 L 11 12.5 M 13 11 L 13 12.5" stroke="#f8fafc" stroke-width="0.8" stroke-linecap="round" />
             </svg>
           </div>
         </div>
@@ -778,69 +806,73 @@ const itinerary = computed(() => {
   position: absolute;
   pointer-events: none;
   z-index: 10;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.25));
+  filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.35));
 }
 
 .bat-day--1 {
-  top: 8%;
-  left: 6%;
-  width: 64px;
-  animation: bat-flight-1 12s ease-in-out infinite;
+  top: 9%;
+  left: 7%;
+  width: 76px;
+  animation: bat-flight-1 10s ease-in-out infinite;
 }
 
 .bat-day--2 {
-  top: 14%;
-  left: 36%;
-  width: 48px;
-  animation: bat-flight-2 9s ease-in-out infinite 1.5s;
+  top: 15%;
+  left: 40%;
+  width: 56px;
+  animation: bat-flight-2 8s ease-in-out infinite 1.2s;
 }
 
 .bat-day--3 {
-  top: 18%;
-  right: 14%;
-  width: 42px;
-  animation: bat-flight-3 14s ease-in-out infinite 3s;
+  top: 13%;
+  right: 20%;
+  width: 46px;
+  animation: bat-flight-3 12s ease-in-out infinite 2.8s;
 }
 
-/* Animação do bater de asas dos morcegos */
+/* Animação anatômica do bater de asas dos morcegos (sem inverter como borboleta) */
 .bat-wing-left {
-  transform-origin: 50px 25px;
-  animation: bat-flap-left 0.4s ease-in-out infinite alternate;
+  transform-origin: 56px 26px;
+  animation: bat-flap-left 0.32s ease-in-out infinite alternate;
 }
 .bat-wing-right {
-  transform-origin: 50px 25px;
-  animation: bat-flap-right 0.4s ease-in-out infinite alternate;
+  transform-origin: 64px 26px;
+  animation: bat-flap-right 0.32s ease-in-out infinite alternate;
 }
 
 @keyframes bat-flap-left {
-  0% { transform: scaleY(1); }
-  100% { transform: scaleY(-0.6) translateY(6px); }
+  0% { transform: rotate(-10deg) scaleY(1); }
+  100% { transform: rotate(14deg) scaleY(0.92) skewX(-5deg); }
 }
 
 @keyframes bat-flap-right {
-  0% { transform: scaleY(1); }
-  100% { transform: scaleY(-0.6) translateY(6px); }
+  0% { transform: rotate(10deg) scaleY(1); }
+  100% { transform: rotate(-14deg) scaleY(0.92) skewX(5deg); }
 }
 
 @keyframes bat-flight-1 {
-  0%, 100% { transform: translate(0, 0) rotate(-6deg); }
-  50% { transform: translate(25px, -18px) rotate(8deg); }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-6deg); }
+  35% { transform: translate3d(36px, -14px, 0) rotate(8deg); }
+  70% { transform: translate3d(18px, 16px, 0) rotate(-2deg); }
 }
 
 @keyframes bat-flight-2 {
-  0%, 100% { transform: translate(0, 0) rotate(5deg); }
-  50% { transform: translate(-20px, -14px) rotate(-7deg); }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(5deg); }
+  45% { transform: translate3d(-30px, 18px, 0) rotate(-8deg); }
+  80% { transform: translate3d(16px, -10px, 0) rotate(7deg); }
 }
 
 @keyframes bat-flight-3 {
-  0%, 100% { transform: translate(0, 0) rotate(-4deg); }
-  50% { transform: translate(18px, -12px) rotate(6deg); }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
+  50% { transform: translate3d(24px, 14px, 0) rotate(6deg); }
 }
 
-/* ── Teia de aranha e aranha balançando no canto ───────────────── */
+/* ── Teia de aranha e aranha balançando no canto superior direito ── */
 .spider-corner {
-  width: 140px;
-  height: 140px;
+  top: 0;
+  right: 0;
+  width: 180px;
+  height: 180px;
 }
 
 .spiderweb-svg {
@@ -850,28 +882,31 @@ const itinerary = computed(() => {
 
 .spider-dangle {
   position: absolute;
-  top: 35px;
-  right: 45px;
+  top: 86px;
+  right: 90px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: spider-sway 4s ease-in-out infinite;
+  transform-origin: top center;
+  animation: spider-sway 5s ease-in-out infinite;
 }
 
 .spider-thread {
-  width: 1.5px;
-  height: 38px;
-  background: rgba(109, 40, 217, 0.45);
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(to bottom, rgba(88, 28, 135, 0.4), rgba(109, 40, 217, 0.7));
+  box-shadow: 0 0 2px rgba(147, 51, 234, 0.3);
 }
 
 .spider-body {
-  width: 22px;
-  height: 22px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  width: 24px;
+  height: 24px;
+  margin-top: -1px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 @keyframes spider-sway {
-  0%, 100% { transform: rotate(8deg); }
-  50% { transform: rotate(-8deg); }
+  0%, 100% { transform: rotate(9deg); }
+  50% { transform: rotate(-9deg); }
 }
 </style>
