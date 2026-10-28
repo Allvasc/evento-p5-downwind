@@ -41,6 +41,8 @@ watch(products, (newProducts) => {
 }, { immediate: true });
 
 const selected = computed(() => products.value.find((p) => p.id === selectedId.value) ?? null);
+// Produto com preço R$ 0 = evento gratuito: o backend confirma a inscrição na hora, sem Pix.
+const isFree = computed(() => selected.value?.priceCents === 0);
 
 const ACTIVITY_TIPS: Record<string, string> = {
   "p5-downwind-day": "Traga seu equipamento de kitesurf, lycra e protetor solar",
@@ -79,13 +81,14 @@ async function goToPayment() {
   }
   submitting.value = true;
   try {
-    const res = await api.post<{ orderId: string; pixCopyPaste: string; pixQrImage?: string }>("/checkout", {
+    const res = await api.post<{ orderId: string; pixCopyPaste: string; pixQrImage?: string; free?: boolean }>("/checkout", {
       productId: selected.value.id,
       sessionIds: selectedSlot.value?.sessionIds ?? {},
     });
-    router.push({ path: `/comprar/${res.orderId}`, state: { pixCopyPaste: res.pixCopyPaste, pixQrImage: res.pixQrImage ?? "" } });
+    router.push({ path: `/comprar/${res.orderId}`, state: { pixCopyPaste: res.pixCopyPaste, pixQrImage: res.pixQrImage ?? "", free: !!res.free } });
   } catch (err) {
-    errorMessage.value = err instanceof ApiError ? err.message : "Não foi possível iniciar o pagamento.";
+    const fallback = isFree.value ? "Não foi possível concluir a inscrição." : "Não foi possível iniciar o pagamento.";
+    errorMessage.value = err instanceof ApiError ? err.message : fallback;
   } finally {
     submitting.value = false;
   }
@@ -149,6 +152,7 @@ async function goToPayment() {
                     <div class="flex flex-wrap items-center gap-2">
                       <h3 class="font-sans text-base font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
                       <span v-if="p.featured" class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">DESTAQUE</span>
+                      <span v-if="p.priceCents === 0" class="rounded-full bg-[#e5f5e8] px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-[#237438] uppercase">GRATUITO</span>
                     </div>
                     <div v-if="p.activities.length" class="mt-3 flex flex-wrap gap-2">
                       <span v-for="a in p.activities" :key="a.id" class="inline-flex items-center gap-1 rounded-md bg-warm/80 px-2.5 py-1 text-[10px] font-semibold text-ink-soft">✦ {{ a.title }}</span>
@@ -219,7 +223,8 @@ async function goToPayment() {
                     <p class="text-xs text-ink-soft">{{ s.sessions.map((a) => a.activityTitle).join(" / ") }}</p>
                   </div>
                 </div>
-                <span class="text-xs font-medium text-ink-soft">{{ s.minSpotsLeft }} vaga{{ s.minSpotsLeft === 1 ? "" : "s" }} disponíve{{ s.minSpotsLeft === 1 ? "l" : "is" }}</span>
+                <span v-if="s.unlimited" class="text-xs font-medium text-ink-soft">Vagas ilimitadas</span>
+                <span v-else class="text-xs font-medium text-ink-soft">{{ s.minSpotsLeft }} vaga{{ s.minSpotsLeft === 1 ? "" : "s" }} disponíve{{ s.minSpotsLeft === 1 ? "l" : "is" }}</span>
               </div>
             </div>
             </template>
@@ -249,12 +254,13 @@ async function goToPayment() {
             </div>
 
             <div class="flex items-center justify-between pt-2">
-              <span class="text-xs text-white/70">Total</span>
+              <span class="text-xs text-white/70">{{ isFree ? "Total · Evento gratuito" : "Total" }}</span>
               <span class="font-sans text-2xl font-bold text-white">{{ formatBRL(selected.priceCents) }}</span>
             </div>
 
             <button :disabled="submitting || !canCheckout" class="button-magenta mt-4 w-full justify-center py-3.5 text-sm" @click="goToPayment">
-              {{ submitting ? "Gerando cobrança..." : "Continuar para pagamento" }}
+              <template v-if="isFree">{{ submitting ? "Confirmando inscrição..." : "Confirmar inscrição" }}</template>
+              <template v-else>{{ submitting ? "Gerando cobrança..." : "Continuar para pagamento" }}</template>
               <ArrowRight :size="16" />
             </button>
             <p v-if="needsSlot && !selectedSlot" class="text-center text-[11px] text-white/50">Escolha uma data para continuar.</p>
@@ -262,7 +268,8 @@ async function goToPayment() {
 
             <p class="flex items-start gap-2 pt-2 text-[11px] leading-relaxed text-white/60">
               <ShieldCheck :size="16" class="mt-0.5 shrink-0 text-magenta" />
-              O pagamento é processado pelo Asaas. Sua vaga é confirmada conforme o status da cobrança.
+              <template v-if="isFree">Evento gratuito: sua inscrição é confirmada na hora e o QR Code do ingresso chega por e-mail.</template>
+              <template v-else>O pagamento é processado pelo Asaas. Sua vaga é confirmada conforme o status da cobrança.</template>
             </p>
 
             <p v-if="errorMessage" class="text-xs font-medium text-red-400">{{ errorMessage }}</p>

@@ -1,5 +1,5 @@
 import { ref, computed, watch, type Ref } from "vue";
-import type { Product } from "@p5wellness/shared";
+import { isUnlimitedCapacity, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
 
 // Shared between Comprar.vue (paid checkout) and Voucher.vue (free redemption) — both
@@ -27,6 +27,8 @@ export interface Slot {
   sessions: SlotSession[];
   sessionIds: Record<string, string>;
   minSpotsLeft: number;
+  /** Toda turma do slot tem capacidade "ilimitada" — a tela mostra isso em vez da contagem. */
+  unlimited: boolean;
 }
 
 // The event runs as a single-day gathering (Yoga + HYROX together), so two activities
@@ -101,6 +103,7 @@ export function useProductSlots(selected: Ref<Product | null>) {
         sessions: [{ activityId: s.activityId, activityTitle: activity?.title ?? "", startsAt: s.startsAt, spotsLeft: s.capacity - s.booked }],
         sessionIds: { [s.activityId]: s.id },
         minSpotsLeft: s.capacity - s.booked,
+        unlimited: isUnlimitedCapacity(s.capacity),
       }));
     }
 
@@ -131,6 +134,7 @@ export function useProductSlots(selected: Ref<Product | null>) {
         sessions,
         sessionIds: Object.fromEntries(product.activities.map((a) => [a.id, byActivity.get(a.id)!.id])),
         minSpotsLeft: Math.min(...sessions.map((s) => s.spotsLeft)),
+        unlimited: product.activities.every((a) => isUnlimitedCapacity(byActivity.get(a.id)!.capacity)),
       });
     }
     result.sort((a, b) => a.day.localeCompare(b.day));

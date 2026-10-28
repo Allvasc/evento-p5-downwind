@@ -1,1 +1,0 @@
-function n(r){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(r/100)}function e(r){return r?r.replace(/^(P5 DownWind(?: Day)?)\s*[—\-–].*$/i,"$1").trim():""}export{e as c,n as f};

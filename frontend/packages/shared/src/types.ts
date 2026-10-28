@@ -30,6 +30,13 @@ export function formatBRL(cents: number): string {
   }).format(cents / 100);
 }
 
+/** Turma com esta capacidade (ou mais) é exibida como "vagas ilimitadas" — o banco segue com um número comum. */
+export const UNLIMITED_CAPACITY = 9999;
+
+export function isUnlimitedCapacity(capacity: number): boolean {
+  return capacity >= UNLIMITED_CAPACITY;
+}
+
 export function cleanTitle(title: string): string {
   if (!title) return "";
   return title.replace(/^(P5 DownWind(?: Day)?)\s*[—\-–].*$/i, "$1").trim();

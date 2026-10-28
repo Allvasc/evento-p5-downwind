@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu, Ticket, Copy, Info, CheckCircle2, User, Building2 } from "lucide-vue-next";
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
-import { formatBRL } from "@p5wellness/shared";
+import { formatBRL, UNLIMITED_CAPACITY, isUnlimitedCapacity } from "@p5wellness/shared";
 import { api, ApiError, TEAM_TOKEN_KEY } from "@/lib/teamApi";
 import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
 
@@ -187,10 +187,19 @@ async function loadProducts() {
 
 const editingProductId = ref("");
 
+// Gratuidade liga/desliga pelo preço: R$ 0 = evento gratuito (inscrição confirmada na hora,
+// sem Pix/Asaas). Desmarcar volta o campo de preço para o valor a cobrar.
+const productIsFree = computed({
+  get: () => newProduct.value.priceReais !== "" && parseFloat(newProduct.value.priceReais.replace(",", ".")) === 0,
+  set: (free: boolean) => {
+    newProduct.value.priceReais = free ? "0,00" : "";
+  },
+});
+
 async function createProduct() {
   productError.value = "";
   const priceCents = Math.round(parseFloat(newProduct.value.priceReais.replace(",", ".")) * 100);
-  if (!newProduct.value.title || !priceCents) {
+  if (!newProduct.value.title || Number.isNaN(priceCents) || priceCents < 0) {
     productError.value = "Título e preço são obrigatórios.";
     return;
   }
@@ -253,6 +262,14 @@ async function loadSessions() {
 }
 
 const editingSessionId = ref("");
+
+// "Vagas ilimitadas" grava UNLIMITED_CAPACITY (9999) — o site exibe como ilimitadas.
+const sessionIsUnlimited = computed({
+  get: () => isUnlimitedCapacity(newSession.value.capacity),
+  set: (unlimited: boolean) => {
+    newSession.value.capacity = unlimited ? UNLIMITED_CAPACITY : 20;
+  },
+});
 
 async function createSession() {
   sessionError.value = "";
@@ -567,7 +584,7 @@ interface CustomerOrder {
 interface CustomerDetail extends CustomerSummary { orders: CustomerOrder[] }
 
 function paymentMethodLabel(method: string) {
-  return { pix: "Pix", credit_card: "Cartão", boleto: "Boleto" }[method] ?? "—";
+  return { pix: "Pix", credit_card: "Cartão", boleto: "Boleto", free: "Gratuito" }[method] ?? "—";
 }
 function ticketStatusLabel(status: string) {
   return { available: "Disponível", used: "Utilizado", expired: "Expirado", cancelled: "Cancelado" }[status] ?? status;
@@ -1116,7 +1133,12 @@ onMounted(async () => {
             <h2 class="mb-4 font-serif text-lg font-semibold text-ink">{{ editingProductId ? "Editar oferta" : "Nova oferta" }}</h2>
             <div class="grid gap-4 md:grid-cols-2">
               <input v-model="newProduct.title" placeholder="Título (ex: Aulas + Café)" class="rounded-lg border border-line px-3 py-2 text-sm" />
-              <input v-model="newProduct.priceReais" placeholder="Preço (ex: 90,00)" class="rounded-lg border border-line px-3 py-2 text-sm" />
+              <div class="flex flex-col gap-1.5">
+                <input v-model="newProduct.priceReais" :disabled="productIsFree" placeholder="Preço (ex: 90,00)" class="rounded-lg border border-line px-3 py-2 text-sm disabled:bg-warm/60 disabled:text-ink-soft" />
+                <label class="flex items-center gap-2 text-xs text-ink-soft">
+                  <input v-model="productIsFree" type="checkbox" /> Evento gratuito (R$ 0,00 · inscrição sem Pix)
+                </label>
+              </div>
               <input v-model="newProduct.description" placeholder="Descrição" class="rounded-lg border border-line px-3 py-2 text-sm md:col-span-2" />
               <select v-model="newProduct.type" class="rounded-lg border border-line px-3 py-2 text-sm">
                 <option value="class">Aula avulsa</option>
@@ -1160,7 +1182,10 @@ onMounted(async () => {
                 </div>
                 <span :class="['rounded-full px-2 py-1 text-xs font-semibold', p.active ? 'bg-[#e5f5e8] text-[#237438]' : 'bg-warm text-ink-soft']">{{ p.active ? "Ativo" : "Inativo" }}</span>
               </div>
-              <p class="mt-2 font-mono text-lg font-semibold text-ink">{{ formatBRL(p.priceCents) }}</p>
+              <p class="mt-2 font-mono text-lg font-semibold text-ink">
+                {{ formatBRL(p.priceCents) }}
+                <span v-if="p.priceCents === 0" class="ml-1 rounded-full bg-[#e5f5e8] px-2 py-0.5 align-middle font-sans text-[10px] font-semibold text-[#237438]">Gratuito</span>
+              </p>
               <div class="mt-3 flex gap-3">
                 <button class="text-xs font-semibold text-magenta" @click="toggleProduct(p)">{{ p.active ? "Desativar" : "Ativar" }}</button>
                 <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="editProduct(p)">Editar</button>
@@ -1224,7 +1249,13 @@ onMounted(async () => {
                 <option value="" disabled>Atividade...</option>
                 <option v-for="a in activities" :key="a.id" :value="a.id">{{ a.title }} · {{ a.vendorName }}</option>
               </select>
-              <input v-model.number="newSession.capacity" type="number" min="1" placeholder="Vagas" class="rounded-lg border border-line px-3 py-2 text-sm" />
+              <div class="flex flex-col gap-1.5">
+                <input v-if="!sessionIsUnlimited" v-model.number="newSession.capacity" type="number" min="1" placeholder="Vagas" class="rounded-lg border border-line px-3 py-2 text-sm" />
+                <input v-else value="Ilimitadas" disabled class="rounded-lg border border-line bg-warm/60 px-3 py-2 text-sm text-ink-soft" />
+                <label class="flex items-center gap-2 text-xs text-ink-soft">
+                  <input v-model="sessionIsUnlimited" type="checkbox" /> Vagas ilimitadas
+                </label>
+              </div>
               <input v-model="newSession.date" type="date" class="rounded-lg border border-line px-3 py-2 text-sm" />
               <input v-model="newSession.time" type="time" class="rounded-lg border border-line px-3 py-2 text-sm" />
               <div>
@@ -1256,7 +1287,7 @@ onMounted(async () => {
                 <tr v-for="s in sessions" :key="s.id" class="border-t border-line">
                   <td class="px-5 py-3 text-ink">{{ s.activityTitle }}</td>
                   <td class="px-5 py-3 text-ink-soft">{{ formatSessionDate(s.startsAt) }}</td>
-                  <td class="px-5 py-3 font-mono text-ink-soft">{{ s.booked }}/{{ s.capacity }}</td>
+                  <td class="px-5 py-3 font-mono text-ink-soft">{{ s.booked }}/{{ isUnlimitedCapacity(s.capacity) ? "∞" : s.capacity }}</td>
                   <td class="px-5 py-3">
                     <span :class="['rounded-full px-2 py-1 text-xs font-semibold', s.status === 'scheduled' ? 'bg-[#e5f5e8] text-[#237438]' : 'bg-warm text-ink-soft']">
                       {{ s.status === "scheduled" ? "Agendada" : s.status === "cancelled" ? "Cancelada" : "Concluída" }}
@@ -2087,7 +2118,7 @@ onMounted(async () => {
                   <h3 class="font-serif text-lg font-semibold text-ink capitalize">{{ s.activityTitle }}</h3>
                   <p class="text-xs text-ink-soft capitalize">{{ formatSessionDateTime(s.startsAt) }}</p>
                 </div>
-                <span class="shrink-0 font-mono text-xs text-ink-soft">{{ s.attendees.length }}/{{ s.capacity }}</span>
+                <span class="shrink-0 font-mono text-xs text-ink-soft">{{ s.attendees.length }}/{{ isUnlimitedCapacity(s.capacity) ? "∞" : s.capacity }}</span>
               </div>
               <ul class="mt-3 divide-y divide-line/70">
                 <li v-for="a in splitAttendees(s.attendees).buyers" :key="a.orderNumber" class="py-2 text-sm">

@@ -82,7 +82,7 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 
 	go jobs.NewPendingOrderExpirer(orderRepo, asaasClient, log).Run(ctx)
 
-	checkout := handlers.NewCheckoutHandler(catalogRepo, orderRepo, studentRepo, asaasClient, cfg.PasswordPepper, log)
+	checkout := handlers.NewCheckoutHandler(catalogRepo, orderRepo, studentRepo, asaasClient, emailSender, cfg.PasswordPepper, cfg.QRHMACSecret, log)
 	webhookAsaas := handlers.NewWebhookAsaasHandler(orderRepo, webhookRepo, emailSender, cfg.AsaasWebhookToken, cfg.QRHMACSecret, log)
 
 	checkinRepo := postgres.NewCheckinRepository(pool)

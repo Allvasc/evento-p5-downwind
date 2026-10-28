@@ -15,7 +15,7 @@ import {
   Flag,
   Award,
 } from "lucide-vue-next";
-import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
+import { formatBRL, cleanTitle, isUnlimitedCapacity, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
@@ -72,6 +72,9 @@ const formattedPrice = computed(() => {
   return formatBRL(activeProduct.value.priceCents);
 });
 
+// Gratuidade liga/desliga pelo preço do produto no Admin: R$ 0 = evento gratuito.
+const isFree = computed(() => activeProduct.value?.priceCents === 0);
+
 const productTitle = computed(() => cleanTitle(activeProduct.value?.title ?? "Downwind Halloween P5"));
 
 function hasLycra(p: Product) {
@@ -106,6 +109,14 @@ const spotsLeftLabel = computed(() => {
   if (spotsLeft.value === null || spotsLeft.value >= totalSpots.value) return null;
   return spotsLeft.value === 1 ? "resta 1 vaga" : `restam ${spotsLeft.value} vagas`;
 });
+const unlimitedSpots = computed(() => !!nextSessions.value[0] && isUnlimitedCapacity(nextSessions.value[0].capacity));
+// Texto das vagas da próxima turma — null até a turma carregar, para não exibir um número errado.
+const spotsLabel = computed(() => {
+  if (!nextSessions.value.length) return null;
+  if (unlimitedSpots.value) return "Vagas ilimitadas";
+  return `Apenas ${totalSpots.value} vagas` + (spotsLeftLabel.value ? ` · ${spotsLeftLabel.value}` : "");
+});
+const headerBadge = computed(() => [isFree.value ? "Gratuito" : "", spotsLabel.value ?? ""].filter(Boolean).join(" · "));
 
 // Ativa o tema Halloween para a edição de 31 de outubro
 const isHalloween = computed(() => {
@@ -127,26 +138,18 @@ const included = computed(() => {
       {
         icon: Bus,
         title: "Transporte dos Bruxos",
-        detail: "Saída confortável da P5 Kite House às 10h da manhã direto para o ponto de largada no Sababa.",
-        tag: "Saída 10h",
+        detail: "Saída prevista às 10h da manhã da P5 Kite House direto para o ponto de largada no Sababa.",
+        tag: "Saída prevista 10h",
       },
       {
         icon: LifeBuoy,
         title: "Apoio Aquático e Terrestre",
-        detail: "Jet ski na água e resgate de prontidão na praia para você velejar sem nenhum receio.",
-        tag: "Jet Ski & Equipe",
       },
       {
         icon: Droplets,
         title: "Caldeirão de Hidratação & Ar",
         detail: "Compressor para inflar seu kite na praia, banheiros e hidratação gelada no ponto de partida.",
         tag: "Estrutura na Saída",
-      },
-      {
-        icon: Wind,
-        title: "Monitoramento Wind Maps",
-        detail: "Condições de vento e maré acompanhadas em tempo real pela tecnologia do Wind Maps.",
-        tag: "Vento em Tempo Real",
       },
       {
         icon: HandHelping,
@@ -157,7 +160,7 @@ const included = computed(() => {
       {
         icon: Clock,
         title: "Concentração às 9h30",
-        detail: "Encontro dos velejadores fantasiados na P5 Kite House para fotos, briefing e saída pontual às 10h.",
+        detail: "Encontro dos velejadores fantasiados na P5 Kite House para fotos, briefing e saída prevista às 10h.",
         tag: "Manhã de Sol",
       },
       {
@@ -171,10 +174,9 @@ const included = computed(() => {
 
   return [
     { icon: MapPin, title: "Percurso guiado", detail: "Sababa → P5 Kite House, com toda a rota acompanhada pela equipe P5.", tag: "Rota Guiada" },
-    { icon: Bus, title: "Transporte incluso", detail: "Saída da P5 Kite House às 10h em direção ao Sababa.", tag: "Transporte P5" },
-    { icon: LifeBuoy, title: "Apoio aquático e terrestre", detail: "Equipe P5 acompanhando você na água e em terra durante todo o percurso.", tag: "Apoio Seguro" },
+    { icon: Bus, title: "Transporte incluso", detail: "Saída prevista às 10h da P5 Kite House em direção ao Sababa.", tag: "Transporte P5" },
+    { icon: LifeBuoy, title: "Apoio aquático e terrestre" },
     { icon: Droplets, title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida.", tag: "Estrutura" },
-    { icon: Wind, title: "Monitoramento Wind Maps", detail: "Condições de vento acompanhadas em tempo real.", tag: "Vento" },
     { icon: HandHelping, title: "Receptivo na chegada", detail: "Auxílio na desmontagem do equipamento na P5 Kite House.", tag: "Receptivo" },
     { icon: Clock, title: "Concentração às 9h30", detail: "Concentração na P5 Kite House.", tag: "Horário" },
     { icon: Flag, title: "Evento à fantasia", detail: "Venha caracterizado e entre no clima do Halloween!", tag: "Fantasia" },
@@ -185,16 +187,16 @@ const itinerary = computed(() => {
   if (isHalloween.value) {
     return [
       { time: "1", title: "9h30 · Caldeirão P5 (Concentração)", detail: "Encontro dos velejadores fantasiados na P5 Kite House para briefing e fotos sob o sol da manhã." },
-      { time: "2", title: "10h00 · Expresso Rumo ao Sababa", detail: "Saída de transporte exclusivo com pranchas e kites em direção à largada no Sababa." },
+      { time: "2", title: "10h00 (previsto) · Expresso Rumo ao Sababa", detail: "Saída de transporte exclusivo com pranchas e kites em direção à largada no Sababa." },
       { time: "3", title: "10h30 · Preparação & Hidratação", detail: "Compressor na praia para encher os kites, hidratação gelada e últimos ajustes nas fantasias." },
-      { time: "4", title: "11h00 · Velejo Sababa → P5", detail: "Grande descida de downwind com vento a favor, jet ski de apoio e a equipe P5 escoltando." },
+      { time: "4", title: "11h00 · Velejo Sababa → P5", detail: "Grande descida de downwind com vento a favor e a equipe P5 escoltando na água e em terra." },
       { time: "5", title: "13h00 · Chegada & Celebração", detail: "Receptivo na P5 Kite House com auxílio na desmontagem e confraternização dos velejadores." },
     ];
   }
 
   return [
     { time: "1", title: "9h30 · Concentração", detail: "Concentração na P5 Kite House." },
-    { time: "2", title: "10h · Saída para o Sababa", detail: "Saída de transporte da P5 rumo ao ponto de partida no Sababa." },
+    { time: "2", title: "10h (previsto) · Saída para o Sababa", detail: "Saída de transporte da P5 rumo ao ponto de partida no Sababa." },
     { time: "3", title: "Estrutura na saída", detail: "Compressor, banheiro e hidratação no ponto de partida para preparar o equipamento." },
     { time: "4", title: "Sababa → P5", detail: "Percurso guiado com a equipe P5 acompanhando na água e em terra, do início ao fim." },
     { time: "5", title: "Chegada · P5 Kite House", detail: "Receptivo com auxílio na desmontagem do equipamento." },
@@ -204,7 +206,7 @@ const itinerary = computed(() => {
 
 <template>
   <div :class="['min-h-screen transition-colors duration-300', isHalloween ? 'bg-[#fbf7f4] text-slate-900' : 'bg-paper']">
-    <WellnessHeader :is-halloween="isHalloween" />
+    <WellnessHeader :is-halloween="isHalloween" :banner-badge="headerBadge" />
     <HelpFab />
 
     <main>
@@ -367,7 +369,7 @@ const itinerary = computed(() => {
                   ]"
                   @click="router.push('/comprar')"
                 >
-                  <span>Garantir minha vaga · {{ formattedPrice }}</span>
+                  <span>Garantir minha vaga<template v-if="activeProduct"> · {{ isFree ? "Gratuito" : formattedPrice }}</template></span>
                   <ArrowRight :size="18" class="transition-transform group-hover:translate-x-1" />
                 </button>
                 <button
@@ -380,21 +382,25 @@ const itinerary = computed(() => {
 
               <!-- Destaques em pílulas com ícones nítidos -->
               <div class="mt-8 flex flex-wrap gap-x-5 gap-y-2.5 text-xs font-semibold text-slate-700">
+                <span v-if="isFree" class="inline-flex items-center gap-1.5 rounded-full bg-green-50 border border-green-300 px-3 py-1 text-green-900 shadow-2xs">
+                  <span class="text-sm">🎟️</span>
+                  Evento gratuito · R$ 0,00
+                </span>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-white/80 border border-slate-200 px-3 py-1 shadow-2xs">
                   <span class="text-orange-600 text-sm">🎃</span>
                   Velejo à fantasia sob o sol
                 </span>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-white/80 border border-slate-200 px-3 py-1 shadow-2xs">
                   <span class="text-amber-500 text-sm">☀️</span>
-                  Concentração 9h30 · Saída 10h
+                  Concentração 9h30 · Saída prevista 10h
                 </span>
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-white/80 border border-slate-200 px-3 py-1 shadow-2xs">
                   <span class="text-purple-600 text-sm">🏄‍♂️</span>
-                  Jet ski e apoio no mar e em terra
+                  Apoio da equipe no mar e em terra
                 </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 border border-orange-300/60 px-3 py-1 text-orange-900 shadow-2xs">
+                <span v-if="spotsLabel" class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 border border-orange-300/60 px-3 py-1 text-orange-900 shadow-2xs">
                   <span class="text-orange-600 text-sm">⚡</span>
-                  Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template>
+                  {{ spotsLabel }}
                 </span>
               </div>
 
@@ -470,7 +476,7 @@ const itinerary = computed(() => {
                       </span>
                     </div>
                     <p class="mt-2 text-xs font-medium text-slate-600">
-                      Ingresso único com tudo incluso. Vagas estritamente limitadas.
+                      {{ isFree ? "Inscrição gratuita" : "Ingresso único" }} com tudo incluso.<template v-if="spotsLabel"> {{ unlimitedSpots ? "Vagas ilimitadas." : "Vagas estritamente limitadas." }}</template>
                     </p>
                   </div>
 
@@ -503,6 +509,7 @@ const itinerary = computed(() => {
                       </div>
 
                       <div class="shrink-0 text-right">
+                        <span v-if="p.priceCents === 0" class="block font-mono text-[9px] font-bold uppercase tracking-wider text-green-700">Gratuito</span>
                         <span class="font-sans text-base font-bold text-orange-600">{{ formatBRL(p.priceCents) }}</span>
                       </div>
                     </div>
@@ -511,7 +518,7 @@ const itinerary = computed(() => {
                   <!-- Route details footer inside card -->
                   <div class="mt-5 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-600">
                     <div>
-                      <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-orange-600">Saída · 10h</p>
+                      <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-orange-600">Saída prevista · 10h</p>
                       <p class="font-serif font-bold text-slate-900">Sababa</p>
                     </div>
                     <div class="flex flex-col items-center">
@@ -528,7 +535,7 @@ const itinerary = computed(() => {
 
               <!-- Floating Top Badge -->
               <span class="absolute -top-3.5 -right-2 z-20 inline-flex items-center gap-1.5 rounded-full border-2 border-orange-400 bg-orange-500 px-3.5 py-1 text-[11px] font-bold text-white shadow-md">
-                <Compass :size="12" /> {{ nextDateLabel }} · apenas {{ totalSpots }} vagas
+                <Compass :size="12" /> {{ nextDateLabel }}<template v-if="spotsLabel"> · {{ unlimitedSpots ? "vagas ilimitadas" : `apenas ${totalSpots} vagas` }}</template>
               </span>
 
               <!-- Bottom Label -->
@@ -603,7 +610,7 @@ const itinerary = computed(() => {
                 <h3 class="font-sans text-base font-bold text-slate-900 group-hover:text-orange-600 transition-colors">
                   {{ item.title }}
                 </h3>
-                <p class="mt-2 text-xs leading-relaxed text-slate-600">{{ item.detail }}</p>
+                <p v-if="item.detail" class="mt-2 text-xs leading-relaxed text-slate-600">{{ item.detail }}</p>
               </div>
             </div>
           </div>
@@ -669,7 +676,7 @@ const itinerary = computed(() => {
             A diversão é garantida e o tema é de arrepiar, mas na segurança a seriedade da P5 Kite House é absoluta. Você veleja 100% amparado do primeiro ao último metro.
           </p>
 
-          <div class="mt-12 grid gap-8 md:grid-cols-3">
+          <div class="mt-12 grid gap-8 md:grid-cols-2">
             <div class="flex flex-col gap-3 rounded-2xl bg-white/5 border border-white/10 p-6 backdrop-blur-xs">
               <div class="flex items-center gap-3">
                 <div class="p-2.5 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-400/30">
@@ -677,21 +684,6 @@ const itinerary = computed(() => {
                 </div>
                 <h3 class="font-serif text-lg font-bold text-white">Apoio aquático e terrestre</h3>
               </div>
-              <p class="text-sm leading-relaxed text-purple-200/70">
-                Jet ski de prontidão durante todo o trajeto marítimo e veículos de apoio terrestre na faixa de areia para qualquer eventualidade.
-              </p>
-            </div>
-
-            <div class="flex flex-col gap-3 rounded-2xl bg-white/5 border border-white/10 p-6 backdrop-blur-xs">
-              <div class="flex items-center gap-3">
-                <div class="p-2.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30">
-                  <Wind :size="24" />
-                </div>
-                <h3 class="font-serif text-lg font-bold text-white">Monitoramento Wind Maps</h3>
-              </div>
-              <p class="text-sm leading-relaxed text-purple-200/70">
-                Condições de vento e ondulação acompanhadas por telemetria em tempo real antes e durante a descida, garantindo a janela ideal.
-              </p>
             </div>
 
             <div class="flex flex-col gap-3 rounded-2xl bg-white/5 border border-white/10 p-6 backdrop-blur-xs">
@@ -715,13 +707,13 @@ const itinerary = computed(() => {
       <section id="preco" class="border-t border-slate-200 py-20 bg-gradient-to-b from-white via-orange-50/40 to-white">
         <div class="mx-auto max-w-5xl px-6 text-center">
           <div class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 border border-orange-300 px-3 py-1 text-xs font-bold text-orange-800 mb-3">
-            <span>🎃</span> LOTE EXCLUSIVO HALLOWEEN
+            <span>🎃</span> {{ isFree ? "EVENTO GRATUITO · R$ 0,00" : "LOTE EXCLUSIVO HALLOWEEN" }}
           </div>
           <h2 class="font-serif text-3xl font-bold text-slate-900 md:text-5xl">
-            Um valor, <span class="text-orange-600">tudo incluso.</span>
+            {{ isFree ? "Evento gratuito," : "Um valor," }} <span class="text-orange-600">tudo incluso.</span>
           </h2>
           <p class="mt-3 text-sm text-slate-600 max-w-xl mx-auto">
-            Apenas {{ totalSpots }} vagas. Sábado, 31 de outubro · Sababa → P5 Kite House. Velejo à fantasia com transporte, suporte aquático, hidratação e receptivo.
+            <template v-if="spotsLabel">{{ spotsLabel }}. </template>Sábado, 31 de outubro · Sababa → P5 Kite House. Velejo à fantasia com transporte, suporte aquático, hidratação e receptivo.
           </p>
 
           <div class="mt-10 max-w-2xl mx-auto flex flex-col gap-3 text-left">
@@ -744,6 +736,7 @@ const itinerary = computed(() => {
               </div>
 
               <div class="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-5">
+                <span v-if="p.priceCents === 0" class="rounded-full bg-green-100 border border-green-300 px-2.5 py-0.5 font-mono text-[10px] font-black tracking-wider text-green-800 uppercase">Gratuito</span>
                 <span class="font-serif text-2xl font-black text-slate-900">{{ formatBRL(p.priceCents) }}</span>
                 <button
                   class="cursor-pointer bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-amber-500 text-white font-bold px-6 py-2.5 rounded-full text-xs shrink-0 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
@@ -763,7 +756,7 @@ const itinerary = computed(() => {
           </div>
 
           <p class="mt-4 text-xs italic font-medium text-slate-500">
-            Apenas {{ totalSpots }} vagas<template v-if="spotsLeftLabel"> · {{ spotsLeftLabel }}</template> · Pagamento seguro via Pix com confirmação instantânea.
+            <template v-if="spotsLabel">{{ spotsLabel }} · </template>{{ isFree ? "Inscrição gratuita com confirmação instantânea." : "Pagamento seguro via Pix com confirmação instantânea." }}
           </p>
         </div>
       </section>

@@ -10,7 +10,9 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"p5wellness/backend/internal/asaas"
+	"p5wellness/backend/internal/domain/product"
 	"p5wellness/backend/internal/http/middleware"
+	"p5wellness/backend/internal/mailer"
 	"p5wellness/backend/internal/repository/postgres"
 )
 
@@ -19,12 +21,14 @@ type CheckoutHandler struct {
 	orders        *postgres.OrderRepository
 	students      *postgres.StudentRepository
 	asaas         asaas.Client
+	mailer        mailer.Sender
 	encryptionKey string
+	qrSecret      string
 	log           *slog.Logger
 }
 
-func NewCheckoutHandler(catalog *postgres.CatalogRepository, orders *postgres.OrderRepository, students *postgres.StudentRepository, asaasClient asaas.Client, encryptionKey string, log *slog.Logger) *CheckoutHandler {
-	return &CheckoutHandler{catalog: catalog, orders: orders, students: students, asaas: asaasClient, encryptionKey: encryptionKey, log: log}
+func NewCheckoutHandler(catalog *postgres.CatalogRepository, orders *postgres.OrderRepository, students *postgres.StudentRepository, asaasClient asaas.Client, sender mailer.Sender, encryptionKey, qrSecret string, log *slog.Logger) *CheckoutHandler {
+	return &CheckoutHandler{catalog: catalog, orders: orders, students: students, asaas: asaasClient, mailer: sender, encryptionKey: encryptionKey, qrSecret: qrSecret, log: log}
 }
 
 type checkoutRequest struct {
@@ -38,6 +42,8 @@ type checkoutResponse struct {
 	TotalCents   int    `json:"totalCents"`
 	PixCopyPaste string `json:"pixCopyPaste"`
 	PixQRImage   string `json:"pixQrImage,omitempty"`
+	// Free: produto com preço R$ 0 — o pedido já sai pago, sem Pix (ver createFree).
+	Free bool `json:"free,omitempty"`
 }
 
 func (h *CheckoutHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +70,11 @@ func (h *CheckoutHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Contas criadas antes do contato de emergência ser obrigatório preenchem na compra.
 	if !student.HasEmergencyContact() {
 		writeJSONError(w, http.StatusBadRequest, errEmergencyContactRequired)
+		return
+	}
+
+	if prod.PriceCents == 0 {
+		h.createFree(w, r, student.ID, prod, req.SessionIDs)
 		return
 	}
 
@@ -136,6 +147,53 @@ func (h *CheckoutHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, checkoutResponse{
 		OrderID: order.ID, OrderNumber: order.OrderNumber, TotalCents: order.TotalCents,
 		PixCopyPaste: charge.PixCopyPaste, PixQRImage: charge.PixQRImage,
+	})
+}
+
+// createFree is the checkout for a R$ 0 product (gratuidade ligada pelo preço no Admin):
+// same booking + entitlement steps as a voucher redemption (see voucher_student.go), with
+// no Asaas customer or charge — Asaas doesn't accept zero-value charges, and there's
+// nothing to collect. The order is still a real order, so it counts as an inscrição in the
+// session's booked seats, the reports and the check-in roster.
+func (h *CheckoutHandler) createFree(w http.ResponseWriter, r *http.Request, studentID string, prod *product.Product, sessionIDs map[string]string) {
+	order, err := h.orders.CreateOrder(r.Context(), studentID, *prod, sessionIDs)
+	if err != nil {
+		switch {
+		case errors.Is(err, postgres.ErrActivityChoiceRequired):
+			writeJSONError(w, http.StatusConflict, "escolha uma atividade antes de continuar")
+			return
+		case errors.Is(err, postgres.ErrSessionRequired):
+			writeJSONError(w, http.StatusConflict, "escolha uma turma para: "+activityFromError(err))
+			return
+		case errors.Is(err, postgres.ErrSessionFull):
+			writeJSONError(w, http.StatusConflict, "essa turma acabou de lotar, escolha outra data para: "+activityFromError(err))
+			return
+		}
+		h.log.Error("create free order", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "não foi possível concluir a inscrição")
+		return
+	}
+
+	if err := h.orders.SetAsaasPayment(r.Context(), order.ID, "free", order.OrderNumber); err != nil {
+		h.log.Error("set free payment method", "error", err, "orderId", order.ID)
+	}
+
+	result, err := h.orders.MarkPaidAndIssueEntitlements(r.Context(), order.ID, order.OrderNumber, "free", 0, h.qrSecret)
+	if err != nil {
+		if markErr := h.orders.MarkFailed(r.Context(), order.ID); markErr != nil {
+			h.log.Error("mark free order failed", "error", markErr, "orderId", order.ID)
+		}
+		h.log.Error("issue free entitlements", "error", err, "orderId", order.ID)
+		writeJSONError(w, http.StatusInternalServerError, "não foi possível concluir a inscrição")
+		return
+	}
+
+	if err := sendTicketEmail(r.Context(), h.mailer, h.log, *result); err != nil {
+		h.log.Error("send free ticket email", "error", err, "orderId", order.ID)
+	}
+
+	writeJSON(w, http.StatusCreated, checkoutResponse{
+		OrderID: order.ID, OrderNumber: order.OrderNumber, TotalCents: 0, Free: true,
 	})
 }
 
