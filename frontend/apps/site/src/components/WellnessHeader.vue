@@ -3,9 +3,11 @@ import { RouterLink, useRouter, useRoute } from "vue-router";
 import { ShieldCheck, LogOut, CalendarCheck } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 
-withDefaults(defineProps<{ transparent?: boolean; isHalloween?: boolean }>(), {
+// bannerBadge: selo à direita do banner de Halloween (ex: "Gratuito · Vagas ilimitadas"); vazio = sem selo.
+withDefaults(defineProps<{ transparent?: boolean; isHalloween?: boolean; bannerBadge?: string }>(), {
   transparent: false,
   isHalloween: false,
+  bannerBadge: "",
 });
 
 const router = useRouter();
@@ -44,8 +46,8 @@ function handleLogout() {
         <span class="text-orange-200">EDIÇÃO ESPECIAL HALLOWEEN · 31 DE OUTUBRO</span>
         <span class="hidden md:inline text-white/50">·</span>
         <span class="hidden md:inline text-white/90">SABABA → P5 KITE HOUSE · VELEJO À FANTASIA</span>
-        <span class="rounded-full bg-orange-500/30 border border-orange-400/40 px-2 py-0.5 text-[10px] text-amber-200 font-mono uppercase tracking-wider">
-          Apenas 16 vagas
+        <span v-if="bannerBadge" class="rounded-full bg-orange-500/30 border border-orange-400/40 px-2 py-0.5 text-[10px] text-amber-200 font-mono uppercase tracking-wider">
+          {{ bannerBadge }}
         </span>
         <span class="animate-bounce inline-block [animation-delay:0.3s]">👻</span>
       </div>

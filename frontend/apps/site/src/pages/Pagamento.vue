@@ -9,7 +9,11 @@ const route = useRoute();
 const router = useRouter();
 const orderId = route.params.orderId as string;
 
-const status = ref("pending");
+// Inscrição gratuita (produto R$ 0): o pedido já volta pago do checkout, sem Pix — começa
+// direto na confirmação em vez de mostrar a tela de pagamento enquanto a 1ª consulta não volta.
+const isFree = history.state?.free === true;
+
+const status = ref(isFree ? "paid" : "pending");
 const copied = ref(false);
 let poller: ReturnType<typeof setInterval> | undefined;
 let ticker: ReturnType<typeof setInterval> | undefined;
@@ -71,7 +75,8 @@ onUnmounted(() => {
     <main class="mx-auto max-w-lg px-6 py-16 text-center">
       <template v-if="status === 'paid'">
         <CheckCircle2 :size="48" class="mx-auto text-green-600" />
-        <h1 class="mt-4 font-serif text-2xl font-bold text-ink">Pagamento confirmado!</h1>
+        <h1 class="mt-4 font-serif text-2xl font-bold text-ink">{{ isFree ? "Inscrição confirmada!" : "Pagamento confirmado!" }}</h1>
+        <p v-if="isFree" class="mt-2 text-ink-soft">O QR Code do seu ingresso também foi enviado por e-mail.</p>
         <p class="mt-2 text-ink-soft">Redirecionando para o seu portal...</p>
       </template>
       <template v-else-if="expired || status !== 'pending'">

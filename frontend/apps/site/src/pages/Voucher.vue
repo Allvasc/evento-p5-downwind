@@ -264,7 +264,8 @@ async function redeem() {
                         <p class="text-xs text-ink-soft">{{ s.sessions.map((a) => a.activityTitle).join(" / ") }}</p>
                       </div>
                     </div>
-                    <span class="text-xs font-medium text-ink-soft">{{ s.minSpotsLeft }} vaga{{ s.minSpotsLeft === 1 ? "" : "s" }} disponíve{{ s.minSpotsLeft === 1 ? "l" : "is" }}</span>
+                    <span v-if="s.unlimited" class="text-xs font-medium text-ink-soft">Vagas ilimitadas</span>
+                    <span v-else class="text-xs font-medium text-ink-soft">{{ s.minSpotsLeft }} vaga{{ s.minSpotsLeft === 1 ? "" : "s" }} disponíve{{ s.minSpotsLeft === 1 ? "l" : "is" }}</span>
                   </div>
                 </div>
               </template>

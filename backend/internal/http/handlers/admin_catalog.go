@@ -127,9 +127,11 @@ type productRequest struct {
 	ActivityIDs       []string `json:"activityIds"`
 }
 
+// PriceCents 0 is allowed: it turns the product into a free event (checkout.go skips
+// Asaas and issues the ticket right away).
 func (h *AdminCatalogHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	var req productRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Title == "" || req.PriceCents <= 0 {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Title == "" || req.PriceCents < 0 {
 		writeJSONError(w, http.StatusBadRequest, "título e preço válido são obrigatórios")
 		return
 	}
@@ -162,7 +164,7 @@ func (h *AdminCatalogHandler) CreateProduct(w http.ResponseWriter, r *http.Reque
 func (h *AdminCatalogHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req productRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Title == "" || req.PriceCents <= 0 {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Title == "" || req.PriceCents < 0 {
 		writeJSONError(w, http.StatusBadRequest, "título e preço válido são obrigatórios")
 		return
 	}
