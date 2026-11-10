@@ -141,6 +141,13 @@ export function useProductSlots(selected: Ref<Product | null>) {
     return result;
   });
 
+  // Com uma única data disponível não há o que escolher — já vem marcada, para o cliente
+  // seguir direto ao pagamento. Com várias datas, a escolha continua sendo dele.
+  // Observa também a seleção: clicar de novo no produto já escolhido zera a data sem mudar a lista.
+  watch([slots, selectedSlotKey], ([list, key]) => {
+    if (list.length === 1 && !key) selectedSlotKey.value = list[0].key;
+  });
+
   const selectedSlot = computed(() => slots.value.find((s) => s.key === selectedSlotKey.value) ?? null);
 
   function chooseActivity(activityId: string) {
