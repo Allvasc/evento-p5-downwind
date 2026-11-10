@@ -47,7 +47,8 @@ const leftTitleItalic = computed(() => {
 const leftSubtitle = computed(() => {
   if (mode.value === "login") return "Entre para acessar sua jornada.";
   if (mode.value === "register") return "Crie seu cadastro em menos de 1 minuto para reservar aulas, combos e consultar seus acessos.";
-  return "Informe seu e-mail para receber as orientações.";
+  if (mode.value === "recover") return "Informe seu e-mail para receber as orientações.";
+  return "Informe o código recebido no seu e-mail e cadastre uma nova senha.";
 });
 
 const leftCheckmark = computed(() => {
@@ -87,6 +88,8 @@ async function submit() {
       await api.post("/auth/student/reset-password", { email: email.value, code: resetToken.value, password: password.value });
       successMessage.value = "Senha redefinida com sucesso. Você já pode entrar.";
       mode.value = "login";
+      password.value = "";
+      resetToken.value = "";
     }
   } catch (err) {
     errorMessage.value = err instanceof ApiError ? err.message : "Não foi possível concluir. Tente novamente.";
@@ -223,15 +226,28 @@ async function submit() {
                 <p class="-mt-2 text-[11px] text-ink-soft">Obrigatório: quem a equipe P5 deve avisar se algo acontecer durante o evento.</p>
               </template>
 
-              <div v-if="mode === 'reset'">
-                <label for="token" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink">Código de recuperação</label>
-                <input
-                  id="token"
-                  v-model="resetToken"
-                  required
-                  placeholder="Código de 6 dígitos"
-                  class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-soft/50 focus:border-magenta focus:outline-none focus:ring-1 focus:ring-magenta"
-                />
+              <div v-if="mode === 'reset'" class="space-y-4">
+                <div class="rounded-xl border border-line bg-surface/50 p-3 text-xs text-ink-soft">
+                  Código enviado para <strong class="text-ink font-semibold">{{ email }}</strong>.
+                  <button
+                    type="button"
+                    class="ml-1 text-magenta font-semibold hover:underline"
+                    @click="mode = 'recover'; errorMessage = ''; successMessage = ''"
+                  >
+                    Alterar e-mail
+                  </button>
+                </div>
+
+                <div>
+                  <label for="token" class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink">Código de recuperação</label>
+                  <input
+                    id="token"
+                    v-model="resetToken"
+                    required
+                    placeholder="Código de 6 dígitos"
+                    class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink placeholder:text-ink-soft/50 focus:border-magenta focus:outline-none focus:ring-1 focus:ring-magenta"
+                  />
+                </div>
               </div>
 
               <div v-if="mode !== 'recover'">
@@ -253,7 +269,7 @@ async function submit() {
               <p v-if="successMessage" class="text-xs font-medium text-green-700">{{ successMessage }}</p>
 
               <button type="submit" :disabled="loading" class="button-magenta w-full justify-center text-sm py-3.5 mt-2">
-                <span>{{ loading ? "Carregando..." : mode === 'register' ? 'Criar meu cadastro' : mode === 'login' ? 'Entrar' : 'Enviar código' }}</span>
+                <span>{{ loading ? "Carregando..." : mode === 'register' ? 'Criar meu cadastro' : mode === 'login' ? 'Entrar' : mode === 'recover' ? 'Enviar código' : 'Redefinir senha' }}</span>
                 <ArrowRight :size="16" />
               </button>
             </form>
@@ -262,19 +278,19 @@ async function submit() {
           <!-- BOTTOM TOGGLE LINKS -->
           <div class="mt-8 space-y-2 text-center text-xs text-ink-soft">
             <p v-if="mode === 'login'">
-              <button class="font-medium text-magenta hover:underline" @click="mode = 'recover'">
+              <button class="font-medium text-magenta hover:underline" @click="mode = 'recover'; errorMessage = ''; successMessage = ''">
                 Esqueci minha senha
               </button>
             </p>
             <p v-if="mode === 'login'">
               Ainda não tem cadastro?
-              <button class="font-bold text-magenta hover:underline ml-1" @click="mode = 'register'">
+              <button class="font-bold text-magenta hover:underline ml-1" @click="mode = 'register'; errorMessage = ''; successMessage = ''">
                 Comece agora
               </button>
             </p>
             <p v-if="mode === 'register' || mode === 'recover' || mode === 'reset'">
               Já tem cadastro?
-              <button class="font-bold text-magenta hover:underline ml-1" @click="mode = 'login'">
+              <button class="font-bold text-magenta hover:underline ml-1" @click="mode = 'login'; errorMessage = ''; successMessage = ''">
                 Entrar
               </button>
             </p>

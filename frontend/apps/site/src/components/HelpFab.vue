@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { HelpCircle, X, ChevronDown, Mail, QrCode, KeyRound, Backpack, CreditCard, CalendarClock, Flag } from "lucide-vue-next";
+import { HelpCircle, X, ChevronDown, Mail, QrCode, KeyRound, Backpack, CreditCard, CalendarClock } from "lucide-vue-next";
 
 const open = ref(false);
 const openQuestion = ref<number | null>(0);
@@ -40,21 +40,12 @@ const faqs: FaqItem[] = [
     answer: ["Na tela de login, clique em \"Esqueci minha senha\" e siga as instruções enviadas por e-mail."],
   },
   {
-    icon: Flag,
-    question: "Como funciona o evento à fantasia de Halloween?",
-    answer: [
-      "O Downwind de Halloween é um evento temático e festivo! Você pode velejar usando fantasias confortáveis, capas, adereços ou pinturas.",
-      "Recomendamos que a fantasia não comprometa a mobilidade, nem o uso seguro do colete e do trapézio.",
-      "Haverá fotos e registros na água e premiação simbólica para a caracterização mais criativa!",
-    ],
-  },
-  {
     icon: Backpack,
     question: "O que eu levo para o DownWind Day?",
     answer: [
-      "Seu próprio equipamento de kite (kite, barra, trapézio e prancha) — o ingresso cobre estrutura e apoio, não o material.",
-      "Protetor solar, roupa de neoprene ou lycra e água.",
-      "O compressor para encher o kite fica disponível no ponto de saída.",
+      "Os equipamentos de kite estão inclusos no ingresso.",
+      "Protetor solar e roupa de neoprene ou lycra.",
+      "Chegue às 5h na P5 Kite House: check-in às 5h30 e embarque no ônibus às 6h15.",
     ],
   },
   {
