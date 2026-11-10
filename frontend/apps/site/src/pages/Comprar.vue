@@ -48,7 +48,6 @@ const ACTIVITY_TIPS: Record<string, string> = {
   "p5-downwind-day": "Traga seu equipamento de kitesurf, lycra e protetor solar",
   "p5-downwind-day-presidio": "Concentração às 7h30 na P5 Kite House. Traga seu equipamento de kitesurf e protetor solar",
   "downwind-luau-p5-24out": "Concentração às 15h na P5 Kite House. Traga seu equipamento de kitesurf e protetor solar",
-  "downwind-halloween-p5-31out": "Concentração às 9h30 na P5 Kite House. Traga seu equipamento e venha à fantasia! 🎃",
   "downwind-sertoes-icapui-28nov": "Abertura às 5h na P5 Kite House com café da manhã. Check-in 5h30 e embarque no ônibus às 6h15.",
 };
 function activityTip(slug: string): string | null {
