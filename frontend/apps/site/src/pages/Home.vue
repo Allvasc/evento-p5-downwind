@@ -13,6 +13,8 @@ import {
   LifeBuoy,
   Wind,
   PartyPopper,
+  MapPin,
+  ExternalLink,
 } from "lucide-vue-next";
 import { formatBRL, cleanTitle, isUnlimitedCapacity, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
@@ -102,13 +104,13 @@ const spotsLabel = computed(() => {
 });
 
 const included = [
-  { icon: Ticket, title: "Inscrição Sertões Experience", detail: "Sua inscrição oficial no Sertões Experience." },
+  { icon: Ticket, title: "Inscrição Sertões Kitesurf", detail: "Sua inscrição na Categoria Experience do Sertões Kitesurf 2026." },
   { icon: Coffee, title: "Café da manhã na P5", detail: "Estilo buffet a partir das 5h: café, sucos, frutas, tapiocas, cuscuz, pães e opções leves." },
-  { icon: Gift, title: "Kit do evento", detail: "Kit do evento para cada participante." },
+  { icon: Gift, title: "Kit participante oficial", detail: "Lycra, camiseta, boné e sacochila do Sertões Kitesurf." },
   { icon: Bus, title: "Ônibus executivo", detail: "P5 → Icapuí na ida e Fortim → P5 na volta." },
   { icon: LifeBuoy, title: "Equipe de acompanhamento", detail: "Água, isotônicos, frutas e snacks ao longo do dia." },
-  { icon: Wind, title: "Equipamentos de kite", detail: "Equipamentos de kite inclusos no ingresso." },
-  { icon: PartyPopper, title: "Entretenimento", detail: "Entretenimento e confraternização antes do retorno à P5." },
+  { icon: Wind, title: "Logística dos equipamentos", detail: "Transporte e espaço para o seu equipamento de kite." },
+  { icon: PartyPopper, title: "Entretenimento", detail: "Playlist e confraternização no retorno à P5." },
 ];
 
 const itinerary = [
@@ -116,9 +118,9 @@ const itinerary = [
   { time: "2", title: "05h30 · Check-in", detail: "Conferência de participantes e equipamentos." },
   { time: "3", title: "06h15 · Embarque", detail: "Embarque no ônibus." },
   { time: "4", title: "06h30 · Saída", detail: "Saída da P5 rumo a Ponta Grossa, Icapuí." },
-  { time: "5", title: "09h30 (estimativa) · Icapuí", detail: "Chegada e desembarque em Icapuí." },
-  { time: "6", title: "A confirmar · Largada oficial", detail: "Downwind de aproximadamente 40 km até Fortim." },
-  { time: "7", title: "Após o percurso · Fortim", detail: "Encontro em Fortim, hidratação e organização do embarque." },
+  { time: "5", title: "09h30 (estimativa) · Icapuí", detail: "Chegada e desembarque na Praia de Ponta Grossa, em Icapuí." },
+  { time: "6", title: "A confirmar · Largada oficial", detail: "Largada da Categoria Experience do Sertões Kitesurf: downwind de aproximadamente 40 km até Fortim." },
+  { time: "7", title: "Após o percurso · Fortim", detail: "Chegada ao Jaguaribe Lodge, em Fortim: encontro, hidratação e organização do embarque." },
   { time: "8", title: "Final da tarde/noite · Retorno", detail: "Confraternização e retorno; chegada noturna à P5." },
 ];
 </script>
@@ -138,7 +140,7 @@ const itinerary = [
           <div>
             <p class="eyebrow mb-6 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · SERTÕES EXPERIENCE
+              P5 KITE HOUSE · SERTÕES KITESURF 2026
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
@@ -147,8 +149,8 @@ const itinerary = [
             </h1>
 
             <p class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
-              <strong class="font-semibold text-ink">{{ nextDateLabel }}</strong> · Ponta Grossa, Icapuí → Fortim.
-              Downwind de aproximadamente 40 km com ônibus executivo, café da manhã, equipe de acompanhamento e equipamentos de kite inclusos.
+              <strong class="font-semibold text-ink">{{ nextDateLabel }}</strong> · Categoria Experience do Sertões Kitesurf 2026.
+              Downwind de aproximadamente 40 km de Ponta Grossa, em Icapuí, até Fortim, com a inscrição oficial, café da manhã, ônibus executivo e equipe de acompanhamento da P5.
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-5">
@@ -165,6 +167,7 @@ const itinerary = [
             </div>
 
             <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
+              <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Inscrição Sertões Kitesurf inclusa</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Abertura 5h · saída 6h30 da P5</span>
               <span class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> Ônibus executivo ida e volta</span>
               <span v-if="spotsLabel" class="inline-flex items-center gap-1.5"><Check :size="15" class="text-magenta" /> {{ spotsLabel }}</span>
@@ -177,7 +180,7 @@ const itinerary = [
               <div class="text-center">
                 <div class="inline-flex items-center gap-2">
                   <img src="/logo-downwind.webp" :alt="productTitle" class="h-7 w-auto" />
-                  <span class="rounded-full border border-magenta/30 bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">Sertões Experience</span>
+                  <span class="rounded-full border border-magenta/30 bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">Sertões Kitesurf</span>
                 </div>
                 <p class="mt-2 text-xs font-medium text-ink-soft">
                   {{ isFree ? "Inscrição gratuita" : "Um valor" }}, tudo incluso.
@@ -199,7 +202,7 @@ const itinerary = [
                 >
                   <div class="pr-2">
                     <h3 class="font-serif text-sm font-bold text-ink">{{ cleanTitle(p.title) }}</h3>
-                    <p class="mt-1 text-xs text-ink-soft">Icapuí → Fortim · tudo incluso</p>
+                    <p class="mt-1 text-xs text-ink-soft">Categoria Experience · Icapuí → Fortim</p>
                   </div>
 
                   <div class="shrink-0 text-right">
@@ -212,7 +215,7 @@ const itinerary = [
               <!-- Route details footer inside card -->
               <div class="mt-6 flex items-center justify-between border-t border-line/60 pt-4 text-xs text-ink-soft">
                 <div>
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Largada</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Largada · Ponta Grossa</p>
                   <p class="font-serif font-bold text-ink">Icapuí</p>
                 </div>
                 <div class="flex flex-col items-center">
@@ -220,7 +223,7 @@ const itinerary = [
                   <span class="font-mono text-[9px] text-ink-soft">~40 km</span>
                 </div>
                 <div class="text-right">
-                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Chegada</p>
+                  <p class="font-mono text-[9px] font-bold uppercase tracking-wider text-ink-soft">Chegada · Jaguaribe Lodge</p>
                   <p class="font-serif font-bold text-ink">Fortim</p>
                 </div>
               </div>
@@ -249,7 +252,7 @@ const itinerary = [
               <span class="text-magenta">incluso.</span>
             </h2>
             <p class="text-base leading-relaxed text-ink-soft">
-              Da recepção com café da manhã às 5h na P5 Kite House à chegada noturna, passando pelo ônibus executivo, pela equipe de acompanhamento e pelos equipamentos de kite, tudo já está no seu ingresso.
+              Da recepção com café da manhã às 5h na P5 Kite House à chegada noturna, passando pela inscrição no Sertões Kitesurf, pelo ônibus executivo e pela equipe de acompanhamento, tudo já está no seu ingresso.
             </p>
           </div>
 
@@ -291,42 +294,63 @@ const itinerary = [
               <p class="mt-1.5 text-sm leading-relaxed text-ink-soft">{{ step.detail }}</p>
             </div>
           </div>
+
+          <p class="mt-12 text-xs italic text-ink-soft">
+            Os horários dependem da programação oficial do Sertões Kitesurf, do trânsito, do vento e do mar.
+          </p>
         </div>
       </section>
 
-      <!-- SECTION: CONFIANÇA / APOIO -->
-      <section class="border-t border-line/60 bg-ink py-20 text-white">
+      <!-- SECTION: SERTÕES KITESURF · CATEGORIA EXPERIENCE -->
+      <section id="sertoes" class="border-t border-line/60 bg-ink py-20 text-white">
         <div class="mx-auto max-w-6xl px-6">
           <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
             <KitesurferIcon :size="34" class="text-sky-300" />
           </div>
-          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">VENTO · MAR · KITE · APOIO</p>
+          <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">SERTÕES KITESURF 2026 · CATEGORIA EXPERIENCE</p>
           <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
-            Vento a favor, <span class="text-sky-300">mar em movimento.</span>
+            Sua largada no <span class="text-sky-300">Sertões Kitesurf.</span>
           </h2>
+          <p class="mt-4 max-w-2xl text-sm leading-relaxed text-white/70">
+            O pacote P5 inclui a sua inscrição na Categoria Experience do Sertões Kitesurf 2026: a etapa de 28 de novembro, com largada na Praia de Ponta Grossa, em Icapuí, e chegada ao Jaguaribe Lodge, em Fortim.
+          </p>
 
           <div class="mt-12 grid gap-8 md:grid-cols-3">
             <div class="flex flex-col gap-3">
-              <LifeBuoy :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Equipe de acompanhamento</h3>
+              <MapPin :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Percurso com guias exclusivos</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Água, isotônicos, frutas e snacks ao longo do dia.
+                Cerca de 40 km de downwind de Icapuí a Fortim, acompanhados por guias exclusivos.
               </p>
             </div>
             <div class="flex flex-col gap-3">
-              <Bus :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Ônibus executivo</h3>
+              <Gift :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Kit participante oficial</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Ida da P5 até Icapuí e volta de Fortim até a P5.
+                Lycra, camiseta, boné e sacochila do Sertões Kitesurf.
               </p>
             </div>
             <div class="flex flex-col gap-3">
-              <Wind :size="26" class="text-sky-300" />
-              <h3 class="font-serif text-lg font-bold">Equipamentos de kite</h3>
+              <PartyPopper :size="26" class="text-sky-300" />
+              <h3 class="font-serif text-lg font-bold">Vilas e festa de encerramento</h3>
               <p class="text-sm leading-relaxed text-white/70">
-                Equipamentos de kite inclusos no ingresso.
+                Livre acesso às vilas do evento e à festa de encerramento.
               </p>
             </div>
+          </div>
+
+          <div class="mt-12 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p class="max-w-xl text-xs leading-relaxed text-white/50">
+              Inscrição na Categoria Experience sujeita à disponibilidade de vagas e às regras da organização do Sertões Kitesurf.
+            </p>
+            <a
+              href="https://sertoes.com.br/kite/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-sky-300 hover:text-white"
+            >
+              Conheça o Sertões Kitesurf <ExternalLink :size="14" />
+            </a>
           </div>
         </div>
       </section>
@@ -339,7 +363,7 @@ const itinerary = [
             {{ isFree ? "Evento gratuito," : "Um valor," }} <span class="text-magenta">tudo incluso.</span>
           </h2>
           <p class="mt-3 text-sm text-ink-soft">
-            <template v-if="spotsLabel">{{ spotsLabel }}. </template>{{ nextDateLabel }} · Ponta Grossa, Icapuí → Fortim.
+            <template v-if="spotsLabel">{{ spotsLabel }}. </template>{{ nextDateLabel }} · Categoria Experience do Sertões Kitesurf · Icapuí → Fortim.
             {{ isFree ? "Inscrição gratuita com confirmação instantânea." : "Pagamento seguro via Pix." }}
           </p>
 
