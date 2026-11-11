@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { HelpCircle, X, ChevronDown, Mail, QrCode, KeyRound, Backpack, CreditCard, CalendarClock } from "lucide-vue-next";
+import { HelpCircle, X, ChevronDown, Mail, QrCode, KeyRound, Backpack, CreditCard, CalendarClock, Ticket } from "lucide-vue-next";
 
 const open = ref(false);
 const openQuestion = ref<number | null>(0);
@@ -40,10 +40,19 @@ const faqs: FaqItem[] = [
     answer: ["Na tela de login, clique em \"Esqueci minha senha\" e siga as instruções enviadas por e-mail."],
   },
   {
+    icon: Ticket,
+    question: "Como funciona a inscrição no Sertões Kitesurf?",
+    answer: [
+      "O pacote inclui a sua inscrição na Categoria Experience do Sertões Kitesurf 2026: a etapa de 28/11, com largada na Praia de Ponta Grossa, em Icapuí, e chegada ao Jaguaribe Lodge, em Fortim (cerca de 40 km).",
+      "A inscrição dá direito ao kit participante oficial (lycra, camiseta, boné e sacochila), ao percurso acompanhado por guias exclusivos e ao livre acesso às vilas e à festa de encerramento.",
+      "A inscrição está sujeita à disponibilidade de vagas e às regras da organização do Sertões Kitesurf.",
+    ],
+  },
+  {
     icon: Backpack,
     question: "O que eu levo para o DownWind Day?",
     answer: [
-      "Os equipamentos de kite estão inclusos no ingresso.",
+      "Seu próprio equipamento de kite (kite, barra, trapézio e prancha). A P5 cuida da logística e do transporte dele no dia.",
       "Protetor solar e roupa de neoprene ou lycra.",
       "Chegue às 5h na P5 Kite House: check-in às 5h30 e embarque no ônibus às 6h15.",
     ],
