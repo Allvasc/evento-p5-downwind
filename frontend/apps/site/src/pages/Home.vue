@@ -15,12 +15,16 @@ import {
   PartyPopper,
   MapPin,
   ExternalLink,
+  Download,
+  Maximize2,
+  Eye,
+  X,
+  Sparkles,
 } from "lucide-vue-next";
 import { formatBRL, cleanTitle, isUnlimitedCapacity, type Product } from "@p5wellness/shared";
 import { api } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import HelpFab from "@/components/HelpFab.vue";
-import KitesurferIcon from "@/components/KitesurferIcon.vue";
 import WaveIcon from "@/components/WaveIcon.vue";
 
 const router = useRouter();
@@ -123,6 +127,53 @@ const itinerary = [
   { time: "7", title: "Após o percurso · Fortim", detail: "Chegada ao Jaguaribe Lodge, em Fortim: encontro, hidratação e organização do embarque." },
   { time: "8", title: "Final da tarde/noite · Retorno", detail: "Confraternização e retorno; chegada noturna à P5." },
 ];
+
+// ── Material Visual / Artes do Evento ─────────────────────────────────────────
+type ArtworkTab = "banner" | "poster" | "flyer";
+const activeArtworkTab = ref<ArtworkTab>("banner");
+const isLightboxOpen = ref(false);
+const lightboxSrc = ref("/arte-evento-p5-sertoes.webp");
+const lightboxTitle = ref("Banner Oficial · P5 DownWind Day × Sertões Kitesurf");
+
+const artworks = [
+  {
+    id: "banner" as const,
+    title: "Banner Panorâmico",
+    badge: "Formato 16:9 · Alta Resolução",
+    desc: "Banner oficial do evento com percurso Icapuí → Fortim, horário, benefícios e co-branding.",
+    src: "/arte-evento-p5-sertoes.webp",
+    downloadSrc: "/arte-evento-p5-sertoes.webp",
+    fileName: "P5-DownWind-Day-Sertoes-Kitesurf-Banner.webp",
+  },
+  {
+    id: "poster" as const,
+    title: "Cartaz Vertical",
+    badge: "Formato 4:5 · Feed & Stories",
+    desc: "Arte vertical otimizada para divulgação nas redes sociais, feed e grupos de WhatsApp.",
+    src: "/cartaz-p5-sertoes-experience.webp",
+    downloadSrc: "/cartaz-p5-sertoes-experience.webp",
+    fileName: "P5-DownWind-Day-Sertoes-Cartaz.webp",
+  },
+  {
+    id: "flyer" as const,
+    title: "Flyer Oficial Sertões",
+    badge: "Material Oficial da Organização",
+    desc: "Flyer oficial de divulgação da Categoria Experience do Sertões Kitesurf 2026.",
+    src: "/cartaz-sertoes-experience.webp",
+    downloadSrc: "/cartaz-sertoes-experience.webp",
+    fileName: "Sertoes-Kitesurf-Experience-Flyer.webp",
+  },
+];
+
+const currentArtwork = computed(() => {
+  return artworks.find((a) => a.id === activeArtworkTab.value) ?? artworks[0];
+});
+
+function openArtwork(src: string, title: string) {
+  lightboxSrc.value = src;
+  lightboxTitle.value = title;
+  isLightboxOpen.value = true;
+}
 </script>
 
 <template>
@@ -138,9 +189,12 @@ const itinerary = [
 
         <div class="relative z-10 mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div>
-            <p class="eyebrow mb-6 text-xs tracking-wider">
+            <p class="eyebrow mb-6 text-xs tracking-wider flex flex-wrap items-center gap-2">
               <Compass :size="14" class="text-magenta" />
-              P5 KITE HOUSE · SERTÕES KITESURF 2026
+              <span>P5 KITE HOUSE</span>
+              <span class="text-ink-soft/40">·</span>
+              <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="h-4 w-auto rounded-xs inline-block shadow-2xs" />
+              <span>SERTÕES KITESURF 2026</span>
             </p>
 
             <h1 class="font-serif text-5xl font-black leading-[1.05] text-ink md:text-6xl">
@@ -178,9 +232,11 @@ const itinerary = [
           <div class="relative mx-auto w-full max-w-md">
             <div class="relative rounded-[2rem] border border-line/80 bg-white p-6 shadow-2xl md:p-8">
               <div class="text-center">
-                <div class="inline-flex items-center gap-2">
+                <div class="inline-flex items-center gap-2.5">
                   <img src="/logo-downwind.webp" :alt="productTitle" class="h-7 w-auto" />
-                  <span class="rounded-full border border-magenta/30 bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">Sertões Kitesurf</span>
+                  <span class="text-xs font-semibold text-ink-soft/40">×</span>
+                  <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="h-7 w-auto rounded-sm shadow-2xs" />
+                  <span class="rounded-full border border-magenta/30 bg-magenta/10 px-2.5 py-0.5 font-mono text-[9px] font-bold tracking-wider text-magenta uppercase">Experience</span>
                 </div>
                 <p class="mt-2 text-xs font-medium text-ink-soft">
                   {{ isFree ? "Inscrição gratuita" : "Um valor" }}, tudo incluso.
@@ -304,8 +360,9 @@ const itinerary = [
       <!-- SECTION: SERTÕES KITESURF · CATEGORIA EXPERIENCE -->
       <section id="sertoes" class="border-t border-line/60 bg-ink py-20 text-white">
         <div class="mx-auto max-w-6xl px-6">
-          <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
-            <KitesurferIcon :size="34" class="text-sky-300" />
+          <div class="mb-8 flex flex-wrap items-center gap-4">
+            <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="h-16 w-auto rounded-xl shadow-lg ring-1 ring-white/10" />
+            <img src="/sertoes-experience-white.webp" alt="Sertões Experience" class="h-10 w-auto opacity-95" />
           </div>
           <p class="font-mono text-xs font-medium tracking-widest uppercase text-white/60">SERTÕES KITESURF 2026 · CATEGORIA EXPERIENCE</p>
           <h2 class="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
@@ -355,6 +412,93 @@ const itinerary = [
         </div>
       </section>
 
+      <!-- SECTION: ARTE OFICIAL DO EVENTO -->
+      <section id="arte-evento" class="border-t border-line/60 bg-paper py-20">
+        <div class="mx-auto max-w-6xl px-6">
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+            <div>
+              <p class="eyebrow mb-2">
+                <Sparkles :size="14" class="text-magenta" /> MATERIAL VISUAL OFICIAL
+              </p>
+              <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
+                Arte oficial <span class="text-magenta">do evento.</span>
+              </h2>
+              <p class="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
+                Material visual oficial do P5 DownWind Day integrado à Categoria Experience do Sertões Kitesurf 2026. Clique para ampliar ou baixe em alta resolução.
+              </p>
+            </div>
+
+            <!-- Tabs de visualização -->
+            <div class="flex items-center gap-1 p-1 bg-warm rounded-xl border border-line/70 self-start md:self-auto">
+              <button
+                v-for="art in artworks"
+                :key="art.id"
+                :class="[
+                  'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                  activeArtworkTab === art.id
+                    ? 'bg-white text-ink shadow-xs'
+                    : 'text-ink-soft hover:text-ink',
+                ]"
+                @click="activeArtworkTab = art.id"
+              >
+                {{ art.title }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Card de Apresentação da Arte -->
+          <div class="overflow-hidden rounded-3xl border border-line/80 bg-white shadow-xl">
+            <div
+              class="relative group cursor-pointer overflow-hidden bg-ink/5"
+              @click="openArtwork(currentArtwork.src, currentArtwork.title)"
+            >
+              <img
+                :src="currentArtwork.src"
+                :alt="currentArtwork.title"
+                class="w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+                :class="currentArtwork.id === 'banner' ? 'max-h-[620px]' : 'max-h-[720px] mx-auto object-contain bg-warm/30'"
+              />
+
+              <!-- Overlay Hover -->
+              <div class="absolute inset-0 bg-ink/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-xs">
+                <span class="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-bold text-ink shadow-lg">
+                  <Maximize2 :size="15" /> Clique para ampliar em tela cheia
+                </span>
+              </div>
+            </div>
+
+            <!-- Rodapé do Card da Arte -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-t border-line/60 bg-white">
+              <div>
+                <div class="flex items-center gap-2.5">
+                  <h3 class="font-serif text-lg font-bold text-ink">{{ currentArtwork.title }}</h3>
+                  <span class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[10px] font-bold text-magenta">
+                    {{ currentArtwork.badge }}
+                  </span>
+                </div>
+                <p class="mt-1 text-xs text-ink-soft">{{ currentArtwork.desc }}</p>
+              </div>
+
+              <div class="flex items-center gap-3 shrink-0">
+                <button
+                  class="inline-flex items-center gap-1.5 rounded-full border border-line bg-warm/50 px-4 py-2 text-xs font-semibold text-ink transition-colors hover:bg-white hover:border-ink"
+                  @click="openArtwork(currentArtwork.src, currentArtwork.title)"
+                >
+                  <Eye :size="14" /> Visualizar
+                </button>
+                <a
+                  :href="currentArtwork.downloadSrc"
+                  :download="currentArtwork.fileName"
+                  class="button-magenta px-4 py-2 text-xs font-bold"
+                >
+                  <Download :size="14" /> Baixar em Alta Resolução
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- SECTION: PREÇO / CTA -->
       <section id="preco" class="border-t border-line/60 py-20">
         <div class="mx-auto max-w-5xl px-6 text-center">
@@ -399,10 +543,14 @@ const itinerary = [
       <!-- FOOTER -->
       <footer class="border-t border-line/80 bg-ink py-12 text-white">
         <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
-          <img src="/logo-downwind-dark.webp" alt="P5 DownWind Day" class="h-8 w-auto" />
+          <div class="flex items-center gap-3">
+            <img src="/logo-downwind-dark.webp" alt="P5 DownWind Day" class="h-8 w-auto" />
+            <span class="text-white/30 text-sm font-light">×</span>
+            <img src="/sertoes-kitesurf-white.webp" alt="Sertões Kitesurf" class="h-8 w-auto opacity-90 transition-opacity hover:opacity-100" />
+          </div>
 
           <p class="text-xs text-white/60 text-center md:text-left">
-            P5 Kite House.<br />
+            P5 Kite House & Sertões Kitesurf.<br />
             Vento a favor, mar em movimento.
           </p>
 
@@ -424,6 +572,51 @@ const itinerary = [
           </a>
         </div>
       </footer>
+
+      <!-- LIGHTBOX MODAL DE ARTE DO EVENTO -->
+      <Teleport to="body">
+        <Transition
+          enter-active-class="transition duration-200 ease-out"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="transition duration-150 ease-in"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+        >
+          <div
+            v-if="isLightboxOpen"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 sm:p-6 backdrop-blur-md"
+            @click.self="isLightboxOpen = false"
+          >
+            <div class="relative max-h-[92vh] max-w-5xl w-full flex flex-col items-center">
+              <button
+                class="absolute -top-12 right-0 flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors"
+                @click="isLightboxOpen = false"
+                aria-label="Fechar modal"
+              >
+                <X :size="16" /> Fechar
+              </button>
+
+              <img
+                :src="lightboxSrc"
+                :alt="lightboxTitle"
+                class="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+              />
+
+              <div class="mt-4 flex flex-wrap items-center justify-between gap-3 w-full text-white/80 text-xs px-2">
+                <span class="font-medium">{{ lightboxTitle }}</span>
+                <a
+                  :href="lightboxSrc"
+                  download
+                  class="inline-flex items-center gap-1.5 rounded-full bg-magenta px-4 py-1.5 text-xs font-bold text-white hover:bg-magenta/90 shadow-sm"
+                >
+                  <Download :size="14" /> Baixar Imagem HD
+                </a>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </main>
   </div>
 </template>

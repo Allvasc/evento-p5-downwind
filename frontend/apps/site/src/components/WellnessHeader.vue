@@ -14,6 +14,8 @@ const authStore = useAuthStore();
 const navItems = [
   { label: "O que inclui", target: "#inclui" },
   { label: "Percurso", target: "#percurso" },
+  { label: "Sertões Kitesurf", target: "#sertoes" },
+  { label: "Arte do Evento", target: "#arte-evento" },
   { label: "Preço", target: "#preco" },
 ];
 
@@ -34,8 +36,10 @@ function handleLogout() {
 <template>
   <header :class="['sticky top-0 z-40 transition-all duration-200', transparent ? 'bg-paper/85 backdrop-blur-md border-b border-line/70' : 'bg-paper/95 backdrop-blur-md border-b border-line shadow-xs']">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-      <RouterLink to="/" aria-label="P5 DownWind Day">
+      <RouterLink to="/" aria-label="P5 DownWind Day & Sertões Kitesurf" class="flex items-center gap-2.5 sm:gap-3 group">
         <img src="/logo-downwind.webp" alt="P5 DownWind Day" class="h-8 w-auto sm:h-9" />
+        <span class="h-5 w-px bg-line/80"></span>
+        <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="h-7 w-auto sm:h-8 rounded-sm shadow-2xs transition-transform group-hover:scale-105" />
       </RouterLink>
 
       <nav class="hidden items-center gap-8 md:flex" aria-label="Navegação principal">

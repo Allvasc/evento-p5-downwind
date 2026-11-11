@@ -249,6 +249,10 @@ async function goToPayment() {
           <div v-if="selected" class="mt-6 space-y-4">
             <div class="border-b border-white/10 pb-4">
               <p class="text-sm font-bold text-white">{{ cleanTitle(selected.title) }}</p>
+              <div v-if="selected.title.toLowerCase().includes('sertões') || (selected.description ?? '').toLowerCase().includes('sertões')" class="mt-2 inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-1 text-[11px] font-semibold text-sky-300">
+                <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="h-3.5 w-auto rounded-xs shadow-2xs" />
+                <span>Etapa Oficial Sertões Kitesurf 2026</span>
+              </div>
               <p class="mt-1 text-xs text-white/70">{{ selected.description }}</p>
               <p v-if="selectedSlot" class="mt-2 text-xs font-semibold capitalize text-magenta">🗓 {{ formatSlotDay(selectedSlot.day) }} · {{ formatSlotSummary(selectedSlot) }}</p>
             </div>
