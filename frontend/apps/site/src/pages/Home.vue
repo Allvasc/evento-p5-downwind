@@ -15,10 +15,6 @@ import {
   PartyPopper,
   MapPin,
   ExternalLink,
-  Download,
-  Maximize2,
-  Eye,
-  X,
   Sparkles,
 } from "lucide-vue-next";
 import { formatBRL, cleanTitle, isUnlimitedCapacity, type Product } from "@p5wellness/shared";
@@ -128,52 +124,14 @@ const itinerary = [
   { time: "8", title: "Final da tarde/noite · Retorno", detail: "Confraternização e retorno; chegada noturna à P5." },
 ];
 
-// ── Material Visual / Artes do Evento ─────────────────────────────────────────
-type ArtworkTab = "banner" | "poster" | "flyer";
-const activeArtworkTab = ref<ArtworkTab>("banner");
-const isLightboxOpen = ref(false);
-const lightboxSrc = ref("/arte-evento-p5-sertoes.webp");
-const lightboxTitle = ref("Banner Oficial · P5 DownWind Day × Sertões Kitesurf");
-
-const artworks = [
-  {
-    id: "banner" as const,
-    title: "Banner Panorâmico",
-    badge: "Formato 16:9 · Alta Resolução",
-    desc: "Banner oficial do evento com percurso Icapuí → Fortim, horário, benefícios e co-branding.",
-    src: "/arte-evento-p5-sertoes.webp",
-    downloadSrc: "/arte-evento-p5-sertoes.webp",
-    fileName: "P5-DownWind-Day-Sertoes-Kitesurf-Banner.webp",
-  },
-  {
-    id: "poster" as const,
-    title: "Cartaz Vertical",
-    badge: "Formato 4:5 · Feed & Stories",
-    desc: "Arte vertical otimizada para divulgação nas redes sociais, feed e grupos de WhatsApp.",
-    src: "/cartaz-p5-sertoes-experience.webp",
-    downloadSrc: "/cartaz-p5-sertoes-experience.webp",
-    fileName: "P5-DownWind-Day-Sertoes-Cartaz.webp",
-  },
-  {
-    id: "flyer" as const,
-    title: "Flyer Oficial Sertões",
-    badge: "Material Oficial da Organização",
-    desc: "Flyer oficial de divulgação da Categoria Experience do Sertões Kitesurf 2026.",
-    src: "/cartaz-sertoes-experience.webp",
-    downloadSrc: "/cartaz-sertoes-experience.webp",
-    fileName: "Sertoes-Kitesurf-Experience-Flyer.webp",
-  },
-];
-
-const currentArtwork = computed(() => {
-  return artworks.find((a) => a.id === activeArtworkTab.value) ?? artworks[0];
-});
-
-function openArtwork(src: string, title: string) {
-  lightboxSrc.value = src;
-  lightboxTitle.value = title;
-  isLightboxOpen.value = true;
-}
+// ── Arte do Evento / Campanha ─────────────────────────────────────────────────
+// Só o banner oficial, com texto de campanha e botão de compra do ingresso (sem ampliar/tela cheia).
+const banner = {
+  src: "/arte-evento-p5-sertoes.webp",
+  alt: "Banner do P5 DownWind Day × Sertões Kitesurf: Icapuí → Fortim, ~40 km de downwind",
+  headline: "Sua largada no Sertões Kitesurf começa na P5.",
+  text: "Inscrição oficial, café da manhã, ônibus executivo e equipe de acompanhamento em um só ingresso. É só trazer o seu kite.",
+};
 </script>
 
 <template>
@@ -415,85 +373,39 @@ function openArtwork(src: string, title: string) {
       <!-- SECTION: ARTE OFICIAL DO EVENTO -->
       <section id="arte-evento" class="border-t border-line/60 bg-paper py-20">
         <div class="mx-auto max-w-6xl px-6">
-          <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-            <div>
-              <p class="eyebrow mb-2">
-                <Sparkles :size="14" class="text-magenta" /> MATERIAL VISUAL OFICIAL
-              </p>
-              <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
-                Arte oficial <span class="text-magenta">do evento.</span>
-              </h2>
-              <p class="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-                Material visual oficial do P5 DownWind Day integrado à Categoria Experience do Sertões Kitesurf 2026. Clique para ampliar ou baixe em alta resolução.
-              </p>
-            </div>
-
-            <!-- Tabs de visualização -->
-            <div class="flex items-center gap-1 p-1 bg-warm rounded-xl border border-line/70 self-start md:self-auto">
-              <button
-                v-for="art in artworks"
-                :key="art.id"
-                :class="[
-                  'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
-                  activeArtworkTab === art.id
-                    ? 'bg-white text-ink shadow-xs'
-                    : 'text-ink-soft hover:text-ink',
-                ]"
-                @click="activeArtworkTab = art.id"
-              >
-                {{ art.title }}
-              </button>
-            </div>
+          <div class="mb-10">
+            <p class="eyebrow mb-2">
+              <Sparkles :size="14" class="text-magenta" /> MATERIAL VISUAL OFICIAL
+            </p>
+            <h2 class="font-serif text-3xl font-bold text-ink md:text-5xl">
+              Arte oficial <span class="text-magenta">do evento.</span>
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
+              O P5 DownWind Day na Categoria Experience do Sertões Kitesurf 2026: um dia de downwind com tudo incluso, da P5 Kite House até Fortim.
+            </p>
           </div>
 
-          <!-- Card de Apresentação da Arte -->
+          <!-- Card da Arte + Campanha -->
           <div class="overflow-hidden rounded-3xl border border-line/80 bg-white shadow-xl">
-            <div
-              class="relative group cursor-pointer overflow-hidden bg-ink/5"
-              @click="openArtwork(currentArtwork.src, currentArtwork.title)"
-            >
-              <img
-                :src="currentArtwork.src"
-                :alt="currentArtwork.title"
-                class="w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
-                :class="currentArtwork.id === 'banner' ? 'max-h-[620px]' : 'max-h-[720px] mx-auto object-contain bg-warm/30'"
-              />
-
-              <!-- Overlay Hover -->
-              <div class="absolute inset-0 bg-ink/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-xs">
-                <span class="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-bold text-ink shadow-lg">
-                  <Maximize2 :size="15" /> Clique para ampliar em tela cheia
-                </span>
-              </div>
+            <div class="bg-warm/30">
+              <img :src="banner.src" :alt="banner.alt" class="block h-auto w-full" />
             </div>
 
-            <!-- Rodapé do Card da Arte -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-t border-line/60 bg-white">
-              <div>
-                <div class="flex items-center gap-2.5">
-                  <h3 class="font-serif text-lg font-bold text-ink">{{ currentArtwork.title }}</h3>
-                  <span class="rounded-full bg-magenta/10 px-2.5 py-0.5 font-mono text-[10px] font-bold text-magenta">
-                    {{ currentArtwork.badge }}
-                  </span>
-                </div>
-                <p class="mt-1 text-xs text-ink-soft">{{ currentArtwork.desc }}</p>
+            <!-- Rodapé: texto de campanha + compra do ingresso -->
+            <div class="flex flex-col gap-5 border-t border-line/60 bg-white p-6 md:flex-row md:items-center md:justify-between md:gap-8 md:p-8">
+              <div class="max-w-2xl">
+                <p class="font-mono text-[10px] font-bold uppercase tracking-wider text-magenta">
+                  {{ nextDateLabel }}<template v-if="spotsLabel"> · {{ spotsLabel }}</template>
+                </p>
+                <h3 class="mt-1.5 font-serif text-xl font-bold leading-snug text-ink md:text-2xl">{{ banner.headline }}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-ink-soft">{{ banner.text }}</p>
               </div>
 
-              <div class="flex items-center gap-3 shrink-0">
-                <button
-                  class="inline-flex items-center gap-1.5 rounded-full border border-line bg-warm/50 px-4 py-2 text-xs font-semibold text-ink transition-colors hover:bg-white hover:border-ink"
-                  @click="openArtwork(currentArtwork.src, currentArtwork.title)"
-                >
-                  <Eye :size="14" /> Visualizar
-                </button>
-                <a
-                  :href="currentArtwork.downloadSrc"
-                  :download="currentArtwork.fileName"
-                  class="button-magenta px-4 py-2 text-xs font-bold"
-                >
-                  <Download :size="14" /> Baixar em Alta Resolução
-                </a>
-              </div>
+              <button class="button-magenta shrink-0 justify-center px-4! text-center text-sm sm:px-[1.6rem]! sm:whitespace-nowrap sm:text-base" @click="router.push('/comprar')">
+                <Ticket :size="18" class="hidden shrink-0 sm:block" />
+                <template v-if="isFree">Garantir inscrição gratuita</template>
+                <template v-else>Comprar ingresso<template v-if="activeProduct"> · {{ formattedPrice }}</template></template>
+              </button>
             </div>
           </div>
         </div>
@@ -527,16 +439,12 @@ function openArtwork(src: string, title: string) {
 
               <div class="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-5">
                 <span class="font-serif text-2xl font-black text-ink">{{ formatBRL(p.priceCents) }}</span>
-                <button class="button-magenta px-5 py-2.5 text-xs font-bold shrink-0" @click="router.push('/comprar')">
+                <button class="button-magenta px-5! py-2.5! text-xs font-bold shrink-0" @click="router.push('/comprar')">
                   Garantir <ArrowRight :size="14" />
                 </button>
               </div>
             </div>
           </div>
-
-          <p class="mt-8 text-xs italic font-medium text-ink-soft">
-            <template v-if="spotsLabel">{{ spotsLabel }} · </template>{{ isFree ? "Inscrição gratuita." : "Pagamento via Pix." }}
-          </p>
         </div>
       </section>
 
@@ -572,51 +480,6 @@ function openArtwork(src: string, title: string) {
           </a>
         </div>
       </footer>
-
-      <!-- LIGHTBOX MODAL DE ARTE DO EVENTO -->
-      <Teleport to="body">
-        <Transition
-          enter-active-class="transition duration-200 ease-out"
-          enter-from-class="opacity-0"
-          enter-to-class="opacity-100"
-          leave-active-class="transition duration-150 ease-in"
-          leave-from-class="opacity-100"
-          leave-to-class="opacity-0"
-        >
-          <div
-            v-if="isLightboxOpen"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 sm:p-6 backdrop-blur-md"
-            @click.self="isLightboxOpen = false"
-          >
-            <div class="relative max-h-[92vh] max-w-5xl w-full flex flex-col items-center">
-              <button
-                class="absolute -top-12 right-0 flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors"
-                @click="isLightboxOpen = false"
-                aria-label="Fechar modal"
-              >
-                <X :size="16" /> Fechar
-              </button>
-
-              <img
-                :src="lightboxSrc"
-                :alt="lightboxTitle"
-                class="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
-              />
-
-              <div class="mt-4 flex flex-wrap items-center justify-between gap-3 w-full text-white/80 text-xs px-2">
-                <span class="font-medium">{{ lightboxTitle }}</span>
-                <a
-                  :href="lightboxSrc"
-                  download
-                  class="inline-flex items-center gap-1.5 rounded-full bg-magenta px-4 py-1.5 text-xs font-bold text-white hover:bg-magenta/90 shadow-sm"
-                >
-                  <Download :size="14" /> Baixar Imagem HD
-                </a>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
     </main>
   </div>
 </template>
