@@ -94,6 +94,12 @@ const schedule = computed(() => parseEventLines(event.value?.schedule ?? ""));
 const descriptionParagraphs = computed(() =>
   (event.value?.description ?? "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
 );
+const headlineSizeClass = computed(() => {
+  const len = (event.value?.headline || event.value?.name || "").trim().length;
+  if (len > 42) return "text-3xl sm:text-4xl lg:text-[2.75rem] leading-[1.1]";
+  if (len > 26) return "text-4xl lg:text-5xl leading-[1.08]";
+  return "text-4xl md:text-6xl leading-[1.05]";
+});
 const rulesParagraphs = computed(() =>
   (event.value?.rulesText ?? "").split(/\r?\n/).map((p) => p.trim()).filter(Boolean),
 );
@@ -188,25 +194,25 @@ async function submitRegistration() {
 
     <main v-else-if="!event.isDefault">
       <!-- HERO -->
-      <section class="relative overflow-hidden pt-4 pb-16 md:py-20">
+      <section class="relative overflow-hidden pt-6 pb-16 md:py-14">
         <div class="hero-orb hero-orb--blue"></div>
         <div class="hero-orb hero-orb--cream"></div>
 
-        <div class="relative z-10 mx-auto grid max-w-6xl gap-12 px-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+        <div class="relative z-10 mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-[1.15fr_0.85fr] md:items-center">
           <div>
-            <p class="eyebrow mb-6 flex flex-wrap items-center gap-2 text-xs tracking-wider">
+            <p class="eyebrow mb-4 flex flex-wrap items-center gap-2 text-xs tracking-wider">
               <Compass :size="14" class="text-magenta" />
               <span>P5 KITE HOUSE</span>
               <span class="text-ink-soft/40">·</span>
               <span class="uppercase">{{ event.name }}</span>
             </p>
 
-            <h1 class="font-serif text-4xl font-black leading-[1.05] text-ink md:text-6xl">
+            <h1 :class="['font-serif font-black text-ink', headlineSizeClass]">
               {{ event.headline || event.name }}
             </h1>
-            <p v-if="event.subtitle" class="mt-4 font-serif text-xl font-semibold text-magenta md:text-2xl">{{ event.subtitle }}</p>
+            <p v-if="event.subtitle" class="mt-3 font-serif text-lg font-semibold text-magenta md:text-xl">{{ event.subtitle }}</p>
 
-            <p v-if="descriptionParagraphs.length" class="mt-6 max-w-md text-base leading-relaxed text-ink-soft md:text-lg">
+            <p v-if="descriptionParagraphs.length" class="mt-5 max-w-xl text-base leading-relaxed text-ink-soft md:text-[17px]">
               <strong v-if="dateLabel" class="font-semibold text-ink">{{ dateLabel }} · </strong>{{ descriptionParagraphs[0] }}
             </p>
 
