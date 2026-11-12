@@ -72,7 +72,7 @@ function handleLogout() {
       </RouterLink>
 
       <!-- O menu só aparece quando cabe inteiro numa linha (xl); abaixo disso o header fica com logo + acesso + CTA. -->
-      <nav class="hidden items-center gap-6 xl:flex" aria-label="Navegação principal">
+      <nav class="hidden items-center gap-5 xl:flex" aria-label="Navegação principal">
         <button
           v-for="item in (isEventMode ? eventNavItems : navItems)"
           :key="item.label"
@@ -95,8 +95,7 @@ function handleLogout() {
           </button>
         </template>
         <template v-else>
-          <!-- No desktop o menu ocupa esse espaço; o acesso da equipe segue no rodapé ("Acesso equipe"). -->
-          <button class="hidden whitespace-nowrap text-sm font-medium text-ink-soft hover:text-ink md:block xl:hidden" @click="router.push('/acesso-admin')">
+          <button class="hidden whitespace-nowrap text-sm font-medium text-ink-soft hover:text-ink md:block" @click="router.push('/acesso-admin')">
             Equipe
           </button>
           <button class="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white/60 px-2.5 py-2 text-xs font-semibold text-ink transition-colors hover:border-ink sm:gap-2 sm:px-4 sm:text-sm" @click="router.push('/entrar')" aria-label="Portal do aluno">
