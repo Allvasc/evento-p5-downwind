@@ -16,14 +16,16 @@ func NewCatalogRepository(pool *pgxpool.Pool) *CatalogRepository {
 	return &CatalogRepository{pool: pool}
 }
 
-// ListPublicProducts returns all active products, ordered for display, each with its
-// linked activities (a combo can grant access to more than one activity).
+// GetProductByID returns an active product of a published event, with its linked
+// activities (a combo can grant access to more than one activity).
 func (r *CatalogRepository) GetProductByID(ctx context.Context, id string) (*product.Product, error) {
 	var p product.Product
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, title, slug, COALESCE(description, ''), type, includes_breakfast, price_cents, featured, choose_one_activity
-		FROM products WHERE id = $1 AND active = true
-	`, id).Scan(&p.ID, &p.Title, &p.Slug, &p.Description, &p.Type, &p.IncludesBreakfast, &p.PriceCents, &p.Featured, &p.ChooseOneActivity)
+		SELECT id, title, slug, COALESCE(description, ''), type, includes_breakfast, price_cents, featured, choose_one_activity, event_id
+		FROM products
+		WHERE id = $1 AND active = true
+		  AND EXISTS (SELECT 1 FROM events ev WHERE ev.id = products.event_id AND ev.active = true)
+	`, id).Scan(&p.ID, &p.Title, &p.Slug, &p.Description, &p.Type, &p.IncludesBreakfast, &p.PriceCents, &p.Featured, &p.ChooseOneActivity, &p.EventID)
 	if err != nil {
 		return nil, err
 	}
@@ -50,13 +52,15 @@ func (r *CatalogRepository) GetProductByID(ctx context.Context, id string) (*pro
 	return &p, rows.Err()
 }
 
-func (r *CatalogRepository) ListPublicProducts(ctx context.Context) ([]product.Product, error) {
+// ListPublicProducts returns the active products of one event (see EventRepository.
+// ResolvePublic), ordered for display, each with its linked activities.
+func (r *CatalogRepository) ListPublicProducts(ctx context.Context, eventID string) ([]product.Product, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, title, slug, COALESCE(description, ''), type, includes_breakfast, price_cents, featured, choose_one_activity
+		SELECT id, title, slug, COALESCE(description, ''), type, includes_breakfast, price_cents, featured, choose_one_activity, event_id
 		FROM products
-		WHERE active = true
+		WHERE active = true AND event_id = $1
 		ORDER BY display_order ASC, created_at ASC
-	`)
+	`, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +70,7 @@ func (r *CatalogRepository) ListPublicProducts(ctx context.Context) ([]product.P
 	index := map[string]int{}
 	for rows.Next() {
 		var p product.Product
-		if err := rows.Scan(&p.ID, &p.Title, &p.Slug, &p.Description, &p.Type, &p.IncludesBreakfast, &p.PriceCents, &p.Featured, &p.ChooseOneActivity); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Slug, &p.Description, &p.Type, &p.IncludesBreakfast, &p.PriceCents, &p.Featured, &p.ChooseOneActivity, &p.EventID); err != nil {
 			return nil, err
 		}
 		p.Activities = []product.Activity{}

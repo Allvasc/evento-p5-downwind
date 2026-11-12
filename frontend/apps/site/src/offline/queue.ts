@@ -11,6 +11,8 @@ export interface PendingScan {
   token: string;
   clientScanId: string;
   deviceScannedAt: string;
+  /** Evento em que o terminal estava quando leu o QR — vale mesmo se sincronizar depois de trocar de evento. */
+  eventId?: string;
 }
 
 function openDB(): Promise<IDBDatabase> {

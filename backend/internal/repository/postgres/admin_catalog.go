@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,14 +28,16 @@ type AdminActivity struct {
 	VendorName      string `json:"vendorName"`
 }
 
-func (r *AdminCatalogRepository) ListActivities(ctx context.Context) ([]AdminActivity, error) {
+// ListActivities lists the activities of one event ("" = every event).
+func (r *AdminCatalogRepository) ListActivities(ctx context.Context, eventID string) ([]AdminActivity, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, COALESCE(a.instructor,''), COALESCE(a.duration_minutes,0), COALESCE(a.description,''), a.active,
 		       a.vendor_id, v.name
 		FROM activities a
 		JOIN vendors v ON v.id = a.vendor_id
+		WHERE ($1::uuid IS NULL OR a.event_id = $1::uuid)
 		ORDER BY a.display_order, a.created_at
-	`)
+	`, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -50,14 +54,14 @@ func (r *AdminCatalogRepository) ListActivities(ctx context.Context) ([]AdminAct
 	return list, rows.Err()
 }
 
-func (r *AdminCatalogRepository) CreateActivity(ctx context.Context, title, instructor string, durationMinutes int, description, vendorID string) (string, error) {
+func (r *AdminCatalogRepository) CreateActivity(ctx context.Context, eventID, title, instructor string, durationMinutes int, description, vendorID string) (string, error) {
 	slug := slugify(title)
 	var id string
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO activities (title, slug, instructor, duration_minutes, description, vendor_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO activities (title, slug, instructor, duration_minutes, description, vendor_id, event_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
-	`, title, slug, nullIfEmpty(instructor), nullIfZero(durationMinutes), nullIfEmpty(description), vendorID).Scan(&id)
+	`, title, slug, nullIfEmpty(instructor), nullIfZero(durationMinutes), nullIfEmpty(description), vendorID, eventID).Scan(&id)
 	return id, err
 }
 
@@ -89,11 +93,14 @@ type AdminProduct struct {
 	ActivityIDs       []string `json:"activityIds"`
 }
 
-func (r *AdminCatalogRepository) ListProducts(ctx context.Context) ([]AdminProduct, error) {
+// ListProducts lists the products of one event ("" = every event).
+func (r *AdminCatalogRepository) ListProducts(ctx context.Context, eventID string) ([]AdminProduct, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, title, slug, COALESCE(description,''), type, includes_breakfast, price_cents, featured, active, choose_one_activity
-		FROM products ORDER BY display_order, created_at
-	`)
+		FROM products
+		WHERE ($1::uuid IS NULL OR event_id = $1::uuid)
+		ORDER BY display_order, created_at
+	`, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +140,8 @@ func (r *AdminCatalogRepository) ListProducts(ctx context.Context) ([]AdminProdu
 }
 
 type CreateProductParams struct {
+	// EventID is only read by CreateProduct; an existing product never changes event.
+	EventID           string
 	Title             string
 	Description       string
 	Type              string
@@ -150,13 +159,17 @@ func (r *AdminCatalogRepository) CreateProduct(ctx context.Context, p CreateProd
 	}
 	defer tx.Rollback(ctx)
 
+	if err := ensureActivitiesInEvent(ctx, tx, p.EventID, p.ActivityIDs); err != nil {
+		return "", err
+	}
+
 	slug := slugify(p.Title)
 	var id string
 	err = tx.QueryRow(ctx, `
-		INSERT INTO products (title, slug, description, type, includes_breakfast, price_cents, featured, choose_one_activity)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO products (title, slug, description, type, includes_breakfast, price_cents, featured, choose_one_activity, event_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
-	`, p.Title, slug, nullIfEmpty(p.Description), p.Type, p.IncludesBreakfast, p.PriceCents, p.Featured, p.ChooseOneActivity).Scan(&id)
+	`, p.Title, slug, nullIfEmpty(p.Description), p.Type, p.IncludesBreakfast, p.PriceCents, p.Featured, p.ChooseOneActivity, p.EventID).Scan(&id)
 	if err != nil {
 		return "", err
 	}
@@ -184,6 +197,17 @@ func (r *AdminCatalogRepository) UpdateProduct(ctx context.Context, id string, p
 	}
 	defer tx.Rollback(ctx)
 
+	var productEventID string
+	if err := tx.QueryRow(ctx, `SELECT event_id FROM products WHERE id = $1`, id).Scan(&productEventID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if err := ensureActivitiesInEvent(ctx, tx, productEventID, p.ActivityIDs); err != nil {
+		return err
+	}
+
 	if _, err := tx.Exec(ctx, `
 		UPDATE products
 		SET title = $1, description = $2, type = $3, includes_breakfast = $4, price_cents = $5, featured = $6, choose_one_activity = $7, updated_at = now()
@@ -202,4 +226,22 @@ func (r *AdminCatalogRepository) UpdateProduct(ctx context.Context, id string, p
 	}
 
 	return tx.Commit(ctx)
+}
+
+// ensureActivitiesInEvent refuses linking a product to an activity of another event —
+// otherwise a ticket of event B could book a turma of event A.
+func ensureActivitiesInEvent(ctx context.Context, tx pgx.Tx, eventID string, activityIDs []string) error {
+	if len(activityIDs) == 0 {
+		return nil
+	}
+	var outside int
+	if err := tx.QueryRow(ctx, `
+		SELECT COUNT(*) FROM activities WHERE id = ANY($1::uuid[]) AND event_id <> $2
+	`, activityIDs, eventID).Scan(&outside); err != nil {
+		return err
+	}
+	if outside > 0 {
+		return ErrOtherEventActivity
+	}
+	return nil
 }

@@ -4,10 +4,16 @@ import { useRouter } from "vue-router";
 import { ScanLine, Video, VideoOff, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, LogOut, WifiOff, RefreshCw, X, LayoutDashboard, ListChecks, Search, Ticket, CreditCard } from "lucide-vue-next";
 import { api, ApiError } from "@/lib/teamApi";
 import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
+import { useTeamEventStore } from "@/stores/teamEvent";
+import EventSwitcher from "@/components/EventSwitcher.vue";
 import { enqueueScan, listPendingScans, removeScans, countPendingScans, type PendingScan } from "@/offline/queue";
 
 const router = useRouter();
 const authStore = useAuthStore();
+// O terminal trabalha em um evento por vez: só valida e lista ingressos do evento escolhido
+// (um QR de outro evento é recusado como "ingresso de outro evento").
+const eventStore = useTeamEventStore();
+const eventLoadError = ref("");
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const cameraOn = ref(false);
@@ -128,7 +134,12 @@ function stopCamera() {
 async function validate(token: string) {
   if (!token || validating.value) return;
   validating.value = true;
-  const scan: PendingScan = { token, clientScanId: crypto.randomUUID(), deviceScannedAt: new Date().toISOString() };
+  const scan: PendingScan = {
+    token,
+    clientScanId: crypto.randomUUID(),
+    deviceScannedAt: new Date().toISOString(),
+    eventId: eventStore.currentId ?? undefined,
+  };
   try {
     if (!isOnline.value) throw new Error("offline");
     const res = await api.post<Outcome>("/checkin/validate", scan);
@@ -287,9 +298,24 @@ async function validateByList(entitlementId: string) {
   }
 }
 
+async function onEventChanged() {
+  showBanner.value = false;
+  rosterGroups.value = [];
+  rosterFilter.value = "";
+  const previousDate = selectedDate.value;
+  await loadRosterDates();
+  // Mesmo dia nos dois eventos: o watch de selectedDate não dispara, então recarrega aqui.
+  if (selectedDate.value === previousDate) await loadRoster();
+}
+
 onMounted(async () => {
   window.addEventListener("online", handleOnline);
   window.addEventListener("offline", handleOffline);
+  try {
+    await eventStore.load();
+  } catch {
+    eventLoadError.value = "Não foi possível carregar os eventos. Verifique a conexão e recarregue a página.";
+  }
   await refreshPendingCount();
   if (isOnline.value) await syncPending();
   await loadRosterDates();
@@ -354,7 +380,7 @@ onBeforeUnmount(() => {
         :class="{
           'bg-[#1f8a3d]': lastResult.result === 'success',
           'bg-[#b8791a]': ['already_used', 'expired', 'queued'].includes(lastResult.result),
-          'bg-magenta': ['not_found', 'invalid_signature', 'wrong_sector', 'error'].includes(lastResult.result),
+          'bg-magenta': ['not_found', 'invalid_signature', 'wrong_sector', 'wrong_event', 'error'].includes(lastResult.result),
         }"
       >
         <div class="mx-auto flex max-w-5xl items-start justify-between gap-4">
@@ -386,6 +412,14 @@ onBeforeUnmount(() => {
           <template v-if="authStore.vendorName">Você valida somente benefícios do setor <strong class="text-ink">{{ authStore.vendorName }}</strong>.</template>
           <template v-else>Acesso de administrador: valida benefícios de qualquer setor.</template>
         </p>
+      </div>
+
+      <div class="mb-8 flex flex-col gap-3 rounded-[var(--radius-card)] border border-line border-l-4 border-l-magenta bg-white p-5 sm:flex-row sm:items-end sm:justify-between">
+        <EventSwitcher variant="light" class="w-full sm:max-w-sm" @changed="onEventChanged" />
+        <p v-if="eventStore.current" class="text-sm text-ink-soft sm:max-w-xs sm:text-right">
+          Este terminal valida somente ingressos de <strong class="text-ink">{{ eventStore.current.name }}</strong>.
+        </p>
+        <p v-if="eventLoadError" class="text-sm font-medium text-red-600">{{ eventLoadError }}</p>
       </div>
 
       <div class="grid gap-6 md:grid-cols-2">
@@ -433,7 +467,7 @@ onBeforeUnmount(() => {
           <div v-if="lastResult" class="mt-6 rounded-xl border p-4" :class="{
             'border-green-200 bg-[#e5f5e8]': lastResult.result === 'success',
             'border-amber-200 bg-[#fbefe2]': ['already_used', 'expired', 'queued'].includes(lastResult.result),
-            'border-red-200 bg-[#fde8f1]': ['not_found', 'invalid_signature', 'wrong_sector', 'error'].includes(lastResult.result),
+            'border-red-200 bg-[#fde8f1]': ['not_found', 'invalid_signature', 'wrong_sector', 'wrong_event', 'error'].includes(lastResult.result),
           }">
             <div class="flex items-center gap-2">
               <CheckCircle2 v-if="lastResult.result === 'success'" :size="20" class="text-[#237438]" />

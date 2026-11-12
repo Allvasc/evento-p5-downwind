@@ -13,6 +13,7 @@ import (
 var ErrVoucherNotFound = errors.New("voucher não encontrado")
 var ErrVoucherNotAvailable = errors.New("voucher já foi usado ou cancelado")
 var ErrVoucherHasRedemption = errors.New("voucher já foi resgatado, não é possível cancelar")
+var ErrVoucherOtherEvent = errors.New("voucher pertence a outro evento")
 
 type VoucherRepository struct {
 	pool *pgxpool.Pool
@@ -38,7 +39,7 @@ func generateVoucherCode() (string, error) {
 
 // Create makes a new voucher with a freshly generated code, retrying the rare random
 // collision instead of ever surfacing it to the caller.
-func (r *VoucherRepository) Create(ctx context.Context, name, companyName, createdBy string) (id, code string, err error) {
+func (r *VoucherRepository) Create(ctx context.Context, eventID, name, companyName, createdBy string) (id, code string, err error) {
 	for attempt := 0; attempt < 5; attempt++ {
 		candidate, genErr := generateVoucherCode()
 		if genErr != nil {
@@ -46,10 +47,10 @@ func (r *VoucherRepository) Create(ctx context.Context, name, companyName, creat
 		}
 		var newID string
 		err = r.pool.QueryRow(ctx, `
-			INSERT INTO vouchers (code, name, company_name, created_by)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO vouchers (code, name, company_name, created_by, event_id)
+			VALUES ($1, $2, $3, $4, $5)
 			RETURNING id
-		`, candidate, name, companyName, createdBy).Scan(&newID)
+		`, candidate, name, companyName, createdBy, eventID).Scan(&newID)
 		if err == nil {
 			return newID, candidate, nil
 		}
@@ -67,11 +68,12 @@ type CreatedVoucher struct {
 
 // CreateBatch makes `count` vouchers sharing the same name/company, each with its own
 // code — for handing a partner company a batch of courtesy codes at once instead of
-// creating them one by one. Every voucher is independently single-use.
-func (r *VoucherRepository) CreateBatch(ctx context.Context, name, companyName, createdBy string, count int) ([]CreatedVoucher, error) {
+// creating them one by one. Every voucher is independently single-use, and only redeems
+// products of eventID.
+func (r *VoucherRepository) CreateBatch(ctx context.Context, eventID, name, companyName, createdBy string, count int) ([]CreatedVoucher, error) {
 	created := make([]CreatedVoucher, 0, count)
 	for i := 0; i < count; i++ {
-		id, code, err := r.Create(ctx, name, companyName, createdBy)
+		id, code, err := r.Create(ctx, eventID, name, companyName, createdBy)
 		if err != nil {
 			return created, err
 		}
@@ -82,6 +84,7 @@ func (r *VoucherRepository) CreateBatch(ctx context.Context, name, companyName, 
 
 type VoucherRow struct {
 	ID                    string  `json:"id"`
+	EventID               string  `json:"eventId"`
 	Code                  string  `json:"code"`
 	Name                  string  `json:"name"`
 	CompanyName           string  `json:"companyName"`
@@ -106,9 +109,10 @@ type VoucherRow struct {
 	CreatedAt    string  `json:"createdAt"`
 }
 
-func (r *VoucherRepository) List(ctx context.Context) ([]VoucherRow, error) {
+// List returns the vouchers of one event ("" = every event).
+func (r *VoucherRepository) List(ctx context.Context, eventID string) ([]VoucherRow, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT v.id, v.code, v.name, v.company_name, v.status,
+		SELECT v.id, v.event_id, v.code, v.name, v.company_name, v.status,
 		       tm.name,
 		       COALESCE(s.full_name, ''),
 		       COALESCE(s.email, ''),
@@ -133,8 +137,9 @@ func (r *VoucherRepository) List(ctx context.Context) ([]VoucherRow, error) {
 		JOIN team_members tm ON tm.id = v.created_by
 		LEFT JOIN students s ON s.id = v.redeemed_by
 		LEFT JOIN orders o ON o.id = v.order_id
+		WHERE ($1::uuid IS NULL OR v.event_id = $1::uuid)
 		ORDER BY v.created_at DESC
-	`)
+	`, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +150,7 @@ func (r *VoucherRepository) List(ctx context.Context) ([]VoucherRow, error) {
 		var v VoucherRow
 		var sessionStartTime, entitlementUsedAt, activityDate, redeemedAt *string
 		if err := rows.Scan(
-			&v.ID, &v.Code, &v.Name, &v.CompanyName, &v.Status,
+			&v.ID, &v.EventID, &v.Code, &v.Name, &v.CompanyName, &v.Status,
 			&v.CreatedByName,
 			&v.RedeemedByName,
 			&v.StudentEmail,
@@ -202,10 +207,10 @@ func (r *VoucherRepository) Cancel(ctx context.Context, id string) error {
 func (r *VoucherRepository) FindAvailableByCode(ctx context.Context, code string) (*VoucherRow, error) {
 	var v VoucherRow
 	err := r.pool.QueryRow(ctx, `
-		SELECT v.id, v.code, v.name, v.company_name, v.status, tm.name, to_char(v.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
+		SELECT v.id, v.event_id, v.code, v.name, v.company_name, v.status, tm.name, to_char(v.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
 		FROM vouchers v JOIN team_members tm ON tm.id = v.created_by
 		WHERE v.code = $1
-	`, code).Scan(&v.ID, &v.Code, &v.Name, &v.CompanyName, &v.Status, &v.CreatedByName, &v.CreatedAt)
+	`, code).Scan(&v.ID, &v.EventID, &v.Code, &v.Name, &v.CompanyName, &v.Status, &v.CreatedByName, &v.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrVoucherNotFound
 	}
@@ -223,15 +228,18 @@ func (r *VoucherRepository) FindAvailableByCode(ctx context.Context, code string
 // trying the same code) gets ErrVoucherNotAvailable. Called before the order itself
 // exists so a voucher is never left half-claimed; Release below undoes this if anything
 // downstream (booking, payment recording) fails.
-func (r *VoucherRepository) Claim(ctx context.Context, code, studentID string) (voucherID string, err error) {
+//
+// productEventID is the event of the product being redeemed: a voucher only pays for
+// products of its own event (ErrVoucherOtherEvent otherwise, and nothing is claimed).
+func (r *VoucherRepository) Claim(ctx context.Context, code, studentID, productEventID string) (voucherID string, err error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
 
-	var id, status string
-	err = tx.QueryRow(ctx, `SELECT id, status FROM vouchers WHERE code = $1 FOR UPDATE`, code).Scan(&id, &status)
+	var id, status, eventID string
+	err = tx.QueryRow(ctx, `SELECT id, status, event_id FROM vouchers WHERE code = $1 FOR UPDATE`, code).Scan(&id, &status, &eventID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrVoucherNotFound
 	}
@@ -240,6 +248,9 @@ func (r *VoucherRepository) Claim(ctx context.Context, code, studentID string) (
 	}
 	if status != "available" {
 		return "", ErrVoucherNotAvailable
+	}
+	if eventID != productEventID {
+		return "", ErrVoucherOtherEvent
 	}
 
 	if _, err := tx.Exec(ctx, `

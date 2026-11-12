@@ -29,4 +29,7 @@ type Product struct {
 	// ou HYROX") instead of booking a session for every activity listed.
 	ChooseOneActivity bool       `json:"chooseOneActivity"`
 	Activities        []Activity `json:"activities"`
+	// EventID is the event the product is sold in — a voucher only redeems products of
+	// its own event, and an order is recorded under its product's event.
+	EventID string `json:"eventId"`
 }

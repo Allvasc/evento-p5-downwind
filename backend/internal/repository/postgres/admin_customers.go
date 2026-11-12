@@ -31,7 +31,9 @@ type AdminCustomerSummary struct {
 // exactly the redundancy data that was collected for this purpose. An empty query lists
 // every customer instead of filtering, so the admin panel can show the full base by
 // default rather than starting on a "type something to search" dead end.
-func (r *AdminCustomerRepository) Search(ctx context.Context, query string) ([]AdminCustomerSummary, error) {
+// The customer base is shared by every event (one account per person), but
+// OrdersCount only counts orders of eventID ("" = every event).
+func (r *AdminCustomerRepository) Search(ctx context.Context, query, eventID string) ([]AdminCustomerSummary, error) {
 	limit := 50
 	pattern := "%" + query + "%"
 	if query == "" {
@@ -39,14 +41,14 @@ func (r *AdminCustomerRepository) Search(ctx context.Context, query string) ([]A
 	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT s.id, s.full_name, s.email, COALESCE(s.phone, ''), COALESCE(s.cpf_last4, ''),
-		       COALESCE((SELECT COUNT(*) FROM orders o WHERE o.student_id = s.id), 0),
+		       COALESCE((SELECT COUNT(*) FROM orders o WHERE o.student_id = s.id AND ($4::uuid IS NULL OR o.event_id = $4::uuid)), 0),
 		       to_char(s.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
 		FROM students s
 		WHERE s.deleted_at IS NULL
 		  AND ($1 = '' OR s.full_name ILIKE $2 OR s.email ILIKE $2 OR s.phone ILIKE $2 OR s.cpf_last4 = $1)
 		ORDER BY s.created_at DESC
 		LIMIT $3
-	`, query, pattern, limit)
+	`, query, pattern, limit, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -84,14 +86,15 @@ type AdminCustomerOrder struct {
 	Tickets       []AdminOrderEntitlement `json:"tickets"`
 }
 
-func (r *AdminCustomerRepository) Detail(ctx context.Context, id string) (*AdminCustomerDetail, error) {
+// Detail shows the customer with their orders of eventID only ("" = every event).
+func (r *AdminCustomerRepository) Detail(ctx context.Context, id, eventID string) (*AdminCustomerDetail, error) {
 	var c AdminCustomerSummary
 	err := r.pool.QueryRow(ctx, `
 		SELECT s.id, s.full_name, s.email, COALESCE(s.phone, ''), COALESCE(s.cpf_last4, ''),
-		       COALESCE((SELECT COUNT(*) FROM orders o WHERE o.student_id = s.id), 0),
+		       COALESCE((SELECT COUNT(*) FROM orders o WHERE o.student_id = s.id AND ($2::uuid IS NULL OR o.event_id = $2::uuid)), 0),
 		       to_char(s.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
 		FROM students s WHERE s.id = $1 AND s.deleted_at IS NULL
-	`, id).Scan(&c.ID, &c.FullName, &c.Email, &c.Phone, &c.CPFLast4, &c.OrdersCount, &c.CreatedAt)
+	`, id, nullableEventID(eventID)).Scan(&c.ID, &c.FullName, &c.Email, &c.Phone, &c.CPFLast4, &c.OrdersCount, &c.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
@@ -99,7 +102,7 @@ func (r *AdminCustomerRepository) Detail(ctx context.Context, id string) (*Admin
 		return nil, err
 	}
 
-	orders, err := r.ordersWithTickets(ctx, id)
+	orders, err := r.ordersWithTickets(ctx, id, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +110,7 @@ func (r *AdminCustomerRepository) Detail(ctx context.Context, id string) (*Admin
 	return &AdminCustomerDetail{AdminCustomerSummary: c, Orders: orders}, nil
 }
 
-func (r *AdminCustomerRepository) ordersWithTickets(ctx context.Context, studentID string) ([]AdminCustomerOrder, error) {
+func (r *AdminCustomerRepository) ordersWithTickets(ctx context.Context, studentID, eventID string) ([]AdminCustomerOrder, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT o.id, o.order_number, o.status, o.total_cents, COALESCE(o.payment_method, ''),
 		       COALESCE((SELECT p.title FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = o.id LIMIT 1), ''),
@@ -115,8 +118,9 @@ func (r *AdminCustomerRepository) ordersWithTickets(ctx context.Context, student
 		       COALESCE(to_char(o.paid_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), '')
 		FROM orders o
 		WHERE o.student_id = $1
+		  AND ($2::uuid IS NULL OR o.event_id = $2::uuid)
 		ORDER BY o.created_at DESC
-	`, studentID)
+	`, studentID, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}

@@ -48,17 +48,17 @@ func (s *SMTPSender) Send(ctx context.Context, to, subject, template, body strin
 	return s.record(ctx, to, subject, template)
 }
 
-func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, tickets []TicketAttachment) error {
+func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, event EventInfo, tickets []TicketAttachment) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", to)
-	subject := "Seu ingresso P5 DownWind Day está confirmado"
+	subject := fmt.Sprintf("Seu ingresso %s está confirmado", event.DisplayName())
 	m.SetHeader("Subject", subject)
 
 	var html bytes.Buffer
 	html.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
 		<h1 style="color:#0a0f1a">Tudo certo, %s!</h1>
-		<p style="color:#57677e">Seu pedido <strong>%s</strong> foi confirmado. Apresente o QR Code na entrada — ele é a sua vaga garantida no P5 DownWind Day.</p>`, studentName, orderNumber))
+		<p style="color:#57677e">Seu pedido <strong>%s</strong> foi confirmado. Apresente o QR Code na entrada — ele é a sua vaga garantida no %s.</p>`, studentName, orderNumber, event.DisplayName()))
 
 	for i, t := range tickets {
 		cid := fmt.Sprintf("ticket%d", i)
@@ -85,17 +85,17 @@ func (s *SMTPSender) SendOrderConfirmation(ctx context.Context, to, studentName,
 	return s.record(ctx, to, subject, "order_confirmation")
 }
 
-func (s *SMTPSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, tickets []TicketAttachment) error {
+func (s *SMTPSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, event EventInfo, tickets []TicketAttachment) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", to)
-	subject := "Sua data no P5 DownWind Day foi alterada"
+	subject := fmt.Sprintf("Sua data no %s foi alterada", event.DisplayName())
 	m.SetHeader("Subject", subject)
 
 	var html bytes.Buffer
 	html.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
 		<h1 style="color:#0a0f1a">Nova data confirmada, %s!</h1>
-		<p style="color:#57677e">Seu pedido <strong>%s</strong> foi remarcado. Sua nova data é <strong>%s</strong>. Apresente o QR Code na entrada — ele é a sua vaga garantida no P5 DownWind Day.</p>`, studentName, orderNumber, formatBRDate(newDate)))
+		<p style="color:#57677e">Seu pedido <strong>%s</strong> foi remarcado. Sua nova data é <strong>%s</strong>. Apresente o QR Code na entrada — ele é a sua vaga garantida no %s.</p>`, studentName, orderNumber, formatBRDate(newDate), event.DisplayName()))
 
 	for i, t := range tickets {
 		cid := fmt.Sprintf("ticket%d", i)
@@ -122,22 +122,22 @@ func (s *SMTPSender) SendRescheduleNotice(ctx context.Context, to, studentName, 
 	return s.record(ctx, to, subject, "reschedule_notice")
 }
 
-func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string) error {
+func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string, event EventInfo) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.from)
 	m.SetHeader("To", to)
-	subject := "Bem-vindo(a) ao P5 DownWind Day"
+	subject := fmt.Sprintf("Bem-vindo(a) ao %s", event.DisplayName())
 	m.SetHeader("Subject", subject)
 
 	html := fmt.Sprintf(`<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
 		<p style="font-family:monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#0b63d6;margin-bottom:8px">P5 Kite House</p>
 		<h1 style="color:#0a0f1a;margin-top:0">Bem-vindo(a), %s!</h1>
-		<p style="color:#57677e;line-height:1.5">Seu cadastro foi criado com sucesso. Confira a próxima edição do P5 DownWind Day no site e garanta sua vaga.</p>
+		<p style="color:#57677e;line-height:1.5">Seu cadastro foi criado com sucesso. Confira a próxima edição do %s no site e garanta sua vaga.</p>
 		<p style="margin:28px 0">
-			<a href="%s/comprar" style="background:#0b63d6;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Garantir minha vaga</a>
+			<a href="%s%s" style="background:#0b63d6;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Garantir minha vaga</a>
 		</p>
 		<p style="color:#57677e;font-size:13px">Depois da compra, o QR Code do seu ingresso chega por e-mail e também fica disponível no seu <a href="%s/portal" style="color:#0b63d6">portal do aluno</a>.</p>
-	</div>`, fullName, s.publicSiteURL, s.publicSiteURL)
+	</div>`, fullName, event.DisplayName(), s.publicSiteURL, event.BuyPath(), s.publicSiteURL)
 	m.SetBody("text/html", html)
 
 	if err := s.dialer.DialAndSend(m); err != nil {

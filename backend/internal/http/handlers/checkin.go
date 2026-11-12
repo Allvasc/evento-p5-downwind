@@ -29,6 +29,10 @@ type validateRequest struct {
 	Token           string `json:"token"`
 	ClientScanID    string `json:"clientScanId"`
 	DeviceScannedAt string `json:"deviceScannedAt"`
+	// EventID is the event the terminal was set to when the scan was taken — offline scans
+	// are replayed later, possibly after the terminal switched events. "" = the request's
+	// own event header.
+	EventID string `json:"eventId"`
 }
 
 type validateResponse struct {
@@ -50,7 +54,16 @@ func (h *CheckinHandler) Validate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, h.validateOne(r.Context(), claims, req))
+	writeJSON(w, http.StatusOK, h.validateOne(r.Context(), claims, scanEvent(r, req.EventID), req))
+}
+
+// scanEvent is the event a scan is checked against: the one recorded with the scan, or
+// the terminal's current event header.
+func scanEvent(r *http.Request, recorded string) string {
+	if _, err := uuid.Parse(recorded); err == nil {
+		return recorded
+	}
+	return eventScope(r)
 }
 
 type batchValidateRequest struct {
@@ -86,21 +99,21 @@ func (h *CheckinHandler) ValidateBatch(w http.ResponseWriter, r *http.Request) {
 		}
 		results = append(results, batchValidateResult{
 			ClientScanID:     scan.ClientScanID,
-			validateResponse: h.validateOne(r.Context(), claims, scan),
+			validateResponse: h.validateOne(r.Context(), claims, scanEvent(r, scan.EventID), scan),
 		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
 }
 
-func (h *CheckinHandler) validateOne(ctx context.Context, claims *auth.Claims, req validateRequest) validateResponse {
+func (h *CheckinHandler) validateOne(ctx context.Context, claims *auth.Claims, eventID string, req validateRequest) validateResponse {
 	if _, ok := qrcode.Verify(req.Token, h.qrSecret); !ok {
 		return validateResponse{Result: "invalid_signature", Message: "Código não reconhecido."}
 	}
 
 	clientScanID, scannedAt := scanMeta(req.ClientScanID, req.DeviceScannedAt)
 
-	ticket, err := h.checkin.ValidateToken(ctx, req.Token, claims.VendorID, claims.UserID(), clientScanID, scannedAt)
+	ticket, err := h.checkin.ValidateTokenForEvent(ctx, req.Token, eventID, claims.VendorID, claims.UserID(), clientScanID, scannedAt)
 	if err != nil {
 		h.log.Error("validate token", "error", err)
 		return validateResponse{Result: "error", Message: "não foi possível validar agora"}
@@ -126,10 +139,14 @@ func ticketResponse(ticket *postgres.ValidatedTicket) validateResponse {
 	if ticket.UsedAt != nil {
 		usedAt = ticket.UsedAt.Format(time.RFC3339)
 	}
+	message := messageFor(ticket.Result)
+	if ticket.Result == postgres.ResultWrongEvent && ticket.EventName != "" {
+		message = "Este ingresso é do evento \"" + ticket.EventName + "\" — não pode ser validado neste evento."
+	}
 	return validateResponse{
 		Result: string(ticket.Result), Label: ticket.Label, VendorName: ticket.VendorName,
 		StudentName: ticket.StudentName, OrderNumber: ticket.OrderNumber, UsedAt: usedAt,
-		Message: messageFor(ticket.Result),
+		Message: message,
 	}
 }
 
@@ -153,7 +170,7 @@ func (h *CheckinHandler) ValidateByID(w http.ResponseWriter, r *http.Request) {
 
 	clientScanID, scannedAt := scanMeta(req.ClientScanID, req.DeviceScannedAt)
 
-	ticket, err := h.checkin.ValidateByID(r.Context(), req.EntitlementID, claims.VendorID, claims.UserID(), clientScanID, scannedAt)
+	ticket, err := h.checkin.ValidateByIDForEvent(r.Context(), req.EntitlementID, eventScope(r), claims.VendorID, claims.UserID(), clientScanID, scannedAt)
 	if err != nil {
 		h.log.Error("validate by id", "error", err)
 		writeJSON(w, http.StatusOK, validateResponse{Result: "error", Message: "não foi possível validar agora"})
@@ -174,7 +191,7 @@ func (h *CheckinHandler) Roster(w http.ResponseWriter, r *http.Request) {
 		date = postgres.TodayInEventTZ()
 	}
 
-	groups, err := h.checkin.ListRoster(r.Context(), claims.VendorID, date)
+	groups, err := h.checkin.ListRoster(r.Context(), claims.VendorID, date, eventScope(r))
 	if err != nil {
 		h.log.Error("list roster", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar a lista")
@@ -188,7 +205,7 @@ func (h *CheckinHandler) Roster(w http.ResponseWriter, r *http.Request) {
 func (h *CheckinHandler) RosterDates(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromContext(r.Context())
 
-	dates, err := h.checkin.ListRosterDates(r.Context(), claims.VendorID)
+	dates, err := h.checkin.ListRosterDates(r.Context(), claims.VendorID, eventScope(r))
 	if err != nil {
 		h.log.Error("list roster dates", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar as datas")
@@ -209,6 +226,8 @@ func messageFor(r postgres.ValidationResult) string {
 		return "QR Code não encontrado."
 	case postgres.ResultWrongSector:
 		return "Este QR Code pertence a outro setor — não pode ser validado por aqui."
+	case postgres.ResultWrongEvent:
+		return "Este ingresso é de outro evento — não pode ser validado neste evento."
 	default:
 		return "Não foi possível validar."
 	}

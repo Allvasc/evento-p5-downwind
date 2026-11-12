@@ -60,12 +60,15 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, studentID string, p p
 		return nil, err
 	}
 
+	// The order is recorded under its product's event, read straight from the products
+	// table so it can never disagree with the product (reports, check-in and vouchers
+	// all separate events by orders.event_id).
 	var orderID string
 	err = tx.QueryRow(ctx, `
-		INSERT INTO orders (order_number, student_id, status, total_cents)
-		VALUES ($1, $2, 'pending', $3)
+		INSERT INTO orders (order_number, student_id, status, total_cents, event_id)
+		VALUES ($1, $2, 'pending', $3, (SELECT event_id FROM products WHERE id = $4))
 		RETURNING id
-	`, orderNumber, studentID, p.PriceCents).Scan(&orderID)
+	`, orderNumber, studentID, p.PriceCents, p.ID).Scan(&orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +175,10 @@ type PaidOrderResult struct {
 	StudentName  string
 	Entitlements []IssuedEntitlement
 	AlreadyPaid  bool
+	// EventName/EventSlug name the order's event in its e-mails — both empty for the
+	// main event, whose e-mails keep their original copy.
+	EventName string
+	EventSlug string
 }
 
 // MarkPaidAndIssueEntitlements transitions a pending order to paid and issues one
@@ -321,10 +328,33 @@ func (r *OrderRepository) MarkPaidAndIssueEntitlements(ctx context.Context, orde
 		return nil, err
 	}
 
-	return &PaidOrderResult{
+	result := &PaidOrderResult{
 		OrderID: orderID, OrderNumber: orderNumber, StudentID: studentID,
 		StudentEmail: studentEmail, StudentName: studentName, Entitlements: issued,
-	}, nil
+	}
+	// Read after the commit and best-effort: the event only changes the e-mail copy, so
+	// it must never be able to fail the payment confirmation itself.
+	result.EventName, result.EventSlug = r.orderEventLabel(ctx, orderID)
+	return result, nil
+}
+
+// orderEventLabel returns the name and slug of an order's event, or "" for both when it
+// is the main event (or the lookup fails) — the e-mails then keep their original copy.
+func (r *OrderRepository) orderEventLabel(ctx context.Context, orderID string) (name, slug string) {
+	_ = r.pool.QueryRow(ctx, `
+		SELECT CASE WHEN ev.is_default THEN '' ELSE ev.name END,
+		       CASE WHEN ev.is_default THEN '' ELSE ev.slug END
+		FROM orders o JOIN events ev ON ev.id = o.event_id
+		WHERE o.id = $1
+	`, orderID).Scan(&name, &slug)
+	return name, slug
+}
+
+// EventSlugForOrder is "" for the main event, or the slug of the event's page — the
+// payment page uses it to send "gerar novo Pix" back to the right event.
+func (r *OrderRepository) EventSlugForOrder(ctx context.Context, orderID string) string {
+	_, slug := r.orderEventLabel(ctx, orderID)
+	return slug
 }
 
 // MarkFailed transitions a pending order straight to failed — used when creating the
@@ -505,10 +535,12 @@ func (r *OrderRepository) GetPaidOrderDetail(ctx context.Context, orderID string
 		}
 	}
 
-	return &PaidOrderResult{
+	result := &PaidOrderResult{
 		OrderID: orderID, OrderNumber: orderNumber, StudentID: studentID,
 		StudentEmail: studentEmail, StudentName: studentName, Entitlements: entitlements,
-	}, nil
+	}
+	result.EventName, result.EventSlug = r.orderEventLabel(ctx, orderID)
+	return result, nil
 }
 
 // RefundOrder flips a paid order to refunded and cancels every entitlement that hasn't

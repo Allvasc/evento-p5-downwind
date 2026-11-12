@@ -16,15 +16,16 @@ import (
 
 type AdminVouchersHandler struct {
 	vouchers *postgres.VoucherRepository
+	events   *postgres.EventRepository
 	log      *slog.Logger
 }
 
-func NewAdminVouchersHandler(vouchers *postgres.VoucherRepository, log *slog.Logger) *AdminVouchersHandler {
-	return &AdminVouchersHandler{vouchers: vouchers, log: log}
+func NewAdminVouchersHandler(vouchers *postgres.VoucherRepository, events *postgres.EventRepository, log *slog.Logger) *AdminVouchersHandler {
+	return &AdminVouchersHandler{vouchers: vouchers, events: events, log: log}
 }
 
 func (h *AdminVouchersHandler) List(w http.ResponseWriter, r *http.Request) {
-	list, err := h.vouchers.List(r.Context())
+	list, err := h.vouchers.List(r.Context(), eventScope(r))
 	if err != nil {
 		h.log.Error("list vouchers", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar os vouchers")
@@ -62,7 +63,7 @@ func (h *AdminVouchersHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.vouchers.CreateBatch(r.Context(), strings.TrimSpace(req.Name), strings.TrimSpace(req.CompanyName), claims.UserID(), count)
+	created, err := h.vouchers.CreateBatch(r.Context(), eventForWrite(r), strings.TrimSpace(req.Name), strings.TrimSpace(req.CompanyName), claims.UserID(), count)
 	if err != nil {
 		h.log.Error("create voucher batch", "error", err, "createdSoFar", len(created))
 		if len(created) == 0 {
@@ -79,6 +80,9 @@ func (h *AdminVouchersHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminVouchersHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !guardEvent(w, r, h.events.EventIDForVoucher, id) {
+		return
+	}
 	if err := h.vouchers.Cancel(r.Context(), id); err != nil {
 		switch {
 		case errors.Is(err, postgres.ErrVoucherNotFound):

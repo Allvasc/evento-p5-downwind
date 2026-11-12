@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -14,15 +15,37 @@ import (
 type PublicCatalogHandler struct {
 	catalog  *postgres.CatalogRepository
 	sessions *postgres.SessionRepository
+	events   *postgres.EventRepository
 	log      *slog.Logger
 }
 
-func NewPublicCatalogHandler(catalog *postgres.CatalogRepository, sessions *postgres.SessionRepository, log *slog.Logger) *PublicCatalogHandler {
-	return &PublicCatalogHandler{catalog: catalog, sessions: sessions, log: log}
+func NewPublicCatalogHandler(catalog *postgres.CatalogRepository, sessions *postgres.SessionRepository, events *postgres.EventRepository, log *slog.Logger) *PublicCatalogHandler {
+	return &PublicCatalogHandler{catalog: catalog, sessions: sessions, events: events, log: log}
+}
+
+// publicEvent resolves ?event=<slug>: no slug is the main event ("/" and "/comprar"
+// never send one), an unknown or unpublished slug is a 404. It writes the error itself
+// and returns ok=false when the request must stop.
+func (h *PublicCatalogHandler) publicEvent(w http.ResponseWriter, r *http.Request) (string, bool) {
+	eventID, err := h.events.ResolvePublic(r.Context(), r.URL.Query().Get("event"))
+	if errors.Is(err, postgres.ErrNotFound) {
+		writeJSONError(w, http.StatusNotFound, "evento não encontrado")
+		return "", false
+	}
+	if err != nil {
+		h.log.Error("resolve public event", "error", err)
+		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o evento")
+		return "", false
+	}
+	return eventID, true
 }
 
 func (h *PublicCatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
-	products, err := h.catalog.ListPublicProducts(r.Context())
+	eventID, ok := h.publicEvent(w, r)
+	if !ok {
+		return
+	}
+	products, err := h.catalog.ListPublicProducts(r.Context(), eventID)
 	if err != nil {
 		h.log.Error("list public products", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o catálogo")
@@ -48,7 +71,11 @@ func (h *PublicCatalogHandler) ListActivitySessions(w http.ResponseWriter, r *ht
 // date for each active activity, so a visitor knows when the next event is without
 // picking a product first.
 func (h *PublicCatalogHandler) NextSessions(w http.ResponseWriter, r *http.Request) {
-	sessions, err := h.sessions.NextPerActivity(r.Context())
+	eventID, ok := h.publicEvent(w, r)
+	if !ok {
+		return
+	}
+	sessions, err := h.sessions.NextPerActivity(r.Context(), eventID)
 	if err != nil {
 		h.log.Error("list next sessions", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar as próximas datas")

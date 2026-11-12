@@ -34,15 +34,15 @@ func (m *memoryMailer) Send(ctx context.Context, to, subject, template, body str
 	return nil
 }
 
-func (m *memoryMailer) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, tickets []mailer.TicketAttachment) error {
+func (m *memoryMailer) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, event mailer.EventInfo, tickets []mailer.TicketAttachment) error {
 	return nil
 }
 
-func (m *memoryMailer) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, tickets []mailer.TicketAttachment) error {
+func (m *memoryMailer) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, event mailer.EventInfo, tickets []mailer.TicketAttachment) error {
 	return nil
 }
 
-func (m *memoryMailer) SendWelcome(ctx context.Context, to, fullName string) error {
+func (m *memoryMailer) SendWelcome(ctx context.Context, to, fullName string, event mailer.EventInfo) error {
 	return nil
 }
 

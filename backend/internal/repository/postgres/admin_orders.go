@@ -19,6 +19,7 @@ func NewAdminOrderRepository(pool *pgxpool.Pool) *AdminOrderRepository {
 
 type AdminOrderSummary struct {
 	ID           string `json:"id"`
+	EventName    string `json:"eventName"`
 	OrderNumber  string `json:"orderNumber"`
 	Status       string `json:"status"`
 	TotalCents   int    `json:"totalCents"`
@@ -30,19 +31,23 @@ type AdminOrderSummary struct {
 // List is the "cliente diz que pagou, cadê o pedido" lookup for staff: filter by status,
 // free-text search across order number/student name/e-mail, and/or a date range bounding
 // o.created_at (when the order itself was placed).
-func (r *AdminOrderRepository) List(ctx context.Context, status, search string, from, to *time.Time) ([]AdminOrderSummary, error) {
+// eventID scopes the list to one event's orders ("" = every event).
+func (r *AdminOrderRepository) List(ctx context.Context, eventID, status, search string, from, to *time.Time) ([]AdminOrderSummary, error) {
 	query := `
-		SELECT o.id, o.order_number, o.status, o.total_cents, s.full_name, s.email,
+		SELECT o.id, ev.name, o.order_number, o.status, o.total_cents, s.full_name, s.email,
 		       to_char(o.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ')
-		FROM orders o JOIN students s ON s.id = o.student_id
+		FROM orders o
+		JOIN students s ON s.id = o.student_id
+		JOIN events ev ON ev.id = o.event_id
 		WHERE ($1 = '' OR o.status = $1)
+		  AND ($6::uuid IS NULL OR o.event_id = $6::uuid)
 		  AND ($2 = '' OR o.order_number ILIKE $3 OR s.full_name ILIKE $3 OR s.email ILIKE $3)
 		  AND ($4::timestamptz IS NULL OR o.created_at >= $4)
 		  AND ($5::timestamptz IS NULL OR o.created_at < $5::timestamptz + INTERVAL '1 day')
 		ORDER BY o.created_at DESC
 		LIMIT 100
 	`
-	rows, err := r.pool.Query(ctx, query, status, search, "%"+strings.TrimSpace(search)+"%", from, to)
+	rows, err := r.pool.Query(ctx, query, status, search, "%"+strings.TrimSpace(search)+"%", from, to, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +56,7 @@ func (r *AdminOrderRepository) List(ctx context.Context, status, search string, 
 	list := make([]AdminOrderSummary, 0)
 	for rows.Next() {
 		var o AdminOrderSummary
-		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.Status, &o.TotalCents, &o.StudentName, &o.StudentEmail, &o.CreatedAt); err != nil {
+		if err := rows.Scan(&o.ID, &o.EventName, &o.OrderNumber, &o.Status, &o.TotalCents, &o.StudentName, &o.StudentEmail, &o.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, o)
@@ -98,11 +103,13 @@ type AdminOrderDetail struct {
 func (r *AdminOrderRepository) Detail(ctx context.Context, orderID string) (*AdminOrderDetail, error) {
 	var d AdminOrderDetail
 	err := r.pool.QueryRow(ctx, `
-		SELECT o.id, o.order_number, o.status, o.total_cents, s.full_name, s.email,
+		SELECT o.id, ev.name, o.order_number, o.status, o.total_cents, s.full_name, s.email,
 		       to_char(o.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), COALESCE(o.asaas_payment_id, '')
-		FROM orders o JOIN students s ON s.id = o.student_id
+		FROM orders o
+		JOIN students s ON s.id = o.student_id
+		JOIN events ev ON ev.id = o.event_id
 		WHERE o.id = $1
-	`, orderID).Scan(&d.ID, &d.OrderNumber, &d.Status, &d.TotalCents, &d.StudentName, &d.StudentEmail, &d.CreatedAt, &d.AsaasPaymentID)
+	`, orderID).Scan(&d.ID, &d.EventName, &d.OrderNumber, &d.Status, &d.TotalCents, &d.StudentName, &d.StudentEmail, &d.CreatedAt, &d.AsaasPaymentID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound

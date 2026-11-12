@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -13,11 +14,12 @@ import (
 type AdminCatalogHandler struct {
 	repo    *postgres.AdminCatalogRepository
 	vendors *postgres.VendorRepository
+	events  *postgres.EventRepository
 	log     *slog.Logger
 }
 
-func NewAdminCatalogHandler(repo *postgres.AdminCatalogRepository, vendors *postgres.VendorRepository, log *slog.Logger) *AdminCatalogHandler {
-	return &AdminCatalogHandler{repo: repo, vendors: vendors, log: log}
+func NewAdminCatalogHandler(repo *postgres.AdminCatalogRepository, vendors *postgres.VendorRepository, events *postgres.EventRepository, log *slog.Logger) *AdminCatalogHandler {
+	return &AdminCatalogHandler{repo: repo, vendors: vendors, events: events, log: log}
 }
 
 func (h *AdminCatalogHandler) ListVendors(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +35,7 @@ func (h *AdminCatalogHandler) ListVendors(w http.ResponseWriter, r *http.Request
 // ── Activities ──────────────────────────────────────────────────────────────
 
 func (h *AdminCatalogHandler) ListActivities(w http.ResponseWriter, r *http.Request) {
-	activities, err := h.repo.ListActivities(r.Context())
+	activities, err := h.repo.ListActivities(r.Context(), eventScope(r))
 	if err != nil {
 		h.log.Error("list activities", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar as atividades")
@@ -60,7 +62,7 @@ func (h *AdminCatalogHandler) CreateActivity(w http.ResponseWriter, r *http.Requ
 		writeJSONError(w, http.StatusBadRequest, "selecione o setor responsável pela atividade")
 		return
 	}
-	id, err := h.repo.CreateActivity(r.Context(), req.Title, req.Instructor, req.DurationMinutes, req.Description, req.VendorID)
+	id, err := h.repo.CreateActivity(r.Context(), eventForWrite(r), req.Title, req.Instructor, req.DurationMinutes, req.Description, req.VendorID)
 	if err != nil {
 		h.log.Error("create activity", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível criar a atividade")
@@ -80,6 +82,9 @@ func (h *AdminCatalogHandler) UpdateActivity(w http.ResponseWriter, r *http.Requ
 		writeJSONError(w, http.StatusBadRequest, "selecione o setor responsável pela atividade")
 		return
 	}
+	if !guardEvent(w, r, h.events.EventIDForActivity, id) {
+		return
+	}
 	if err := h.repo.UpdateActivity(r.Context(), id, req.Title, req.Instructor, req.DurationMinutes, req.Description, req.VendorID); err != nil {
 		h.log.Error("update activity", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível salvar a atividade")
@@ -97,6 +102,9 @@ func (h *AdminCatalogHandler) SetActivityActive(w http.ResponseWriter, r *http.R
 		writeJSONError(w, http.StatusBadRequest, "corpo inválido")
 		return
 	}
+	if !guardEvent(w, r, h.events.EventIDForActivity, id) {
+		return
+	}
 	if err := h.repo.SetActivityActive(r.Context(), id, body.Active); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível atualizar")
 		return
@@ -107,7 +115,7 @@ func (h *AdminCatalogHandler) SetActivityActive(w http.ResponseWriter, r *http.R
 // ── Products ────────────────────────────────────────────────────────────────
 
 func (h *AdminCatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
-	products, err := h.repo.ListProducts(r.Context())
+	products, err := h.repo.ListProducts(r.Context(), eventScope(r))
 	if err != nil {
 		h.log.Error("list products", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar os produtos")
@@ -149,10 +157,15 @@ func (h *AdminCatalogHandler) CreateProduct(w http.ResponseWriter, r *http.Reque
 	}
 
 	id, err := h.repo.CreateProduct(r.Context(), postgres.CreateProductParams{
-		Title: req.Title, Description: req.Description, Type: req.Type,
+		EventID: eventForWrite(r),
+		Title:   req.Title, Description: req.Description, Type: req.Type,
 		IncludesBreakfast: req.IncludesBreakfast, PriceCents: req.PriceCents,
 		Featured: req.Featured, ChooseOneActivity: req.ChooseOneActivity, ActivityIDs: req.ActivityIDs,
 	})
+	if errors.Is(err, postgres.ErrOtherEventActivity) {
+		writeJSONError(w, http.StatusConflict, "uma das atividades marcadas pertence a outro evento")
+		return
+	}
 	if err != nil {
 		h.log.Error("create product", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível publicar o produto")
@@ -180,11 +193,22 @@ func (h *AdminCatalogHandler) UpdateProduct(w http.ResponseWriter, r *http.Reque
 		writeJSONError(w, http.StatusBadRequest, "\"escolher uma atividade\" exige pelo menos 2 atividades vinculadas")
 		return
 	}
+	if !guardEvent(w, r, h.events.EventIDForProduct, id) {
+		return
+	}
 	err := h.repo.UpdateProduct(r.Context(), id, postgres.CreateProductParams{
 		Title: req.Title, Description: req.Description, Type: req.Type,
 		IncludesBreakfast: req.IncludesBreakfast, PriceCents: req.PriceCents,
 		Featured: req.Featured, ChooseOneActivity: req.ChooseOneActivity, ActivityIDs: req.ActivityIDs,
 	})
+	if errors.Is(err, postgres.ErrOtherEventActivity) {
+		writeJSONError(w, http.StatusConflict, "uma das atividades marcadas pertence a outro evento")
+		return
+	}
+	if errors.Is(err, postgres.ErrNotFound) {
+		writeJSONError(w, http.StatusNotFound, "produto não encontrado")
+		return
+	}
 	if err != nil {
 		h.log.Error("update product", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível salvar o produto")
@@ -200,6 +224,9 @@ func (h *AdminCatalogHandler) SetProductActive(w http.ResponseWriter, r *http.Re
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeJSONError(w, http.StatusBadRequest, "corpo inválido")
+		return
+	}
+	if !guardEvent(w, r, h.events.EventIDForProduct, id) {
 		return
 	}
 	if err := h.repo.SetProductActive(r.Context(), id, body.Active); err != nil {

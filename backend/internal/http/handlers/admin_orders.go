@@ -19,20 +19,21 @@ import (
 type AdminOrdersHandler struct {
 	repo   *postgres.AdminOrderRepository
 	orders *postgres.OrderRepository
+	events *postgres.EventRepository
 	asaas  asaas.Client
 	mailer mailer.Sender
 	log    *slog.Logger
 }
 
-func NewAdminOrdersHandler(repo *postgres.AdminOrderRepository, orders *postgres.OrderRepository, asaasClient asaas.Client, sender mailer.Sender, log *slog.Logger) *AdminOrdersHandler {
-	return &AdminOrdersHandler{repo: repo, orders: orders, asaas: asaasClient, mailer: sender, log: log}
+func NewAdminOrdersHandler(repo *postgres.AdminOrderRepository, orders *postgres.OrderRepository, events *postgres.EventRepository, asaasClient asaas.Client, sender mailer.Sender, log *slog.Logger) *AdminOrdersHandler {
+	return &AdminOrdersHandler{repo: repo, orders: orders, events: events, asaas: asaasClient, mailer: sender, log: log}
 }
 
 func (h *AdminOrdersHandler) List(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("q")
 	from, to := parseDateRange(r)
-	orders, err := h.repo.List(r.Context(), status, search, from, to)
+	orders, err := h.repo.List(r.Context(), eventScope(r), status, search, from, to)
 	if err != nil {
 		h.log.Error("list orders", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar os pedidos")
@@ -61,6 +62,9 @@ func (h *AdminOrdersHandler) Detail(w http.ResponseWriter, r *http.Request) {
 // order to refunded and cancels every not-yet-used entitlement.
 func (h *AdminOrdersHandler) Refund(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !guardEvent(w, r, h.events.EventIDForOrder, id) {
+		return
+	}
 
 	asaasPaymentID, status, err := h.orders.FindByID(r.Context(), id)
 	if err != nil {
@@ -111,6 +115,9 @@ func (h *AdminOrdersHandler) Reschedule(w http.ResponseWriter, r *http.Request) 
 		writeJSONError(w, http.StatusBadRequest, "informe a nova data e o motivo da remarcação")
 		return
 	}
+	if !guardEvent(w, r, h.events.EventIDForOrder, id) {
+		return
+	}
 
 	result, err := h.orders.Reschedule(r.Context(), id, req.NewDate, strings.TrimSpace(req.Reason), claims.UserID())
 	if err != nil {
@@ -151,6 +158,9 @@ func (h *AdminOrdersHandler) Reschedule(w http.ResponseWriter, r *http.Request) 
 func (h *AdminOrdersHandler) RescheduleNoShow(w http.ResponseWriter, r *http.Request) {
 	entitlementID := chi.URLParam(r, "id")
 	claims := middleware.ClaimsFromContext(r.Context())
+	if !guardEvent(w, r, h.events.EventIDForEntitlement, entitlementID) {
+		return
+	}
 
 	result, err := h.orders.RescheduleNoShow(r.Context(), entitlementID, claims.UserID())
 	if err != nil {
@@ -207,6 +217,9 @@ func (h *AdminOrdersHandler) ResendEmail(w http.ResponseWriter, r *http.Request)
 			writeJSONError(w, http.StatusBadRequest, "e-mail inválido")
 			return
 		}
+	}
+	if !guardEvent(w, r, h.events.EventIDForOrder, id) {
+		return
 	}
 
 	detail, err := h.orders.GetPaidOrderDetail(r.Context(), id)

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useQuery } from "@tanstack/vue-query";
 import { ArrowLeft, ArrowRight, Ticket, CheckCircle2 } from "lucide-vue-next";
-import { type Product } from "@p5wellness/shared";
 import { api, ApiError } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import EmergencyContactForm from "@/components/EmergencyContactForm.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useProductSlots, formatSlotDay, formatSlotSummary } from "@/composables/useProductSlots";
+import { useEventProducts } from "@/composables/usePublicEvent";
 
 const router = useRouter();
 const route = useRoute();
@@ -34,7 +33,8 @@ onMounted(async () => {
 // ── Etapa 0: código do voucher ────────────────────────────────────────────
 const code = ref("");
 const codeChecked = ref(false);
-const voucherInfo = ref<{ name: string; companyName: string } | null>(null);
+// eventSlug/eventName: o voucher só vale no evento em que foi criado ("" = evento principal).
+const voucherInfo = ref<{ name: string; companyName: string; eventSlug?: string; eventName?: string } | null>(null);
 const checkingCode = ref(false);
 const codeError = ref("");
 
@@ -44,7 +44,7 @@ async function checkCode() {
   codeError.value = "";
   checkingCode.value = true;
   try {
-    voucherInfo.value = await api.get<{ name: string; companyName: string }>(`/me/vouchers/${encodeURIComponent(trimmed.toUpperCase())}`);
+    voucherInfo.value = await api.get<{ name: string; companyName: string; eventSlug?: string; eventName?: string }>(`/me/vouchers/${encodeURIComponent(trimmed.toUpperCase())}`);
     codeChecked.value = true;
   } catch (err) {
     codeError.value = err instanceof ApiError ? err.message : "Não foi possível verificar o voucher.";
@@ -60,11 +60,9 @@ function changeCode() {
 }
 
 // ── Etapa 1/2: mesma escolha de experiência e data da compra normal — o voucher vale
-// para qualquer ingresso à venda.
-const { data, isLoading } = useQuery({
-  queryKey: ["public-products"],
-  queryFn: () => api.get<{ products: Product[] }>("/public/products"),
-});
+// para qualquer ingresso à venda do evento dele (o principal, salvo indicação do código).
+const voucherEventSlug = computed(() => voucherInfo.value?.eventSlug ?? "");
+const { data, isLoading } = useEventProducts(voucherEventSlug, { staleTime: 0 });
 const products = computed(() => data.value?.products ?? []);
 
 const selectedId = ref<string | null>(null);
@@ -172,6 +170,7 @@ async function redeem() {
             <div>
               <p class="text-sm font-bold text-ink">{{ voucherInfo?.name }}</p>
               <p class="text-xs text-ink-soft">Cortesia — {{ voucherInfo?.companyName }}</p>
+              <p v-if="voucherInfo?.eventName" class="mt-1 text-xs font-semibold text-magenta">Válido para {{ voucherInfo.eventName }}</p>
             </div>
             <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="changeCode">Trocar código</button>
           </div>

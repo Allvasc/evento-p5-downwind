@@ -13,16 +13,17 @@ import (
 )
 
 type AdminSessionsHandler struct {
-	repo *postgres.SessionRepository
-	log  *slog.Logger
+	repo   *postgres.SessionRepository
+	events *postgres.EventRepository
+	log    *slog.Logger
 }
 
-func NewAdminSessionsHandler(repo *postgres.SessionRepository, log *slog.Logger) *AdminSessionsHandler {
-	return &AdminSessionsHandler{repo: repo, log: log}
+func NewAdminSessionsHandler(repo *postgres.SessionRepository, events *postgres.EventRepository, log *slog.Logger) *AdminSessionsHandler {
+	return &AdminSessionsHandler{repo: repo, events: events, log: log}
 }
 
 func (h *AdminSessionsHandler) List(w http.ResponseWriter, r *http.Request) {
-	sessions, err := h.repo.ListUpcoming(r.Context())
+	sessions, err := h.repo.ListUpcoming(r.Context(), eventScope(r))
 	if err != nil {
 		h.log.Error("list sessions", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar as turmas")
@@ -58,6 +59,9 @@ func (h *AdminSessionsHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "atividade e vagas (maior que zero) são obrigatórios")
 		return
 	}
+	if !guardEvent(w, r, h.events.EventIDForActivity, req.ActivityID) {
+		return
+	}
 
 	id, err := h.repo.Create(r.Context(), req.ActivityID, startsAt, endsAt, req.Capacity)
 	if err != nil {
@@ -89,6 +93,9 @@ func (h *AdminSessionsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "vagas deve ser maior que zero")
 		return
 	}
+	if !guardEvent(w, r, h.events.EventIDForSession, id) {
+		return
+	}
 
 	booked, err := h.repo.Booked(r.Context(), id)
 	if err != nil {
@@ -116,6 +123,9 @@ func (h *AdminSessionsHandler) SetStatus(w http.ResponseWriter, r *http.Request)
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || (body.Status != "scheduled" && body.Status != "cancelled" && body.Status != "completed") {
 		writeJSONError(w, http.StatusBadRequest, "status inválido")
+		return
+	}
+	if !guardEvent(w, r, h.events.EventIDForSession, id) {
 		return
 	}
 	if err := h.repo.SetStatus(r.Context(), id, body.Status); err != nil {

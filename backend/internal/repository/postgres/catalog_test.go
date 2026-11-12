@@ -31,7 +31,7 @@ func TestListPublicProducts_NullDescription(t *testing.T) {
 		t.Fatalf("link test product: %v", err)
 	}
 
-	products, err := repo.ListPublicProducts(ctx)
+	products, err := repo.ListPublicProducts(ctx, DefaultEventID)
 	if err != nil {
 		t.Fatalf("ListPublicProducts with a NULL description: %v", err)
 	}

@@ -12,7 +12,7 @@ import (
 
 func mustCreateVoucher(t *testing.T, pool *pgxpool.Pool, repo *VoucherRepository, createdBy string) (id, code string) {
 	t.Helper()
-	id, code, err := repo.Create(context.Background(), "Campanha Teste", "Empresa Teste", createdBy)
+	id, code, err := repo.Create(context.Background(), DefaultEventID, "Campanha Teste", "Empresa Teste", createdBy)
 	if err != nil {
 		t.Fatalf("create voucher: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestVoucher_ClaimReleaseRoundTrip(t *testing.T) {
 	studentID := mustInsertStudent(t, pool)
 	_, code := mustCreateVoucher(t, pool, repo, teamMemberID)
 
-	voucherID, err := repo.Claim(ctx, code, studentID)
+	voucherID, err := repo.Claim(ctx, code, studentID, DefaultEventID)
 	if err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestVoucher_ClaimReleaseRoundTrip(t *testing.T) {
 
 	// A second claim on the same code must fail — vouchers are single-use.
 	otherStudent := mustInsertStudent(t, pool)
-	if _, err := repo.Claim(ctx, code, otherStudent); !errors.Is(err, ErrVoucherNotAvailable) {
+	if _, err := repo.Claim(ctx, code, otherStudent, DefaultEventID); !errors.Is(err, ErrVoucherNotAvailable) {
 		t.Fatalf("second Claim: got %v, want ErrVoucherNotAvailable", err)
 	}
 
@@ -60,7 +60,7 @@ func TestVoucher_ClaimReleaseRoundTrip(t *testing.T) {
 		t.Fatalf("after Release: status=%s, want available", status)
 	}
 
-	if _, err := repo.Claim(ctx, code, otherStudent); err != nil {
+	if _, err := repo.Claim(ctx, code, otherStudent, DefaultEventID); err != nil {
 		t.Fatalf("Claim after Release: %v", err)
 	}
 }
@@ -70,7 +70,7 @@ func TestVoucher_ClaimUnknownCode(t *testing.T) {
 	repo := NewVoucherRepository(pool)
 	studentID := mustInsertStudent(t, pool)
 
-	if _, err := repo.Claim(context.Background(), "P5-DOESNOTEXIST", studentID); !errors.Is(err, ErrVoucherNotFound) {
+	if _, err := repo.Claim(context.Background(), "P5-DOESNOTEXIST", studentID, DefaultEventID); !errors.Is(err, ErrVoucherNotFound) {
 		t.Fatalf("got %v, want ErrVoucherNotFound", err)
 	}
 }
@@ -93,7 +93,7 @@ func TestVoucher_CancelRules(t *testing.T) {
 	// A redeemed voucher can't be cancelled out from under the customer who already used it.
 	id2, code2 := mustCreateVoucher(t, pool, repo, teamMemberID)
 	studentID := mustInsertStudent(t, pool)
-	if _, err := repo.Claim(ctx, code2, studentID); err != nil {
+	if _, err := repo.Claim(ctx, code2, studentID, DefaultEventID); err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
 	if err := repo.Cancel(ctx, id2); !errors.Is(err, ErrVoucherHasRedemption) {
@@ -120,7 +120,7 @@ func TestVoucher_RedemptionIssuesFreeEntitlement(t *testing.T) {
 
 	_, code := mustCreateVoucher(t, pool, voucherRepo, teamMemberID)
 
-	voucherID, err := voucherRepo.Claim(ctx, code, studentID)
+	voucherID, err := voucherRepo.Claim(ctx, code, studentID, DefaultEventID)
 	if err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
