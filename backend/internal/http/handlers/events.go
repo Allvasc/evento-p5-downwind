@@ -15,11 +15,12 @@ import (
 
 type EventsHandler struct {
 	events *postgres.EventRepository
+	regs   *postgres.EventRegistrationRepository
 	log    *slog.Logger
 }
 
-func NewEventsHandler(events *postgres.EventRepository, log *slog.Logger) *EventsHandler {
-	return &EventsHandler{events: events, log: log}
+func NewEventsHandler(events *postgres.EventRepository, regs *postgres.EventRegistrationRepository, log *slog.Logger) *EventsHandler {
+	return &EventsHandler{events: events, regs: regs, log: log}
 }
 
 // PublicEvent is what the /<slug> page needs — no internal flags beyond isDefault (the
@@ -37,6 +38,16 @@ type PublicEvent struct {
 	BannerURL     string `json:"bannerUrl"`
 	Includes      string `json:"includes"`
 	Schedule      string `json:"schedule"`
+
+	// Inscrição pelo formulário da página (registrationMode "form").
+	RegistrationMode string `json:"registrationMode"`
+	CTALabel         string `json:"ctaLabel"`
+	RulesText        string `json:"rulesText"`
+	MetaDescription  string `json:"metaDescription"`
+	ConsentText      string `json:"consentText"`
+	// SpotsLeft is nil when there's no limit; WaitlistEnabled says what happens at 0.
+	SpotsLeft       *int `json:"spotsLeft"`
+	WaitlistEnabled bool `json:"waitlistEnabled"`
 }
 
 // Public serves GET /public/events/{slug}: a published event's page content.
@@ -51,11 +62,27 @@ func (h *EventsHandler) Public(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o evento")
 		return
 	}
-	writeJSON(w, http.StatusOK, PublicEvent{
+	out := PublicEvent{
 		ID: e.ID, Name: e.Name, Slug: e.Slug, IsDefault: e.IsDefault,
 		Headline: e.Headline, Subtitle: e.Subtitle, DateLabel: e.DateLabel, LocationLabel: e.LocationLabel,
 		Description: e.Description, BannerURL: e.BannerURL, Includes: e.Includes, Schedule: e.Schedule,
-	})
+		RegistrationMode: e.RegistrationMode, CTALabel: e.CTALabel, RulesText: e.RulesText,
+		MetaDescription: e.MetaDescription, WaitlistEnabled: e.WaitlistEnabled,
+	}
+	if e.RegistrationMode == postgres.RegistrationForm {
+		out.ConsentText = consentText(e.Name)
+		capacity, confirmed, err := h.regs.Spots(r.Context(), e.ID)
+		if err != nil {
+			h.log.Error("public event spots", "error", err)
+		} else if capacity != nil {
+			left := *capacity - confirmed
+			if left < 0 {
+				left = 0
+			}
+			out.SpotsLeft = &left
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // teamEvent is the slim row behind the event selector of the Admin and the check-in
@@ -95,6 +122,13 @@ func (h *EventsHandler) AdminList(w http.ResponseWriter, r *http.Request) {
 }
 
 type eventRequest struct {
+	RegistrationMode string `json:"registrationMode"`
+	FormCapacity     *int   `json:"formCapacity"`
+	WaitlistEnabled  *bool  `json:"waitlistEnabled"`
+	RulesText        string `json:"rulesText"`
+	CTALabel         string `json:"ctaLabel"`
+	MetaDescription  string `json:"metaDescription"`
+
 	Name          string `json:"name"`
 	Slug          string `json:"slug"`
 	Headline      string `json:"headline"`
@@ -131,6 +165,29 @@ func (req *eventRequest) normalize() string {
 	req.BannerURL = strings.TrimSpace(req.BannerURL)
 	req.Includes = strings.TrimSpace(req.Includes)
 	req.Schedule = strings.TrimSpace(req.Schedule)
+	req.RegistrationMode = strings.TrimSpace(req.RegistrationMode)
+	req.RulesText = strings.TrimSpace(req.RulesText)
+	req.CTALabel = strings.TrimSpace(req.CTALabel)
+	req.MetaDescription = strings.TrimSpace(req.MetaDescription)
+	if req.RegistrationMode == "" {
+		req.RegistrationMode = postgres.RegistrationTickets
+	}
+	if req.WaitlistEnabled == nil {
+		on := true
+		req.WaitlistEnabled = &on
+	}
+	if req.RegistrationMode != postgres.RegistrationTickets && req.RegistrationMode != postgres.RegistrationForm {
+		return "modo de inscrição inválido"
+	}
+	if req.FormCapacity != nil && *req.FormCapacity <= 0 {
+		req.FormCapacity = nil // 0 ou vazio = sem limite
+	}
+	if len([]rune(req.CTALabel)) > 40 {
+		return "o texto do botão deve ter no máximo 40 caracteres"
+	}
+	if len([]rune(req.MetaDescription)) > 300 {
+		return "a descrição para o Google deve ter no máximo 300 caracteres"
+	}
 
 	if req.Name == "" {
 		return "informe o nome do evento"
@@ -149,6 +206,8 @@ func (req *eventRequest) normalize() string {
 
 func (req eventRequest) input() postgres.EventInput {
 	return postgres.EventInput{
+		RegistrationMode: req.RegistrationMode, FormCapacity: req.FormCapacity, WaitlistEnabled: *req.WaitlistEnabled,
+		RulesText: req.RulesText, CTALabel: req.CTALabel, MetaDescription: req.MetaDescription,
 		Name: req.Name, Slug: req.Slug, Headline: req.Headline, Subtitle: req.Subtitle,
 		DateLabel: req.DateLabel, LocationLabel: req.LocationLabel, Description: req.Description,
 		BannerURL: req.BannerURL, Includes: req.Includes, Schedule: req.Schedule,
@@ -202,7 +261,9 @@ func (h *EventsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if current.IsDefault {
+		// O evento principal mantém endereço e modo de venda (ingressos) sempre.
 		req.Slug = current.Slug
+		req.RegistrationMode = postgres.RegistrationTickets
 	}
 	if msg := req.normalize(); msg != "" {
 		writeJSONError(w, http.StatusBadRequest, msg)

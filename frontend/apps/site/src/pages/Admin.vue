@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu, Ticket, Copy, Info, CheckCircle2, User, Building2, CalendarRange, ExternalLink } from "lucide-vue-next";
+import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu, Ticket, Copy, Info, CheckCircle2, User, Building2, CalendarRange, ExternalLink, UserCheck } from "lucide-vue-next";
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
 import { formatBRL, UNLIMITED_CAPACITY, isUnlimitedCapacity } from "@p5wellness/shared";
@@ -22,13 +22,13 @@ const authStore = useAuthStore();
 // pode executar.
 const isReportsOnly = computed(() => authStore.role === "reports");
 const isMarketingOnly = computed(() => authStore.role === "marketing");
-const REPORTS_ROLE_TABS = ["dashboard", "pedidos", "relatorios"] as const;
+const REPORTS_ROLE_TABS = ["dashboard", "pedidos", "relatorios", "inscricoes"] as const;
 const MARKETING_ROLE_TABS = ["dashboard", "pedidos", "relatorios", "vouchers"] as const;
 const TEAM_ROLE_LABELS: Record<string, string> = { admin: "Administrador", reports: "Relatórios", marketing: "Marketing" };
 function teamRoleLabel(role: string) {
   return TEAM_ROLE_LABELS[role] ?? "Funcionário";
 }
-const tab = ref<"dashboard" | "produtos" | "atividades" | "turmas" | "equipe" | "vouchers" | "clientes" | "pedidos" | "relatorios" | "eventos">("dashboard");
+const tab = ref<"dashboard" | "produtos" | "atividades" | "turmas" | "equipe" | "vouchers" | "clientes" | "pedidos" | "relatorios" | "inscricoes" | "eventos">("dashboard");
 const mobileNavOpen = ref(false);
 function selectTab(next: typeof tab.value) {
   tab.value = next;
@@ -44,6 +44,7 @@ const navItems = [
   { key: "clientes", label: "Clientes", icon: Search },
   { key: "pedidos", label: "Pedidos", icon: ClipboardList },
   { key: "relatorios", label: "Relatórios", icon: FileText },
+  { key: "inscricoes", label: "Inscrições", icon: UserCheck },
   { key: "eventos", label: "Eventos", icon: CalendarRange },
 ] as const;
 const visibleNavItems = computed(() => {
@@ -988,11 +989,19 @@ const eventLoadError = ref("");
 interface AdminEvent extends TeamEvent {
   headline: string; subtitle: string; dateLabel: string; locationLabel: string;
   description: string; bannerUrl: string; includes: string; schedule: string;
+  registrationMode: "tickets" | "form"; formCapacity: number | null; waitlistEnabled: boolean;
+  rulesText: string; ctaLabel: string; metaDescription: string;
 }
 const adminEvents = ref<AdminEvent[]>([]);
 const emptyEventForm = () => ({
   name: "", slug: "", headline: "", subtitle: "", dateLabel: "", locationLabel: "",
   description: "", bannerUrl: "", includes: "", schedule: "",
+  registrationMode: "tickets" as "tickets" | "form",
+  formCapacity: "" as string | number,
+  waitlistEnabled: true,
+  rulesText: "",
+  ctaLabel: "",
+  metaDescription: "",
 });
 const eventForm = ref(emptyEventForm());
 const editingEventId = ref("");
@@ -1035,6 +1044,12 @@ function editEvent(e: AdminEvent) {
     name: e.name, slug: e.slug, headline: e.headline, subtitle: e.subtitle, dateLabel: e.dateLabel,
     locationLabel: e.locationLabel, description: e.description, bannerUrl: e.bannerUrl,
     includes: e.includes, schedule: e.schedule,
+    registrationMode: e.registrationMode || "tickets",
+    formCapacity: e.formCapacity ?? "",
+    waitlistEnabled: e.waitlistEnabled ?? true,
+    rulesText: e.rulesText ?? "",
+    ctaLabel: e.ctaLabel ?? "",
+    metaDescription: e.metaDescription ?? "",
   };
 }
 
@@ -1052,12 +1067,22 @@ async function saveEvent() {
     eventError.value = "Nome e endereço da página são obrigatórios.";
     return;
   }
+  const rawCap = String(eventForm.value.formCapacity ?? "").trim();
+  const formCapacity = rawCap === "" ? null : Number(rawCap);
+  if (formCapacity !== null && (!Number.isInteger(formCapacity) || formCapacity < 0)) {
+    eventError.value = "O limite de vagas deve ser um número inteiro (ou vazio para sem limite).";
+    return;
+  }
+  const payload = {
+    ...eventForm.value,
+    formCapacity: formCapacity && formCapacity > 0 ? formCapacity : null,
+  };
   savingEvent.value = true;
   try {
     if (editingEventId.value) {
-      await api.put(`/admin/events/${editingEventId.value}`, eventForm.value);
+      await api.put(`/admin/events/${editingEventId.value}`, payload);
     } else {
-      await api.post("/admin/events", eventForm.value);
+      await api.post("/admin/events", payload);
     }
     cancelEditEvent();
     await Promise.all([loadAdminEvents(), eventStore.load()]);
@@ -1089,13 +1114,116 @@ async function copyEventLink(e: AdminEvent) {
   }
 }
 
-// Atalho: escolhe o evento no seletor e já abre Produtos para cadastrar os ingressos dele.
+// Atalho: escolhe o evento no seletor e já abre Produtos (ou Inscrições no modo formulário).
 async function manageEvent(e: AdminEvent) {
   if (eventStore.currentId !== e.id) {
     eventStore.select(e.id);
     await onEventChanged();
   }
-  selectTab("produtos");
+  selectTab(e.registrationMode === "form" ? "inscricoes" : "produtos");
+}
+
+// ── Inscrições (eventos em modo formulário) ───────────────────────────────
+interface EventRegistration {
+  id: string;
+  fullName: string;
+  whatsapp: string;
+  email: string;
+  practiceLevel: string;
+  interest: string;
+  weightKg: number | null;
+  status: "confirmed" | "waitlist" | "cancelled";
+  checkedInAt: string | null;
+  createdAt: string;
+}
+interface RegistrationStats {
+  views: number;
+  confirmed: number;
+  waitlist: number;
+  cancelled: number;
+  checkedIn: number;
+  capacity: number | null;
+  conversionPct: number;
+}
+const PRACTICE_LEVEL_LABELS: Record<string, string> = { iniciante: "Iniciante", intermediario: "Intermediário", avancado: "Avançado" };
+const INTEREST_LABELS: Record<string, string> = { kite: "Kite", prancha: "Prancha", ambos: "Kite e prancha" };
+const REG_STATUS_LABELS: Record<string, string> = { confirmed: "Confirmada", waitlist: "Lista de espera", cancelled: "Cancelada" };
+
+const registrations = ref<EventRegistration[]>([]);
+const regStats = ref<RegistrationStats | null>(null);
+const regSearch = ref("");
+const loadingRegs = ref(false);
+const downloadingRegsCsv = ref(false);
+const regsError = ref("");
+
+async function loadRegistrations() {
+  loadingRegs.value = true;
+  regsError.value = "";
+  try {
+    const q = regSearch.value.trim();
+    const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+    const res = await api.get<{ registrations: EventRegistration[]; stats: RegistrationStats }>(`/admin/registrations${qs}`);
+    registrations.value = res.registrations;
+    regStats.value = res.stats;
+  } catch (err) {
+    regsError.value = err instanceof ApiError ? err.message : "Não foi possível carregar as inscrições.";
+  } finally {
+    loadingRegs.value = false;
+  }
+}
+
+async function setRegistrationStatus(reg: EventRegistration, status: "confirmed" | "waitlist" | "cancelled") {
+  regsError.value = "";
+  try {
+    await api.patch(`/admin/registrations/${reg.id}/status`, { status });
+    await loadRegistrations();
+  } catch (err) {
+    regsError.value = err instanceof ApiError ? err.message : "Não foi possível atualizar a situação.";
+  }
+}
+
+async function toggleRegistrationCheckIn(reg: EventRegistration) {
+  regsError.value = "";
+  try {
+    await api.patch(`/admin/registrations/${reg.id}/checkin`, { present: !reg.checkedInAt });
+    await loadRegistrations();
+  } catch (err) {
+    regsError.value = err instanceof ApiError ? err.message : "Não foi possível registrar a presença.";
+  }
+}
+
+async function downloadRegistrationsCSV() {
+  regsError.value = "";
+  downloadingRegsCsv.value = true;
+  try {
+    const res = await fetch("/api/v1/admin/registrations.csv", {
+      headers: { Authorization: `Bearer ${localStorage.getItem(TEAM_TOKEN_KEY) ?? ""}`, ...eventHeaders() },
+      credentials: "include",
+    });
+    if (!res.ok) {
+      regsError.value = "Não foi possível gerar o CSV.";
+      return;
+    }
+    const blob = await res.blob();
+    const filename = res.headers.get("Content-Disposition")?.match(/filename="?([^"]+)"?/)?.[1] ?? "inscricoes.csv";
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    regsError.value = "Não foi possível gerar o CSV.";
+  } finally {
+    downloadingRegsCsv.value = false;
+  }
+}
+
+function whatsappHref(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return `https://wa.me/${digits.startsWith("55") ? digits : `55${digits}`}`;
 }
 
 // Fecha tudo que estava aberto/em edição do evento anterior e recarrega as telas no novo.
@@ -1108,6 +1236,7 @@ async function onEventChanged() {
   selectedVoucherDetail.value = null;
   rescheduleModalOpen.value = false;
   lastCreatedCodes.value = [];
+  regSearch.value = "";
   mobileNavOpen.value = false;
   await loadEventData();
 }
@@ -1117,14 +1246,14 @@ async function loadEventData() {
   if (isReportsOnly.value) {
     // O backend nega o resto (catálogo, equipe, clientes) para essa role — nem tenta,
     // pra não gerar 403 à toa.
-    await Promise.all([loadDashboard(), loadOrders(), loadReports()]);
+    await Promise.all([loadDashboard(), loadOrders(), loadReports(), loadRegistrations()]);
     return;
   }
   if (isMarketingOnly.value) {
     await Promise.all([loadDashboard(), loadOrders(), loadReports(), loadVouchers()]);
     return;
   }
-  await Promise.all([loadDashboard(), loadActivities(), loadProducts(), loadVouchers(), loadSessions(), loadOrders(), loadReports(), searchCustomers()]);
+  await Promise.all([loadDashboard(), loadActivities(), loadProducts(), loadVouchers(), loadSessions(), loadOrders(), loadReports(), loadRegistrations(), searchCustomers()]);
 }
 
 function handleLogout() {
@@ -2425,6 +2554,129 @@ onMounted(async () => {
           </div>
         </section>
 
+        <!-- INSCRIÇÕES -->
+        <section v-else-if="tab === 'inscricoes'">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 class="font-serif text-2xl font-bold text-ink">Inscrições</h1>
+              <p class="mt-1 text-sm text-ink-soft">Participantes inscritos pelo formulário da página do evento selecionado, com métricas e presença.</p>
+            </div>
+            <button class="button-magenta" :disabled="downloadingRegsCsv" @click="downloadRegistrationsCSV">
+              <FileDown :size="16" /> {{ downloadingRegsCsv ? "Gerando CSV…" : "Exportar CSV" }}
+            </button>
+          </div>
+
+          <div v-if="regStats" class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="rounded-[var(--radius-card)] border border-line bg-white p-4">
+              <p class="text-xs font-semibold text-ink-soft">Visitas na página</p>
+              <p class="mt-1 font-serif text-2xl font-bold text-ink">{{ regStats.views }}</p>
+            </div>
+            <div class="rounded-[var(--radius-card)] border border-line bg-white p-4">
+              <p class="text-xs font-semibold text-ink-soft">Confirmadas</p>
+              <p class="mt-1 font-serif text-2xl font-bold text-ink">
+                {{ regStats.confirmed }}<span v-if="regStats.capacity !== null" class="text-sm font-normal text-ink-soft"> / {{ regStats.capacity }}</span>
+              </p>
+            </div>
+            <div class="rounded-[var(--radius-card)] border border-line bg-white p-4">
+              <p class="text-xs font-semibold text-ink-soft">Lista de espera</p>
+              <p class="mt-1 font-serif text-2xl font-bold text-ink">{{ regStats.waitlist }}</p>
+            </div>
+            <div class="rounded-[var(--radius-card)] border border-line bg-white p-4">
+              <p class="text-xs font-semibold text-ink-soft">Presentes (check-in)</p>
+              <p class="mt-1 font-serif text-2xl font-bold text-ink">{{ regStats.checkedIn }}</p>
+            </div>
+            <div class="rounded-[var(--radius-card)] border border-line bg-white p-4">
+              <p class="text-xs font-semibold text-ink-soft">Conversão</p>
+              <p class="mt-1 font-serif text-2xl font-bold text-magenta">{{ regStats.conversionPct.toFixed(1) }}%</p>
+            </div>
+          </div>
+
+          <div class="mt-6 flex flex-wrap items-center gap-3">
+            <div class="relative flex-1 min-w-[220px] max-w-md">
+              <input
+                v-model="regSearch"
+                type="search"
+                placeholder="Buscar por nome, e-mail ou WhatsApp…"
+                class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
+                @keyup.enter="loadRegistrations"
+              />
+            </div>
+            <button class="rounded-lg border border-line bg-white px-4 py-2 text-xs font-semibold text-ink hover:bg-warm/60" :disabled="loadingRegs" @click="loadRegistrations">
+              {{ loadingRegs ? "Buscando…" : "Buscar" }}
+            </button>
+          </div>
+
+          <p v-if="regsError" class="mt-3 text-sm text-red-600">{{ regsError }}</p>
+
+          <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-line bg-white">
+            <table class="w-full text-left text-sm">
+              <thead class="border-b border-line bg-warm/40 text-xs font-semibold text-ink-soft">
+                <tr>
+                  <th class="px-4 py-3">Participante</th>
+                  <th class="px-4 py-3">Contato</th>
+                  <th class="px-4 py-3">Nível / Interesse</th>
+                  <th class="px-4 py-3">Peso</th>
+                  <th class="px-4 py-3">Situação</th>
+                  <th class="px-4 py-3">Check-in</th>
+                  <th v-if="!isReportsOnly" class="px-4 py-3">Ações</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line">
+                <tr v-if="!registrations.length">
+                  <td :colspan="isReportsOnly ? 6 : 7" class="px-4 py-8 text-center text-sm text-ink-soft">
+                    Nenhuma inscrição encontrada para este evento.
+                  </td>
+                </tr>
+                <tr v-for="reg in registrations" :key="reg.id" class="hover:bg-warm/20">
+                  <td class="px-4 py-3">
+                    <p class="font-semibold text-ink">{{ reg.fullName }}</p>
+                    <p class="text-xs text-ink-soft">{{ new Date(reg.createdAt).toLocaleString("pt-BR", { timeZone: "America/Fortaleza" }) }}</p>
+                  </td>
+                  <td class="px-4 py-3 text-xs">
+                    <a :href="whatsappHref(reg.whatsapp)" target="_blank" rel="noopener" class="font-semibold text-magenta hover:underline">{{ reg.whatsapp }}</a>
+                    <p class="text-ink-soft">{{ reg.email }}</p>
+                  </td>
+                  <td class="px-4 py-3 text-xs">
+                    <p class="font-medium text-ink">{{ PRACTICE_LEVEL_LABELS[reg.practiceLevel] ?? reg.practiceLevel }}</p>
+                    <p class="text-ink-soft">{{ INTEREST_LABELS[reg.interest] ?? reg.interest }}</p>
+                  </td>
+                  <td class="px-4 py-3 text-xs text-ink-soft">{{ reg.weightKg !== null ? `${reg.weightKg} kg` : "—" }}</td>
+                  <td class="px-4 py-3">
+                    <span
+                      :class="[
+                        'inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                        reg.status === 'confirmed' ? 'bg-[#e5f5e8] text-[#237438]' : reg.status === 'waitlist' ? 'bg-amber-100 text-amber-900' : 'bg-warm text-ink-soft',
+                      ]"
+                    >
+                      {{ REG_STATUS_LABELS[reg.status] ?? reg.status }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-xs">
+                    <button
+                      v-if="!isReportsOnly"
+                      :class="[
+                        'rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors',
+                        reg.checkedInAt ? 'border-[#237438]/40 bg-[#e5f5e8] text-[#237438]' : 'border-line bg-white text-ink-soft hover:text-ink',
+                      ]"
+                      @click="toggleRegistrationCheckIn(reg)"
+                    >
+                      {{ reg.checkedInAt ? "Presente" : "Marcar presença" }}
+                    </button>
+                    <span v-else class="text-ink-soft">{{ reg.checkedInAt ? "Presente" : "—" }}</span>
+                  </td>
+                  <td v-if="!isReportsOnly" class="px-4 py-3 text-xs">
+                    <div class="flex flex-wrap gap-2">
+                      <button v-if="reg.status !== 'confirmed'" class="font-semibold text-[#237438] hover:underline" @click="setRegistrationStatus(reg, 'confirmed')">Confirmar</button>
+                      <button v-if="reg.status !== 'waitlist'" class="font-semibold text-amber-800 hover:underline" @click="setRegistrationStatus(reg, 'waitlist')">Espera</button>
+                      <button v-if="reg.status !== 'cancelled'" class="font-semibold text-red-600 hover:underline" @click="setRegistrationStatus(reg, 'cancelled')">Cancelar</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <!-- EVENTOS -->
         <section v-else-if="tab === 'eventos'">
           <h1 class="font-serif text-2xl font-bold text-ink">Eventos</h1>
@@ -2457,6 +2709,23 @@ onMounted(async () => {
               </label>
 
               <template v-if="!editingEventIsDefault">
+                <label class="block text-xs font-semibold text-ink-soft">
+                  Modo de inscrição
+                  <select v-model="eventForm.registrationMode" class="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm font-normal text-ink">
+                    <option value="tickets">Venda de ingressos (checkout)</option>
+                    <option value="form">Formulário na página (sem pagamento)</option>
+                  </select>
+                </label>
+                <div v-if="eventForm.registrationMode === 'form'" class="grid gap-4 sm:grid-cols-2">
+                  <label class="block text-xs font-semibold text-ink-soft">
+                    Limite de vagas
+                    <input v-model="eventForm.formCapacity" type="number" min="0" placeholder="Vazio = sem limite" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                  </label>
+                  <label class="flex items-center gap-2 pt-5 text-xs font-semibold text-ink-soft">
+                    <input v-model="eventForm.waitlistEnabled" type="checkbox" class="h-4 w-4 rounded border-line text-magenta" />
+                    Ativar lista de espera
+                  </label>
+                </div>
                 <label class="block text-xs font-semibold text-ink-soft">
                   Título da página
                   <input v-model="eventForm.headline" placeholder="Ex: O downwind mais animado do Carnaval" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
@@ -2492,6 +2761,20 @@ onMounted(async () => {
                   <textarea v-model="eventForm.schedule" rows="5" placeholder="06h00 · Check-in | Conferência dos participantes&#10;07h00 · Largada" class="mt-1 w-full rounded-lg border border-line px-3 py-2 font-mono text-xs font-normal text-ink"></textarea>
                   <span class="mt-1 block font-normal">Para um detalhe, use "Horário · Título | detalhe".</span>
                 </label>
+                <template v-if="eventForm.registrationMode === 'form'">
+                  <label class="block text-xs font-semibold text-ink-soft">
+                    Texto do botão (CTA)
+                    <input v-model="eventForm.ctaLabel" maxlength="40" placeholder="Ex: Garantir minha vaga" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                  </label>
+                  <label class="block text-xs font-semibold text-ink-soft">
+                    Descrição para o Google (Meta Description)
+                    <input v-model="eventForm.metaDescription" maxlength="300" placeholder="Resumo curto para buscadores e links" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                  </label>
+                  <label class="block text-xs font-semibold text-ink-soft md:col-span-2">
+                    Regras de inscrição e segurança (uma por linha)
+                    <textarea v-model="eventForm.rulesText" rows="4" placeholder="A confirmação garante uma vaga para teste, mas não modelo ou horário fixo." class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-xs font-normal text-ink"></textarea>
+                  </label>
+                </template>
               </template>
               <p v-else class="rounded-lg bg-warm/50 px-4 py-3 text-xs text-ink-soft md:col-span-2">
                 Este é o evento principal: a página dele é a página inicial do site (/) e o conteúdo fica no código. Aqui você só muda o nome usado no painel.
@@ -2522,7 +2805,9 @@ onMounted(async () => {
               </div>
               <p v-if="eventStore.currentId === e.id" class="mt-2 text-xs font-semibold text-magenta">Selecionado no painel</p>
               <div class="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-                <button class="text-xs font-semibold text-magenta" @click="manageEvent(e)">Gerenciar produtos e turmas</button>
+                <button class="text-xs font-semibold text-magenta" @click="manageEvent(e)">
+                  {{ e.registrationMode === "form" ? "Gerenciar inscrições" : "Gerenciar produtos e turmas" }}
+                </button>
                 <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="editEvent(e)">Editar</button>
                 <button v-if="!e.isDefault" class="text-xs font-semibold text-ink-soft hover:text-ink" @click="toggleEventActive(e)">{{ e.active ? "Tirar do ar" : "Publicar" }}</button>
                 <button class="inline-flex items-center gap-1 text-xs font-semibold text-ink-soft hover:text-ink" @click="copyEventLink(e)">

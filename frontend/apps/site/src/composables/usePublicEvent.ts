@@ -20,6 +20,13 @@ export interface PublicEvent {
   bannerUrl: string;
   includes: string;
   schedule: string;
+  registrationMode: "tickets" | "form";
+  ctaLabel: string;
+  rulesText: string;
+  metaDescription: string;
+  consentText: string;
+  spotsLeft: number | null;
+  waitlistEnabled: boolean;
 }
 
 export interface NextSession {

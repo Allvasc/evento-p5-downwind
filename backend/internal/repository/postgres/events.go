@@ -32,11 +32,32 @@ type Event struct {
 	Includes      string `json:"includes"`
 	Schedule      string `json:"schedule"`
 	DisplayOrder  int    `json:"displayOrder"`
+	// RegistrationMode: "tickets" (ingressos pelo checkout, o padrão) ou "form"
+	// (inscrição gratuita pelo formulário da página, sem conta nem pagamento).
+	RegistrationMode string `json:"registrationMode"`
+	// FormCapacity limita as inscrições confirmadas do formulário (nil = sem limite).
+	FormCapacity    *int   `json:"formCapacity"`
+	WaitlistEnabled bool   `json:"waitlistEnabled"`
+	RulesText       string `json:"rulesText"`
+	CTALabel        string `json:"ctaLabel"`
+	MetaDescription string `json:"metaDescription"`
 }
+
+const (
+	RegistrationTickets = "tickets"
+	RegistrationForm    = "form"
+)
 
 // EventInput is what the Admin edits. IsDefault and Active are not part of it: the
 // default event is fixed by the migration, and publishing goes through SetActive.
 type EventInput struct {
+	RegistrationMode string
+	FormCapacity     *int
+	WaitlistEnabled  bool
+	RulesText        string
+	CTALabel         string
+	MetaDescription  string
+
 	Name          string
 	Slug          string
 	Headline      string
@@ -59,13 +80,15 @@ func NewEventRepository(pool *pgxpool.Pool) *EventRepository {
 
 const eventColumns = `id, name, slug, is_default, active,
 	COALESCE(headline, ''), COALESCE(subtitle, ''), COALESCE(date_label, ''), COALESCE(location_label, ''),
-	COALESCE(description, ''), COALESCE(banner_url, ''), COALESCE(includes, ''), COALESCE(schedule, ''), display_order`
+	COALESCE(description, ''), COALESCE(banner_url, ''), COALESCE(includes, ''), COALESCE(schedule, ''), display_order,
+	registration_mode, form_capacity, waitlist_enabled, COALESCE(rules_text, ''), COALESCE(cta_label, ''), COALESCE(meta_description, '')`
 
 func scanEvent(row pgx.Row) (*Event, error) {
 	var e Event
 	err := row.Scan(&e.ID, &e.Name, &e.Slug, &e.IsDefault, &e.Active,
 		&e.Headline, &e.Subtitle, &e.DateLabel, &e.LocationLabel,
-		&e.Description, &e.BannerURL, &e.Includes, &e.Schedule, &e.DisplayOrder)
+		&e.Description, &e.BannerURL, &e.Includes, &e.Schedule, &e.DisplayOrder,
+		&e.RegistrationMode, &e.FormCapacity, &e.WaitlistEnabled, &e.RulesText, &e.CTALabel, &e.MetaDescription)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -142,11 +165,13 @@ func (r *EventRepository) Exists(ctx context.Context, id string) (bool, error) {
 func (r *EventRepository) Create(ctx context.Context, in EventInput) (string, error) {
 	var id string
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO events (name, slug, headline, subtitle, date_label, location_label, description, banner_url, includes, schedule, display_order)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM events))
+		INSERT INTO events (name, slug, headline, subtitle, date_label, location_label, description, banner_url, includes, schedule,
+		                    registration_mode, form_capacity, waitlist_enabled, rules_text, cta_label, meta_description, display_order)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM events))
 		RETURNING id
 	`, in.Name, in.Slug, nullIfEmpty(in.Headline), nullIfEmpty(in.Subtitle), nullIfEmpty(in.DateLabel), nullIfEmpty(in.LocationLabel),
-		nullIfEmpty(in.Description), nullIfEmpty(in.BannerURL), nullIfEmpty(in.Includes), nullIfEmpty(in.Schedule)).Scan(&id)
+		nullIfEmpty(in.Description), nullIfEmpty(in.BannerURL), nullIfEmpty(in.Includes), nullIfEmpty(in.Schedule),
+		in.RegistrationMode, in.FormCapacity, in.WaitlistEnabled, nullIfEmpty(in.RulesText), nullIfEmpty(in.CTALabel), nullIfEmpty(in.MetaDescription)).Scan(&id)
 	if isUniqueViolation(err) {
 		return "", ErrEventSlugTaken
 	}
@@ -157,10 +182,13 @@ func (r *EventRepository) Update(ctx context.Context, id string, in EventInput) 
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE events
 		SET name = $1, slug = $2, headline = $3, subtitle = $4, date_label = $5, location_label = $6,
-		    description = $7, banner_url = $8, includes = $9, schedule = $10, updated_at = now()
-		WHERE id = $11
+		    description = $7, banner_url = $8, includes = $9, schedule = $10,
+		    registration_mode = $11, form_capacity = $12, waitlist_enabled = $13, rules_text = $14, cta_label = $15,
+		    meta_description = $16, updated_at = now()
+		WHERE id = $17
 	`, in.Name, in.Slug, nullIfEmpty(in.Headline), nullIfEmpty(in.Subtitle), nullIfEmpty(in.DateLabel), nullIfEmpty(in.LocationLabel),
-		nullIfEmpty(in.Description), nullIfEmpty(in.BannerURL), nullIfEmpty(in.Includes), nullIfEmpty(in.Schedule), id)
+		nullIfEmpty(in.Description), nullIfEmpty(in.BannerURL), nullIfEmpty(in.Includes), nullIfEmpty(in.Schedule),
+		in.RegistrationMode, in.FormCapacity, in.WaitlistEnabled, nullIfEmpty(in.RulesText), nullIfEmpty(in.CTALabel), nullIfEmpty(in.MetaDescription), id)
 	if isUniqueViolation(err) {
 		return ErrEventSlugTaken
 	}

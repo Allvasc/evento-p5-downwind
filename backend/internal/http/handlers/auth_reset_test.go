@@ -42,6 +42,10 @@ func (m *memoryMailer) SendRescheduleNotice(ctx context.Context, to, studentName
 	return nil
 }
 
+func (m *memoryMailer) SendEventRegistration(ctx context.Context, to, fullName string, info mailer.RegistrationInfo) error {
+	return nil
+}
+
 func (m *memoryMailer) SendWelcome(ctx context.Context, to, fullName string, event mailer.EventInfo) error {
 	return nil
 }

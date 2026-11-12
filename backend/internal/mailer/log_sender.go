@@ -45,6 +45,12 @@ func (s *LogSender) SendRescheduleNotice(ctx context.Context, to, studentName, o
 	return s.record(ctx, to, "Sua data no P5 Wellness Club foi alterada", "reschedule_notice")
 }
 
+func (s *LogSender) SendEventRegistration(ctx context.Context, to, fullName string, info RegistrationInfo) error {
+	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "event_registration",
+		"fullName", fullName, "event", info.EventName, "waitlist", info.Waitlist, "position", info.WaitlistPosition)
+	return s.record(ctx, to, "Inscrição: "+info.EventName, "event_registration")
+}
+
 func (s *LogSender) SendWelcome(ctx context.Context, to, fullName string, event EventInfo) error {
 	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "welcome", "fullName", fullName, "event", event.DisplayName())
 	return s.record(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome")

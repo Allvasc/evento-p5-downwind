@@ -43,8 +43,9 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 	catalogRepo := postgres.NewCatalogRepository(pool)
 	sessionRepo := postgres.NewSessionRepository(pool)
 	eventRepo := postgres.NewEventRepository(pool)
+	registrationRepo := postgres.NewEventRegistrationRepository(pool)
 	publicCatalog := handlers.NewPublicCatalogHandler(catalogRepo, sessionRepo, eventRepo, log)
-	eventsHandler := handlers.NewEventsHandler(eventRepo, log)
+	eventsHandler := handlers.NewEventsHandler(eventRepo, registrationRepo, log)
 
 	studentRepo := postgres.NewStudentRepository(pool)
 	teamRepo := postgres.NewTeamRepository(pool)
@@ -66,6 +67,7 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 
 	authStudent := handlers.NewAuthStudentHandler(studentRepo, resetRepo, tokenIssuer, emailSender, cfg.PasswordPepper, log)
 	authStudent.UseEvents(eventRepo)
+	registrations := handlers.NewEventRegistrationsHandler(eventRepo, registrationRepo, emailSender, log)
 	authTeam := handlers.NewAuthTeamHandler(teamRepo, resetRepo, tokenIssuer, emailSender, cfg.PasswordPepper, log)
 	studentAreaRepo := postgres.NewStudentAreaRepository(pool)
 
@@ -123,6 +125,10 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 			pub.Get("/activities/{activityId}/sessions", publicCatalog.ListActivitySessions)
 			pub.Get("/next-sessions", publicCatalog.NextSessions)
 			pub.Get("/events/{slug}", eventsHandler.Public)
+			// Formulário de inscrição da página do evento (sem conta): limitado por IP
+			// contra spam, além do honeypot e do tempo mínimo de preenchimento.
+			pub.With(httprate.LimitByIP(8, 10*time.Minute)).Post("/events/{slug}/registrations", registrations.Register)
+			pub.With(httprate.LimitByIP(30, time.Minute)).Post("/events/{slug}/views", registrations.RecordView)
 		})
 
 		// Seletor de evento do Admin e do terminal de check-in — toda a equipe (a equipe é
@@ -193,6 +199,9 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 				cfg.Put("/events/{id}", eventsHandler.Update)
 				cfg.Patch("/events/{id}/active", eventsHandler.SetActive)
 
+				cfg.Patch("/registrations/{id}/status", registrations.AdminSetStatus)
+				cfg.Patch("/registrations/{id}/checkin", registrations.AdminSetCheckIn)
+
 				cfg.Get("/activities", adminCatalog.ListActivities)
 				cfg.Post("/activities", adminCatalog.CreateActivity)
 				cfg.Put("/activities/{id}", adminCatalog.UpdateActivity)
@@ -251,6 +260,15 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 				vou.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin", "marketing"))
 
 				vou.Get("/vouchers", adminVouchers.List)
+			})
+
+			// Inscrições do formulário dos eventos (dados pessoais: WhatsApp, e-mail, peso)
+			// — role "admin" ou "reports"; a role "marketing" fica de fora.
+			ad.Group(func(ins chi.Router) {
+				ins.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin", "reports"))
+
+				ins.Get("/registrations", registrations.AdminList)
+				ins.Get("/registrations.csv", registrations.AdminCSV)
 			})
 		})
 
