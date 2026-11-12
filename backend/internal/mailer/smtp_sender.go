@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -120,6 +122,59 @@ func (s *SMTPSender) SendRescheduleNotice(ctx context.Context, to, studentName, 
 		return err
 	}
 	return s.record(ctx, to, subject, "reschedule_notice")
+}
+
+func (s *SMTPSender) SendEventRegistration(ctx context.Context, to, fullName string, info RegistrationInfo) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.from)
+	m.SetHeader("To", to)
+	subject := fmt.Sprintf("Inscrição confirmada: %s", info.EventName)
+	headline := fmt.Sprintf("Sua vaga está garantida, %s!", html.EscapeString(fullName))
+	intro := fmt.Sprintf("Recebemos sua inscrição no <strong>%s</strong>.", html.EscapeString(info.EventName))
+	if info.Waitlist {
+		subject = fmt.Sprintf("Você está na lista de espera: %s", info.EventName)
+		headline = fmt.Sprintf("Você está na lista de espera, %s.", html.EscapeString(fullName))
+		intro = fmt.Sprintf("As vagas do <strong>%s</strong> estão preenchidas no momento e sua inscrição entrou na lista de espera (posição %d). Se uma vaga abrir, a equipe entra em contato.",
+			html.EscapeString(info.EventName), info.WaitlistPosition)
+	}
+	m.SetHeader("Subject", subject)
+
+	var body bytes.Buffer
+	body.WriteString(fmt.Sprintf(`<div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+		<p style="font-family:monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#0b63d6;margin-bottom:8px">P5 Kite House</p>
+		<h1 style="color:#0a0f1a;margin-top:0">%s</h1>
+		<p style="color:#57677e;line-height:1.5">%s</p>`, headline, intro))
+	if info.DateLabel != "" || info.LocationLabel != "" {
+		body.WriteString(`<p style="color:#0a0f1a;line-height:1.6;margin:20px 0">`)
+		if info.DateLabel != "" {
+			body.WriteString(fmt.Sprintf(`<strong>Quando:</strong> %s<br>`, html.EscapeString(info.DateLabel)))
+		}
+		if info.LocationLabel != "" {
+			body.WriteString(fmt.Sprintf(`<strong>Onde:</strong> %s`, html.EscapeString(info.LocationLabel)))
+		}
+		body.WriteString(`</p>`)
+	}
+	if strings.TrimSpace(info.Rules) != "" {
+		body.WriteString(`<p style="color:#0a0f1a;font-weight:600;margin-bottom:6px">Regras da inscrição</p><ul style="color:#57677e;line-height:1.5;padding-left:18px;margin-top:0">`)
+		for _, line := range strings.Split(info.Rules, "\n") {
+			if line = strings.TrimSpace(line); line != "" {
+				body.WriteString("<li>" + html.EscapeString(line) + "</li>")
+			}
+		}
+		body.WriteString(`</ul>`)
+	}
+	body.WriteString(fmt.Sprintf(`<p style="margin:28px 0">
+			<a href="%s%s" style="background:#0b63d6;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px">Ver a página do evento</a>
+		</p>
+		<p style="color:#57677e;font-size:12px;line-height:1.5">Seus dados são usados apenas para organizar a sua participação neste evento. Para pedir a exclusão deles, basta responder a este e-mail.</p>
+	</div>`, s.publicSiteURL, info.PagePath))
+	m.SetBody("text/html", body.String())
+
+	if err := s.dialer.DialAndSend(m); err != nil {
+		s.recordFailure(ctx, to, subject, "event_registration", err)
+		return err
+	}
+	return s.record(ctx, to, subject, "event_registration")
 }
 
 func (s *SMTPSender) SendWelcome(ctx context.Context, to, fullName string, event EventInfo) error {

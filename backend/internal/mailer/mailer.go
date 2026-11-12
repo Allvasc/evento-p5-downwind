@@ -10,6 +10,17 @@ type EventInfo struct {
 	Slug string // "" = main event; otherwise its page is /<slug>
 }
 
+// RegistrationInfo is the content of a form sign-up confirmation e-mail.
+type RegistrationInfo struct {
+	EventName        string
+	DateLabel        string
+	LocationLabel    string
+	Rules            string // one rule per line
+	Waitlist         bool
+	WaitlistPosition int
+	PagePath         string // "/<slug>"
+}
+
 // DisplayName is how the e-mail copy calls the event.
 func (e EventInfo) DisplayName() string {
 	if e.Name == "" {
@@ -48,6 +59,9 @@ type Sender interface {
 	// QR tokens don't change, only their validity window, so the same tickets are
 	// re-attached for convenience.
 	SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, event EventInfo, tickets []TicketAttachment) error
+	// SendEventRegistration confirms a sign-up made through an event page form (no
+	// account, no payment) — or tells the person they're on the waitlist.
+	SendEventRegistration(ctx context.Context, to, fullName string, info RegistrationInfo) error
 	// SendWelcome delivers the registration confirmation, sent once right after a
 	// student creates their account. event is the event whose page they signed up from.
 	SendWelcome(ctx context.Context, to, fullName string, event EventInfo) error
