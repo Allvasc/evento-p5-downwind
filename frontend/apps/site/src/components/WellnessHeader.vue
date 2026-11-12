@@ -6,18 +6,20 @@ import { useAuthStore } from "@/stores/auth";
 
 // eventSlug/eventName: páginas de outros eventos (/<slug>). Sem eles o cabeçalho é o do
 // evento principal, exatamente como sempre foi.
-const props = withDefaults(defineProps<{ transparent?: boolean; eventSlug?: string; eventName?: string }>(), {
+const props = withDefaults(defineProps<{ transparent?: boolean; eventSlug?: string; eventName?: string; registrationMode?: "tickets" | "form" }>(), {
   transparent: false,
   eventSlug: "",
   eventName: "",
+  registrationMode: "tickets",
 });
 const isEventMode = computed(() => !!props.eventSlug);
+const isFormMode = computed(() => isEventMode.value && props.registrationMode === "form");
 const eventHome = computed(() => `/${props.eventSlug}`);
-const eventNavItems = [
-  { label: "O que inclui", target: "#inclui" },
+const eventNavItems = computed(() => [
+  { label: isFormMode.value ? "Destaques" : "O que inclui", target: "#inclui" },
   { label: "Programação", target: "#programacao" },
-  { label: "Ingressos", target: "#preco" },
-];
+  { label: isFormMode.value ? "Inscrição" : "Ingressos", target: isFormMode.value ? "#inscricao" : "#preco" },
+]);
 
 const router = useRouter();
 const route = useRoute();
@@ -41,6 +43,10 @@ function scrollTo(target: string) {
 }
 
 function goBuy() {
+  if (isFormMode.value) {
+    scrollTo("#inscricao");
+    return;
+  }
   router.push(isEventMode.value ? `${eventHome.value}/comprar` : "/comprar");
 }
 

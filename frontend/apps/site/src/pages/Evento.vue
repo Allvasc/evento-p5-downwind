@@ -175,7 +175,7 @@ async function submitRegistration() {
 
 <template>
   <div class="min-h-screen bg-paper">
-    <WellnessHeader :event-slug="slug" :event-name="event?.name" />
+    <WellnessHeader :event-slug="slug" :event-name="event?.name" :registration-mode="event?.registrationMode" />
 
     <main v-if="loadingEvent" class="mx-auto max-w-6xl px-6 py-24 text-sm text-ink-soft">Carregando evento…</main>
 
@@ -222,7 +222,7 @@ async function submitRegistration() {
                 <ArrowRight :size="18" />
               </button>
               <a v-if="includes.length" href="#inclui" class="text-sm font-semibold text-ink underline underline-offset-4 transition-colors hover:text-magenta">
-                Ver o que está incluído
+                {{ isFormMode ? "Ver destaques da experiência" : "Ver o que está incluído" }}
               </a>
             </div>
 
@@ -337,12 +337,13 @@ async function submitRegistration() {
         </div>
       </section>
 
-      <!-- O QUE ESTÁ INCLUSO -->
+      <!-- O QUE ESTÁ INCLUSO / DESTAQUES DA EXPERIÊNCIA -->
       <section v-if="includes.length" id="inclui" class="border-t border-line/60 bg-warm/40 py-20">
         <div class="mx-auto max-w-6xl px-6">
-          <p class="eyebrow mb-2">TUDO INCLUÍDO NO SEU INGRESSO</p>
+          <p class="eyebrow mb-2">{{ isFormMode ? "DESTAQUES DA EXPERIÊNCIA" : "TUDO INCLUÍDO NO SEU INGRESSO" }}</p>
           <h2 class="font-serif text-3xl font-bold leading-tight text-ink md:text-5xl">
-            O que está <span class="text-magenta">incluso.</span>
+            <template v-if="isFormMode">Destaques da <span class="text-magenta">experiência.</span></template>
+            <template v-else>O que está <span class="text-magenta">incluso.</span></template>
           </h2>
 
           <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
