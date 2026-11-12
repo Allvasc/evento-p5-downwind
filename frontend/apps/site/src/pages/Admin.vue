@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu, Ticket, Copy, Info, CheckCircle2, User, Building2 } from "lucide-vue-next";
+import { LayoutDashboard, Dumbbell, Package, Users, LogOut, Plus, ScanLine, CalendarDays, Search, ClipboardList, Mail, RotateCcw, CalendarClock, X, FileText, FileDown, Printer, Menu, Ticket, Copy, Info, CheckCircle2, User, Building2, CalendarRange, ExternalLink } from "lucide-vue-next";
 import { Line } from "vue-chartjs";
 import { Chart, LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip } from "chart.js";
 import { formatBRL, UNLIMITED_CAPACITY, isUnlimitedCapacity } from "@p5wellness/shared";
-import { api, ApiError, TEAM_TOKEN_KEY } from "@/lib/teamApi";
+import { api, ApiError, TEAM_TOKEN_KEY, eventHeaders } from "@/lib/teamApi";
 import { useTeamAuthStore as useAuthStore } from "@/stores/teamAuth";
+import { useTeamEventStore, type TeamEvent } from "@/stores/teamEvent";
+import EventSwitcher from "@/components/EventSwitcher.vue";
 
 Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip);
 
@@ -26,7 +28,7 @@ const TEAM_ROLE_LABELS: Record<string, string> = { admin: "Administrador", repor
 function teamRoleLabel(role: string) {
   return TEAM_ROLE_LABELS[role] ?? "Funcionário";
 }
-const tab = ref<"dashboard" | "produtos" | "atividades" | "turmas" | "equipe" | "vouchers" | "clientes" | "pedidos" | "relatorios">("dashboard");
+const tab = ref<"dashboard" | "produtos" | "atividades" | "turmas" | "equipe" | "vouchers" | "clientes" | "pedidos" | "relatorios" | "eventos">("dashboard");
 const mobileNavOpen = ref(false);
 function selectTab(next: typeof tab.value) {
   tab.value = next;
@@ -42,6 +44,7 @@ const navItems = [
   { key: "clientes", label: "Clientes", icon: Search },
   { key: "pedidos", label: "Pedidos", icon: ClipboardList },
   { key: "relatorios", label: "Relatórios", icon: FileText },
+  { key: "eventos", label: "Eventos", icon: CalendarRange },
 ] as const;
 const visibleNavItems = computed(() => {
   if (isReportsOnly.value) return navItems.filter((item) => (REPORTS_ROLE_TABS as readonly string[]).includes(item.key));
@@ -845,7 +848,7 @@ async function downloadAttendanceCSV() {
   try {
     const qs = dateRangeQuery(reportDateFrom.value, reportDateTo.value);
     const res = await fetch(`/api/v1/admin/reports/attendees.csv${qs}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem(TEAM_TOKEN_KEY) ?? ""}` },
+      headers: { Authorization: `Bearer ${localStorage.getItem(TEAM_TOKEN_KEY) ?? ""}`, ...eventHeaders() },
       credentials: "include",
     });
     if (!res.ok) {
@@ -878,6 +881,7 @@ function escapeHtml(s: string) {
 // direto). Paisagem, cabeçalho de tabela repetido por página e um quadradinho de verdade
 // pra ticar à caneta.
 function attendanceListHtml() {
+  const eventLabel = escapeHtml(eventStore.current?.name ?? "P5 DownWind Day");
   const now = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const periodo =
     reportDateFrom.value || reportDateTo.value
@@ -899,7 +903,7 @@ function attendanceListHtml() {
     )
     .join("");
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>Lista de presença — P5 DownWind Day</title>
+<title>Lista de presença — ${eventLabel}</title>
 <style>
   @page { size: A4 landscape; margin: 12mm; }
   * { box-sizing: border-box; }
@@ -921,7 +925,7 @@ function attendanceListHtml() {
   footer { margin-top: 10px; font-size: 9px; color: #777; }
 </style></head><body>
 <header>
-  <div><h1>P5 DownWind Day — Lista de presença</h1><div class="sub">${periodo}</div></div>
+  <div><h1>${eventLabel} — Lista de presença</h1><div class="sub">${periodo}</div></div>
   <div class="meta">${attendees.value.length} participante(s)<br>Gerado em ${now}</div>
 </header>
 <table>
@@ -974,12 +978,142 @@ function formatSessionDateTime(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-function handleLogout() {
-  authStore.logout();
-  router.push("/acesso-admin");
+// ── Eventos ────────────────────────────────────────────────────────────────
+// Cada evento tem sua página (/<endereço>), produtos, turmas, pedidos e vouchers. O seletor
+// no topo do menu define o evento de TODAS as telas: o teamApi manda o id em cada chamada
+// e o backend filtra por ele — nada de um evento aparece no outro.
+const eventStore = useTeamEventStore();
+const eventLoadError = ref("");
+
+interface AdminEvent extends TeamEvent {
+  headline: string; subtitle: string; dateLabel: string; locationLabel: string;
+  description: string; bannerUrl: string; includes: string; schedule: string;
+}
+const adminEvents = ref<AdminEvent[]>([]);
+const emptyEventForm = () => ({
+  name: "", slug: "", headline: "", subtitle: "", dateLabel: "", locationLabel: "",
+  description: "", bannerUrl: "", includes: "", schedule: "",
+});
+const eventForm = ref(emptyEventForm());
+const editingEventId = ref("");
+const editingEventIsDefault = ref(false);
+const eventSlugTouched = ref(false);
+const savingEvent = ref(false);
+const eventError = ref("");
+const copiedEventLink = ref("");
+const siteOrigin = window.location.origin;
+
+function eventPagePath(e: { slug: string; isDefault: boolean }) {
+  return e.isDefault ? "/" : `/${e.slug}`;
 }
 
-onMounted(async () => {
+// Sugere o endereço a partir do nome enquanto o operador não mexe no campo.
+function slugFromName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+function onEventNameInput() {
+  if (!editingEventId.value && !eventSlugTouched.value) eventForm.value.slug = slugFromName(eventForm.value.name);
+}
+
+async function loadAdminEvents() {
+  const res = await api.get<{ events: AdminEvent[] }>("/admin/events");
+  adminEvents.value = res.events;
+}
+
+function editEvent(e: AdminEvent) {
+  editingEventId.value = e.id;
+  editingEventIsDefault.value = e.isDefault;
+  eventSlugTouched.value = true;
+  eventError.value = "";
+  eventForm.value = {
+    name: e.name, slug: e.slug, headline: e.headline, subtitle: e.subtitle, dateLabel: e.dateLabel,
+    locationLabel: e.locationLabel, description: e.description, bannerUrl: e.bannerUrl,
+    includes: e.includes, schedule: e.schedule,
+  };
+}
+
+function cancelEditEvent() {
+  editingEventId.value = "";
+  editingEventIsDefault.value = false;
+  eventSlugTouched.value = false;
+  eventForm.value = emptyEventForm();
+  eventError.value = "";
+}
+
+async function saveEvent() {
+  eventError.value = "";
+  if (!eventForm.value.name.trim() || !eventForm.value.slug.trim()) {
+    eventError.value = "Nome e endereço da página são obrigatórios.";
+    return;
+  }
+  savingEvent.value = true;
+  try {
+    if (editingEventId.value) {
+      await api.put(`/admin/events/${editingEventId.value}`, eventForm.value);
+    } else {
+      await api.post("/admin/events", eventForm.value);
+    }
+    cancelEditEvent();
+    await Promise.all([loadAdminEvents(), eventStore.load()]);
+  } catch (err) {
+    eventError.value = err instanceof ApiError ? err.message : "Não foi possível salvar o evento.";
+  } finally {
+    savingEvent.value = false;
+  }
+}
+
+async function toggleEventActive(e: AdminEvent) {
+  eventError.value = "";
+  const action = e.active ? "tirar do ar" : "publicar";
+  if (!window.confirm(`Deseja ${action} a página e os ingressos de "${e.name}"?`)) return;
+  try {
+    await api.patch(`/admin/events/${e.id}/active`, { active: !e.active });
+    await Promise.all([loadAdminEvents(), eventStore.load()]);
+  } catch (err) {
+    eventError.value = err instanceof ApiError ? err.message : "Não foi possível atualizar o evento.";
+  }
+}
+
+async function copyEventLink(e: AdminEvent) {
+  try {
+    await navigator.clipboard.writeText(`${siteOrigin}${eventPagePath(e)}`);
+    copiedEventLink.value = e.id;
+  } catch {
+    // sem permissão de clipboard — o link continua visível na tela
+  }
+}
+
+// Atalho: escolhe o evento no seletor e já abre Produtos para cadastrar os ingressos dele.
+async function manageEvent(e: AdminEvent) {
+  if (eventStore.currentId !== e.id) {
+    eventStore.select(e.id);
+    await onEventChanged();
+  }
+  selectTab("produtos");
+}
+
+// Fecha tudo que estava aberto/em edição do evento anterior e recarrega as telas no novo.
+async function onEventChanged() {
+  cancelEditActivity();
+  cancelEditProduct();
+  cancelEditSession();
+  selectedOrder.value = null;
+  selectedCustomer.value = null;
+  selectedVoucherDetail.value = null;
+  rescheduleModalOpen.value = false;
+  lastCreatedCodes.value = [];
+  mobileNavOpen.value = false;
+  await loadEventData();
+}
+
+// Carrega as telas do evento selecionado, respeitando o que cada role pode ver.
+async function loadEventData() {
   if (isReportsOnly.value) {
     // O backend nega o resto (catálogo, equipe, clientes) para essa role — nem tenta,
     // pra não gerar 403 à toa.
@@ -990,7 +1124,29 @@ onMounted(async () => {
     await Promise.all([loadDashboard(), loadOrders(), loadReports(), loadVouchers()]);
     return;
   }
-  await Promise.all([loadDashboard(), loadVendors(), loadActivities(), loadProducts(), loadTeam(), loadVouchers(), loadSessions(), loadOrders(), loadReports(), searchCustomers()]);
+  await Promise.all([loadDashboard(), loadActivities(), loadProducts(), loadVouchers(), loadSessions(), loadOrders(), loadReports(), searchCustomers()]);
+}
+
+function handleLogout() {
+  authStore.logout();
+  router.push("/acesso-admin");
+}
+
+onMounted(async () => {
+  // O evento precisa estar definido antes de qualquer outra chamada: sem ele o backend
+  // não sabe qual evento filtrar. Se a lista não carregar, nada é exibido (melhor uma tela
+  // vazia com aviso do que dados de eventos misturados).
+  try {
+    await eventStore.load();
+  } catch {
+    eventLoadError.value = "Não foi possível carregar os eventos. Recarregue a página.";
+    return;
+  }
+  if (!isReportsOnly.value && !isMarketingOnly.value) {
+    // Equipe, setores e a lista de eventos valem para todos os eventos.
+    await Promise.all([loadVendors(), loadTeam(), loadAdminEvents()]);
+  }
+  await loadEventData();
 });
 </script>
 
@@ -999,10 +1155,11 @@ onMounted(async () => {
     <!-- Mobile top bar: the sidebar below is desktop-only (md:flex), so this is the
          only way team members on a phone can switch tabs or log out. -->
     <header class="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-ink px-4 py-3 text-white md:hidden">
-      <div class="flex items-center gap-2">
+      <div class="flex min-w-0 items-center gap-2">
         <span class="font-serif text-lg font-bold">P5</span>
         <span class="h-4 w-px bg-white/20"></span>
         <span class="font-mono text-xs uppercase tracking-widest text-magenta">Admin</span>
+        <span v-if="eventStore.current" class="ml-1 truncate rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/90">{{ eventStore.current.name }}</span>
       </div>
       <button class="rounded-lg p-2 text-white/80 hover:bg-white/10" aria-label="Abrir menu" @click="mobileNavOpen = true">
         <Menu :size="22" />
@@ -1023,6 +1180,7 @@ onMounted(async () => {
           <X :size="18" />
         </button>
       </div>
+      <EventSwitcher class="mb-6 px-2" @changed="onEventChanged" />
       <nav class="flex flex-col gap-1 text-sm">
         <button v-for="item in visibleNavItems" :key="item.key" :class="['flex items-center gap-2 rounded-lg px-3 py-2 text-left', tab === item.key ? 'bg-white/10 font-semibold' : 'text-white/70 hover:bg-white/5']" @click="selectTab(item.key)">
           <component :is="item.icon" :size="16" /> {{ item.label }}
@@ -1038,11 +1196,12 @@ onMounted(async () => {
 
     <div class="flex">
     <aside class="hidden w-56 shrink-0 flex-col border-r border-line bg-ink px-4 py-6 text-white md:flex sticky top-0 h-screen">
-      <div class="mb-8 flex items-center gap-2 px-2">
+      <div class="mb-6 flex items-center gap-2 px-2">
           <span class="font-serif text-lg font-bold">P5</span>
           <span class="h-4 w-px bg-white/20"></span>
           <span class="font-mono text-xs uppercase tracking-widest text-magenta">Admin</span>
         </div>
+        <EventSwitcher class="mb-6 px-2" @changed="onEventChanged" />
         <nav class="flex flex-col gap-1 text-sm">
           <button v-for="item in visibleNavItems" :key="item.key" :class="['flex items-center gap-2 rounded-lg px-3 py-2 text-left', tab === item.key ? 'bg-white/10 font-semibold' : 'text-white/70 hover:bg-white/5']" @click="selectTab(item.key)">
             <component :is="item.icon" :size="16" /> {{ item.label }}
@@ -1056,7 +1215,17 @@ onMounted(async () => {
         </button>
       </aside>
 
-      <main class="flex-1 px-6 py-8 md:px-10">
+      <main class="min-w-0 flex-1 px-6 py-8 md:px-10">
+        <p v-if="eventLoadError" class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ eventLoadError }}</p>
+        <!-- Faixa do evento: sempre visível, para ninguém cadastrar ou consultar no evento errado. -->
+        <div v-if="eventStore.current && tab !== 'equipe' && tab !== 'eventos'" class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-line border-l-4 border-l-magenta bg-white px-4 py-3 text-sm shadow-xs">
+          <span class="font-mono text-[10px] font-bold uppercase tracking-widest text-ink-soft">Você está em</span>
+          <strong class="text-ink">{{ eventStore.current.name }}</strong>
+          <span v-if="!eventStore.current.active" class="rounded-full bg-warm px-2 py-0.5 text-xs font-semibold text-ink-soft">Rascunho · fora do ar</span>
+          <a :href="eventPagePath(eventStore.current)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-magenta hover:underline">
+            Página: {{ eventPagePath(eventStore.current) }} <ExternalLink :size="12" />
+          </a>
+        </div>
         <!-- DASHBOARD -->
         <section v-if="tab === 'dashboard'">
           <div class="flex flex-wrap items-end justify-between gap-3">
@@ -1311,6 +1480,7 @@ onMounted(async () => {
         <!-- EQUIPE -->
         <section v-else-if="tab === 'equipe'">
           <h1 class="font-serif text-2xl font-bold text-ink">Equipe</h1>
+          <p class="mt-1 text-sm text-ink-soft">A equipe é a mesma para todos os eventos: cada acesso entra em qualquer evento escolhido no seletor.</p>
 
           <div class="mt-6 rounded-[var(--radius-card)] border border-line bg-white p-6">
             <h2 class="mb-4 font-serif text-lg font-semibold text-ink">Novo acesso</h2>
@@ -2251,6 +2421,114 @@ onMounted(async () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- EVENTOS -->
+        <section v-else-if="tab === 'eventos'">
+          <h1 class="font-serif text-2xl font-bold text-ink">Eventos</h1>
+          <p class="mt-1 max-w-3xl text-sm text-ink-soft">
+            Cada evento tem a sua página, produtos e preços, turmas, pedidos, vouchers e lista de check-in, sem misturar com os outros.
+            Para cadastrar os ingressos de um evento, clique em <strong class="text-ink">Gerenciar</strong> (ou escolha o evento no topo do menu).
+          </p>
+
+          <div class="mt-6 rounded-[var(--radius-card)] border border-line bg-white p-6">
+            <h2 class="mb-1 font-serif text-lg font-semibold text-ink">{{ editingEventId ? "Editar evento" : "Novo evento" }}</h2>
+            <p v-if="!editingEventId" class="mb-4 text-xs text-ink-soft">O evento nasce como rascunho: a página e os ingressos só entram no ar quando você clicar em Publicar.</p>
+            <div class="mt-3 grid gap-4 md:grid-cols-2">
+              <label class="block text-xs font-semibold text-ink-soft">
+                Nome do evento
+                <input v-model="eventForm.name" placeholder="Ex: DownWind Carnaval" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" @input="onEventNameInput" />
+              </label>
+              <label class="block text-xs font-semibold text-ink-soft">
+                Endereço da página
+                <div class="mt-1 flex items-center rounded-lg border border-line bg-warm/40 text-sm">
+                  <span class="truncate pl-3 text-ink-soft">{{ siteOrigin }}/</span>
+                  <input
+                    v-model="eventForm.slug"
+                    :disabled="editingEventIsDefault"
+                    placeholder="downwind-carnaval"
+                    class="min-w-0 flex-1 rounded-r-lg bg-white px-2 py-2 font-normal text-ink disabled:bg-warm/60 disabled:text-ink-soft"
+                    @input="eventSlugTouched = true"
+                  />
+                </div>
+                <span class="mt-1 block font-normal">Só letras minúsculas, números e hífen. Mudar o endereço depois quebra links já divulgados.</span>
+              </label>
+
+              <template v-if="!editingEventIsDefault">
+                <label class="block text-xs font-semibold text-ink-soft">
+                  Título da página
+                  <input v-model="eventForm.headline" placeholder="Ex: O downwind mais animado do Carnaval" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft">
+                  Subtítulo
+                  <input v-model="eventForm.subtitle" placeholder="Ex: Cumbuco → P5 Kite House · 25 km" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft">
+                  Data (texto exibido)
+                  <input v-model="eventForm.dateLabel" placeholder="Ex: Sábado, 14 de fevereiro" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                  <span class="mt-1 block font-normal">Se ficar vazio, a página mostra a data da próxima turma cadastrada.</span>
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft">
+                  Local
+                  <input v-model="eventForm.locationLabel" placeholder="Ex: P5 Kite House, Cumbuco" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft md:col-span-2">
+                  Imagem do banner (link)
+                  <input v-model="eventForm.bannerUrl" placeholder="https://… ou /arquivo.webp" class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink" />
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft md:col-span-2">
+                  Descrição
+                  <textarea v-model="eventForm.description" rows="3" placeholder="Um ou dois parágrafos sobre o evento." class="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-normal text-ink"></textarea>
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft">
+                  O que inclui (um item por linha)
+                  <textarea v-model="eventForm.includes" rows="5" placeholder="Café da manhã | Buffet a partir das 6h&#10;Transporte | Van ida e volta" class="mt-1 w-full rounded-lg border border-line px-3 py-2 font-mono text-xs font-normal text-ink"></textarea>
+                  <span class="mt-1 block font-normal">Para um detalhe, use "Título | detalhe".</span>
+                </label>
+                <label class="block text-xs font-semibold text-ink-soft">
+                  Programação (um item por linha)
+                  <textarea v-model="eventForm.schedule" rows="5" placeholder="06h00 · Check-in | Conferência dos participantes&#10;07h00 · Largada" class="mt-1 w-full rounded-lg border border-line px-3 py-2 font-mono text-xs font-normal text-ink"></textarea>
+                  <span class="mt-1 block font-normal">Para um detalhe, use "Horário · Título | detalhe".</span>
+                </label>
+              </template>
+              <p v-else class="rounded-lg bg-warm/50 px-4 py-3 text-xs text-ink-soft md:col-span-2">
+                Este é o evento principal: a página dele é a página inicial do site (/) e o conteúdo fica no código. Aqui você só muda o nome usado no painel.
+              </p>
+            </div>
+            <p v-if="eventError" class="mt-3 text-sm text-red-600">{{ eventError }}</p>
+            <div class="mt-4 flex gap-3">
+              <button class="button-magenta" :disabled="savingEvent" @click="saveEvent">
+                <Plus :size="16" /> {{ editingEventId ? "Salvar alterações" : "Criar evento" }}
+              </button>
+              <button v-if="editingEventId" type="button" class="text-sm font-semibold text-ink-soft hover:text-ink" @click="cancelEditEvent">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="mt-6 grid gap-4 md:grid-cols-2">
+            <div v-for="e in adminEvents" :key="e.id" :class="['rounded-[var(--radius-card)] border bg-white p-5', eventStore.currentId === e.id ? 'border-magenta ring-2 ring-magenta/15' : 'border-line']">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h3 class="font-serif text-lg font-semibold text-ink">{{ e.name }}</h3>
+                  <a :href="eventPagePath(e)" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 break-all text-xs font-semibold text-magenta hover:underline">
+                    {{ siteOrigin }}{{ eventPagePath(e) }} <ExternalLink :size="12" class="shrink-0" />
+                  </a>
+                </div>
+                <div class="flex shrink-0 flex-col items-end gap-1">
+                  <span v-if="e.isDefault" class="rounded-full bg-ink px-2 py-1 text-xs font-semibold text-white">Principal</span>
+                  <span :class="['rounded-full px-2 py-1 text-xs font-semibold', e.active ? 'bg-[#e5f5e8] text-[#237438]' : 'bg-warm text-ink-soft']">{{ e.active ? "No ar" : "Rascunho" }}</span>
+                </div>
+              </div>
+              <p v-if="eventStore.currentId === e.id" class="mt-2 text-xs font-semibold text-magenta">Selecionado no painel</p>
+              <div class="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+                <button class="text-xs font-semibold text-magenta" @click="manageEvent(e)">Gerenciar produtos e turmas</button>
+                <button class="text-xs font-semibold text-ink-soft hover:text-ink" @click="editEvent(e)">Editar</button>
+                <button v-if="!e.isDefault" class="text-xs font-semibold text-ink-soft hover:text-ink" @click="toggleEventActive(e)">{{ e.active ? "Tirar do ar" : "Publicar" }}</button>
+                <button class="inline-flex items-center gap-1 text-xs font-semibold text-ink-soft hover:text-ink" @click="copyEventLink(e)">
+                  <Copy :size="12" /> {{ copiedEventLink === e.id ? "Link copiado" : "Copiar link" }}
+                </button>
+              </div>
             </div>
           </div>
         </section>

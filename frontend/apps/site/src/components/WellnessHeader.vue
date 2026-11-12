@@ -1,11 +1,23 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { RouterLink, useRouter, useRoute } from "vue-router";
 import { ShieldCheck, LogOut, CalendarCheck } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/auth";
 
-withDefaults(defineProps<{ transparent?: boolean }>(), {
+// eventSlug/eventName: páginas de outros eventos (/<slug>). Sem eles o cabeçalho é o do
+// evento principal, exatamente como sempre foi.
+const props = withDefaults(defineProps<{ transparent?: boolean; eventSlug?: string; eventName?: string }>(), {
   transparent: false,
+  eventSlug: "",
+  eventName: "",
 });
+const isEventMode = computed(() => !!props.eventSlug);
+const eventHome = computed(() => `/${props.eventSlug}`);
+const eventNavItems = [
+  { label: "O que inclui", target: "#inclui" },
+  { label: "Programação", target: "#programacao" },
+  { label: "Ingressos", target: "#preco" },
+];
 
 const router = useRouter();
 const route = useRoute();
@@ -20,11 +32,16 @@ const navItems = [
 ];
 
 function scrollTo(target: string) {
-  if (route.path !== "/") {
-    router.push({ path: "/", hash: target });
+  const home = isEventMode.value ? eventHome.value : "/";
+  if (route.path !== home) {
+    router.push({ path: home, hash: target });
   } else {
     document.querySelector(target)?.scrollIntoView({ behavior: "smooth" });
   }
+}
+
+function goBuy() {
+  router.push(isEventMode.value ? `${eventHome.value}/comprar` : "/comprar");
 }
 
 function handleLogout() {
@@ -36,8 +53,13 @@ function handleLogout() {
 <template>
   <header :class="['sticky top-0 z-40 transition-all duration-200', transparent ? 'bg-paper/85 backdrop-blur-md border-b border-line/70' : 'bg-paper/95 backdrop-blur-md border-b border-line shadow-xs']">
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-2 px-6 py-3.5 sm:gap-6">
+      <RouterLink v-if="isEventMode" :to="eventHome" :aria-label="eventName || 'Evento P5'" class="flex min-w-0 items-center gap-2.5">
+        <span class="font-serif text-lg font-black text-ink">P5</span>
+        <span class="h-5 w-px shrink-0 bg-line/80"></span>
+        <span class="truncate font-serif text-sm font-bold text-ink sm:text-base">{{ eventName }}</span>
+      </RouterLink>
       <!-- No celular só o logo DownWind; o selo Sertões aparece logo abaixo, no hero. -->
-      <RouterLink to="/" aria-label="P5 DownWind Day & Sertões Kitesurf" class="flex shrink-0 items-center gap-2.5 sm:gap-3 group">
+      <RouterLink v-else to="/" aria-label="P5 DownWind Day & Sertões Kitesurf" class="flex shrink-0 items-center gap-2.5 sm:gap-3 group">
         <img src="/logo-downwind.webp" alt="P5 DownWind Day" class="h-7 w-auto sm:h-9" />
         <span class="hidden h-5 w-px bg-line/80 sm:block"></span>
         <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="hidden h-8 w-auto rounded-sm shadow-2xs transition-transform group-hover:scale-105 sm:block" />
@@ -46,7 +68,7 @@ function handleLogout() {
       <!-- O menu só aparece quando cabe inteiro numa linha (xl); abaixo disso o header fica com logo + acesso + CTA. -->
       <nav class="hidden items-center gap-6 xl:flex" aria-label="Navegação principal">
         <button
-          v-for="item in navItems"
+          v-for="item in (isEventMode ? eventNavItems : navItems)"
           :key="item.label"
           class="whitespace-nowrap text-sm font-medium text-ink-soft transition-colors hover:text-ink"
           @click="scrollTo(item.target)"
@@ -77,7 +99,7 @@ function handleLogout() {
             <span class="hidden sm:inline">Portal do aluno</span>
           </button>
         </template>
-        <button class="button-magenta whitespace-nowrap px-3.5! py-2.5! text-sm sm:px-5!" @click="router.push('/comprar')">
+        <button class="button-magenta whitespace-nowrap px-3.5! py-2.5! text-sm sm:px-5!" @click="goBuy">
           <CalendarCheck :size="16" class="hidden sm:block" />
           <span>Garantir<span class="hidden min-[400px]:inline">&nbsp;vaga</span></span>
         </button>

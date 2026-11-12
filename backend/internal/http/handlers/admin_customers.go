@@ -25,7 +25,7 @@ func (h *AdminCustomersHandler) Search(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "digite ao menos 2 caracteres para buscar")
 		return
 	}
-	customers, err := h.repo.Search(r.Context(), query)
+	customers, err := h.repo.Search(r.Context(), query, eventScope(r))
 	if err != nil {
 		h.log.Error("search customers", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível buscar clientes")
@@ -36,7 +36,7 @@ func (h *AdminCustomersHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminCustomersHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	detail, err := h.repo.Detail(r.Context(), id)
+	detail, err := h.repo.Detail(r.Context(), id, eventScope(r))
 	if err != nil {
 		if err == postgres.ErrNotFound {
 			writeJSONError(w, http.StatusNotFound, "cliente não encontrado")

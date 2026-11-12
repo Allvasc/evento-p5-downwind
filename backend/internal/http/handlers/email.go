@@ -24,7 +24,7 @@ func sendTicketEmail(ctx context.Context, sender mailer.Sender, log *slog.Logger
 		}
 		tickets = append(tickets, mailer.TicketAttachment{Label: fmt.Sprintf("%s (%s)", e.Label, e.VendorName), PNG: png})
 	}
-	return sender.SendOrderConfirmation(ctx, result.StudentEmail, result.StudentName, result.OrderNumber, tickets)
+	return sender.SendOrderConfirmation(ctx, result.StudentEmail, result.StudentName, result.OrderNumber, eventInfo(result), tickets)
 }
 
 // sendRescheduleEmail is sendTicketEmail's counterpart for a reschedule: same QR
@@ -40,5 +40,11 @@ func sendRescheduleEmail(ctx context.Context, sender mailer.Sender, log *slog.Lo
 		}
 		tickets = append(tickets, mailer.TicketAttachment{Label: fmt.Sprintf("%s (%s)", e.Label, e.VendorName), PNG: png})
 	}
-	return sender.SendRescheduleNotice(ctx, result.StudentEmail, result.StudentName, result.OrderNumber, newDate, tickets)
+	return sender.SendRescheduleNotice(ctx, result.StudentEmail, result.StudentName, result.OrderNumber, newDate, eventInfo(result), tickets)
+}
+
+// eventInfo carries the order's event into the e-mail copy (empty for the main event,
+// whose e-mails keep their original text).
+func eventInfo(result postgres.PaidOrderResult) mailer.EventInfo {
+	return mailer.EventInfo{Name: result.EventName, Slug: result.EventSlug}
 }

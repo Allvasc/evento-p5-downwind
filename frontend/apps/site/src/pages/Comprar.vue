@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { useQuery } from "@tanstack/vue-query";
 import { ShieldCheck, ArrowLeft, ArrowRight } from "lucide-vue-next";
-import { formatBRL, cleanTitle, type Product } from "@p5wellness/shared";
+import { formatBRL, cleanTitle } from "@p5wellness/shared";
 import { api, ApiError } from "@/lib/api";
 import WellnessHeader from "@/components/WellnessHeader.vue";
 import EmergencyContactForm from "@/components/EmergencyContactForm.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useProductSlots, formatSlotDay, formatSlotSummary } from "@/composables/useProductSlots";
+import { useEventSlug, eventPaths, usePublicEvent, useEventProducts } from "@/composables/usePublicEvent";
 
 const router = useRouter();
 const authStore = useAuthStore();
+// /comprar = evento principal (slug vazio); /<slug>/comprar = só os produtos daquele evento.
+const eventSlug = useEventSlug();
+const paths = computed(() => eventPaths(eventSlug.value));
+const { data: eventData, isError: eventMissing } = usePublicEvent(eventSlug);
 onMounted(() => {
   if (authStore.token && !authStore.me) authStore.fetchMe();
 });
@@ -26,10 +30,8 @@ const selectedId = ref<string | null>(null);
 const submitting = ref(false);
 const errorMessage = ref("");
 
-const { data, isLoading } = useQuery({
-  queryKey: ["public-products"],
-  queryFn: () => api.get<{ products: Product[] }>("/public/products"),
-});
+// staleTime 0: o checkout sempre busca o preço atual ao abrir, como antes.
+const { data, isLoading, isError: productsError } = useEventProducts(eventSlug, { staleTime: 0 });
 
 const products = computed(() => data.value?.products ?? []);
 
@@ -76,7 +78,7 @@ async function goToPayment() {
   if (!selected.value || !canCheckout.value) return;
   errorMessage.value = "";
   if (!localStorage.getItem("p5_student_token")) {
-    router.push({ path: "/entrar", query: { redirect: "/comprar" } });
+    router.push({ path: "/entrar", query: { redirect: paths.value.buy } });
     return;
   }
   submitting.value = true;
@@ -97,10 +99,10 @@ async function goToPayment() {
 
 <template>
   <div class="min-h-screen bg-paper">
-    <WellnessHeader />
+    <WellnessHeader :event-slug="eventSlug" :event-name="eventData?.name" />
 
     <main class="mx-auto max-w-6xl px-6 py-10">
-      <button class="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink" @click="router.push('/')">
+      <button class="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink" @click="router.push(paths.home)">
         <ArrowLeft :size="14" /> Voltar
       </button>
 
@@ -119,9 +121,15 @@ async function goToPayment() {
 
       <div v-if="isLoading" class="mt-12 text-sm text-ink-soft">Carregando experiências…</div>
 
+      <div v-else-if="eventSlug && (eventMissing || productsError)" class="mt-12 rounded-[var(--radius-card)] border border-line bg-white p-10 text-center">
+        <h2 class="font-serif text-xl font-semibold text-ink">Evento não encontrado</h2>
+        <p class="mt-2 text-ink-soft">Este endereço não corresponde a nenhum evento com inscrições abertas.</p>
+      </div>
+
       <div v-else-if="!products.length" class="mt-12 rounded-[var(--radius-card)] border border-line bg-white p-10 text-center">
         <h2 class="font-serif text-xl font-semibold text-ink">Agenda em preparação</h2>
-        <p class="mt-2 text-ink-soft">O ingresso do P5 DownWind Day será publicado aqui em breve.</p>
+        <p v-if="eventSlug" class="mt-2 text-ink-soft">Os ingressos de {{ eventData?.name ?? "este evento" }} serão publicados aqui em breve.</p>
+        <p v-else class="mt-2 text-ink-soft">O ingresso do P5 DownWind Day será publicado aqui em breve.</p>
       </div>
 
       <div v-else class="mt-10 grid gap-10 md:grid-cols-[1.5fr_1fr] md:items-start">

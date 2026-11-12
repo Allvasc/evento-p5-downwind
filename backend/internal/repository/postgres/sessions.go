@@ -27,9 +27,10 @@ type AdminSession struct {
 	Status        string    `json:"status"`
 }
 
-// ListUpcoming returns sessions from today onward, across all activities, with how many
-// seats are already booked (order_items on paid orders referencing that session).
-func (r *SessionRepository) ListUpcoming(ctx context.Context) ([]AdminSession, error) {
+// ListUpcoming returns sessions from today onward, across the activities of one event
+// ("" = every event), with how many seats are already booked (order_items on paid orders
+// referencing that session).
+func (r *SessionRepository) ListUpcoming(ctx context.Context, eventID string) ([]AdminSession, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT cs.id, cs.activity_id, a.title, cs.starts_at, cs.ends_at, cs.capacity, cs.status,
 		       COALESCE((
@@ -40,8 +41,9 @@ func (r *SessionRepository) ListUpcoming(ctx context.Context) ([]AdminSession, e
 		FROM class_sessions cs
 		JOIN activities a ON a.id = cs.activity_id
 		WHERE cs.starts_at >= now() - interval '1 day'
+		  AND ($1::uuid IS NULL OR a.event_id = $1::uuid)
 		ORDER BY cs.starts_at ASC
-	`)
+	`, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +134,8 @@ func (r *SessionRepository) AvailableForActivity(ctx context.Context, activityID
 // NextPerActivity returns the soonest upcoming, open-seat session for each active
 // activity — what the public landing page shows so a visitor knows the next event date
 // before ever going to checkout, instead of only discovering it after picking a product.
-func (r *SessionRepository) NextPerActivity(ctx context.Context) ([]AdminSession, error) {
+// Scoped to one event, so a page never shows another event's date or seat count.
+func (r *SessionRepository) NextPerActivity(ctx context.Context, eventID string) ([]AdminSession, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT ON (cs.activity_id) cs.id, cs.activity_id, a.title, cs.starts_at, cs.ends_at, cs.capacity, cs.status,
 		       COALESCE(booked.n, 0) AS booked
@@ -146,11 +149,12 @@ func (r *SessionRepository) NextPerActivity(ctx context.Context) ([]AdminSession
 		  GROUP BY oi.class_session_id
 		) booked ON booked.class_session_id = cs.id
 		WHERE a.active = true
+		  AND a.event_id = $1
 		  AND cs.status = 'scheduled'
 		  AND cs.starts_at >= now()
 		  AND COALESCE(booked.n, 0) < cs.capacity
 		ORDER BY cs.activity_id, cs.starts_at ASC
-	`)
+	`, eventID)
 	if err != nil {
 		return nil, err
 	}

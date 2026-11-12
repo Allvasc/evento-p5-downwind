@@ -19,7 +19,7 @@ func NewAdminDashboardHandler(repo *postgres.DashboardRepository, log *slog.Logg
 
 func (h *AdminDashboardHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	summary, err := h.repo.Summary(r.Context(), from, to)
+	summary, err := h.repo.Summary(r.Context(), eventScope(r), from, to)
 	if err != nil {
 		h.log.Error("dashboard summary", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o resumo")
@@ -30,7 +30,7 @@ func (h *AdminDashboardHandler) Summary(w http.ResponseWriter, r *http.Request) 
 
 func (h *AdminDashboardHandler) SalesByProduct(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	sales, err := h.repo.SalesByProduct(r.Context(), from, to)
+	sales, err := h.repo.SalesByProduct(r.Context(), eventScope(r), from, to)
 	if err != nil {
 		h.log.Error("sales by product", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar as vendas")
@@ -55,7 +55,7 @@ func (h *AdminDashboardHandler) SalesTimeseries(w http.ResponseWriter, r *http.R
 	if end.Sub(start) > 366*24*time.Hour {
 		start = end.AddDate(-1, 0, -1)
 	}
-	points, err := h.repo.SalesTimeseries(r.Context(), start, end)
+	points, err := h.repo.SalesTimeseries(r.Context(), eventScope(r), start, end)
 	if err != nil {
 		h.log.Error("sales timeseries", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar a série histórica")

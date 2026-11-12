@@ -7,6 +7,8 @@ export class ApiError extends Error {
 export interface ApiClientOptions {
   baseUrl?: string;
   getToken?: () => string | null;
+  /** Extra headers sent on every request (e.g. the event selected in the Admin). */
+  getHeaders?: () => Record<string, string>;
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -17,6 +19,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
     const headers = new Headers(init.headers);
     headers.set("Content-Type", "application/json");
     if (token) headers.set("Authorization", `Bearer ${token}`);
+    for (const [name, value] of Object.entries(options.getHeaders?.() ?? {})) {
+      if (!headers.has(name)) headers.set(name, value);
+    }
 
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,

@@ -37,7 +37,7 @@ type SessionRoster struct {
 // everyone who paid for a seat in it — the roster staff needs to know who to expect at
 // each specific date/time, independent of which product they bought it through. from/to
 // bound cs.starts_at (the turma's own date) — either may be nil to leave that side open.
-func (r *AdminReportsRepository) SessionsWithAttendees(ctx context.Context, from, to *time.Time) ([]SessionRoster, error) {
+func (r *AdminReportsRepository) SessionsWithAttendees(ctx context.Context, eventID string, from, to *time.Time) ([]SessionRoster, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT cs.id, a.title, to_char(cs.starts_at, 'YYYY-MM-DD"T"HH24:MI:SSZ'), cs.capacity,
 		       COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), COALESCE(o.payment_method, '')
@@ -47,10 +47,11 @@ func (r *AdminReportsRepository) SessionsWithAttendees(ctx context.Context, from
 		LEFT JOIN orders o ON o.id = oi.order_id AND o.status = 'paid'
 		LEFT JOIN students s ON s.id = o.student_id
 		WHERE cs.status = 'scheduled'
+		  AND ($3::uuid IS NULL OR a.event_id = $3::uuid)
 		  AND ($1::timestamptz IS NULL OR cs.starts_at >= $1)
 		  AND ($2::timestamptz IS NULL OR cs.starts_at < $2::timestamptz + INTERVAL '1 day')
 		ORDER BY cs.starts_at, a.title, s.full_name
-	`, from, to)
+	`, from, to, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ type ProductRoster struct {
 // and that stays true even when from/to narrow the buyer list to zero for a product —
 // the date bound lives in the orders JOIN condition, not a WHERE clause, so it only
 // prunes which purchases count as a "buyer" rather than hiding products outright.
-func (r *AdminReportsRepository) ProductsWithBuyers(ctx context.Context, from, to *time.Time) ([]ProductRoster, error) {
+func (r *AdminReportsRepository) ProductsWithBuyers(ctx context.Context, eventID string, from, to *time.Time) ([]ProductRoster, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT p.display_order, p.id, p.title, COALESCE(o.id::text, ''), COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), o.created_at, COALESCE(o.payment_method, '')
 		FROM products p
@@ -102,8 +103,9 @@ func (r *AdminReportsRepository) ProductsWithBuyers(ctx context.Context, from, t
 		  AND ($2::timestamptz IS NULL OR o.created_at < $2::timestamptz + INTERVAL '1 day')
 		LEFT JOIN students s ON s.id = o.student_id
 		WHERE p.active = true
+		  AND ($3::uuid IS NULL OR p.event_id = $3::uuid)
 		ORDER BY p.display_order, o.created_at
-	`, from, to)
+	`, from, to, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +181,7 @@ type EventAttendee struct {
 // side open); with both nil it returns every paid benefit ever, which for a one-day event
 // is exactly the full list. encryptionKey is the same pepper used to encrypt the CPF at
 // registration (see student.go) — a wrong key would make pgp_sym_decrypt raise.
-func (r *AdminReportsRepository) EventAttendees(ctx context.Context, from, to *time.Time, encryptionKey string) ([]EventAttendee, error) {
+func (r *AdminReportsRepository) EventAttendees(ctx context.Context, eventID string, from, to *time.Time, encryptionKey string) ([]EventAttendee, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT s.full_name,
 		       COALESCE(s.phone, ''),
@@ -206,13 +208,14 @@ func (r *AdminReportsRepository) EventAttendees(ctx context.Context, from, to *t
 		LEFT JOIN activities a ON a.id = oi.activity_id
 		LEFT JOIN class_sessions cs ON cs.id = oi.class_session_id
 		WHERE e.status <> 'cancelled'
+		  AND ($4::uuid IS NULL OR o.event_id = $4::uuid)
 		  AND ($1::date IS NULL OR e.valid_until >= $1::date)
 		  AND ($2::date IS NULL OR e.valid_until <= $2::date)
 		GROUP BY e.id, s.full_name, s.phone, s.email, s.cpf_encrypted,
 		         s.emergency_contact_name, s.emergency_contact_phone,
 		         o.paid_at, o.created_at, o.order_number, e.valid_until, v.name, e.status, e.used_at
 		ORDER BY e.valid_until, MIN(cs.starts_at) NULLS FIRST, s.full_name
-	`, from, to, encryptionKey)
+	`, from, to, encryptionKey, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +251,7 @@ func formatCPF(digits string) string {
 // combo purchase (e.g. "Aulas" = Yoga + HYROX) contributes one order_item per activity,
 // so the same buyer can appear once under Yoga and once under HYROX. from/to bound
 // o.created_at (the purchase date, since activities/order_items have no date of their own).
-func (r *AdminReportsRepository) ByActivity(ctx context.Context, from, to *time.Time) ([]ActivityRoster, error) {
+func (r *AdminReportsRepository) ByActivity(ctx context.Context, eventID string, from, to *time.Time) ([]ActivityRoster, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT COALESCE(a.title, 'Café da Manhã') AS label,
 		       COALESCE(s.full_name, ''), COALESCE(s.email, ''), COALESCE(o.order_number, ''), COALESCE(o.payment_method, '')
@@ -258,8 +261,9 @@ func (r *AdminReportsRepository) ByActivity(ctx context.Context, from, to *time.
 		LEFT JOIN activities a ON a.id = oi.activity_id
 		WHERE ($1::timestamptz IS NULL OR o.created_at >= $1)
 		  AND ($2::timestamptz IS NULL OR o.created_at < $2::timestamptz + INTERVAL '1 day')
+		  AND ($3::uuid IS NULL OR o.event_id = $3::uuid)
 		ORDER BY label, s.full_name
-	`, from, to)
+	`, from, to, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}

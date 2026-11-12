@@ -27,6 +27,9 @@ const (
 	ResultNotFound         ValidationResult = "not_found"
 	ResultInvalidSignature ValidationResult = "invalid_signature"
 	ResultWrongSector      ValidationResult = "wrong_sector"
+	// ResultWrongEvent: the QR belongs to another event than the one selected on the
+	// check-in terminal. The ticket is left untouched (still available for its own event).
+	ResultWrongEvent ValidationResult = "wrong_event"
 )
 
 type ValidatedTicket struct {
@@ -37,6 +40,8 @@ type ValidatedTicket struct {
 	StudentName   string
 	OrderNumber   string
 	UsedAt        *time.Time
+	// EventName is the ticket's own event — shown when it was scanned at another event.
+	EventName string
 }
 
 // ValidateToken performs an atomic conditional update: only a ticket that is currently
@@ -46,7 +51,14 @@ type ValidatedTicket struct {
 //
 // scannerVendorID is the team member's own sector; empty means unrestricted (P5 admin).
 func (r *CheckinRepository) ValidateToken(ctx context.Context, token, scannerVendorID, scannedBy, clientScanID string, deviceScannedAt time.Time) (*ValidatedTicket, error) {
-	return r.validateEntitlement(ctx, "qr_token", token, scannerVendorID, scannedBy, clientScanID, deviceScannedAt)
+	return r.validateEntitlement(ctx, "qr_token", token, "", scannerVendorID, scannedBy, clientScanID, deviceScannedAt)
+}
+
+// ValidateTokenForEvent is ValidateToken on a terminal set to one event: a ticket of any
+// other event comes back as ResultWrongEvent and is not marked used. eventID "" behaves
+// exactly like ValidateToken.
+func (r *CheckinRepository) ValidateTokenForEvent(ctx context.Context, token, eventID, scannerVendorID, scannedBy, clientScanID string, deviceScannedAt time.Time) (*ValidatedTicket, error) {
+	return r.validateEntitlement(ctx, "qr_token", token, eventID, scannerVendorID, scannedBy, clientScanID, deviceScannedAt)
 }
 
 // ValidateByID is the list-based fallback to ValidateToken: staff pick the guest by name
@@ -54,28 +66,34 @@ func (r *CheckinRepository) ValidateToken(ctx context.Context, token, scannerVen
 // the same entitlement row by its own id. Same atomicity, sector, and expiry rules apply —
 // it's just a different way to find the row.
 func (r *CheckinRepository) ValidateByID(ctx context.Context, entitlementID, scannerVendorID, scannedBy, clientScanID string, deviceScannedAt time.Time) (*ValidatedTicket, error) {
-	return r.validateEntitlement(ctx, "id", entitlementID, scannerVendorID, scannedBy, clientScanID, deviceScannedAt)
+	return r.validateEntitlement(ctx, "id", entitlementID, "", scannerVendorID, scannedBy, clientScanID, deviceScannedAt)
+}
+
+// ValidateByIDForEvent is ValidateByID with the same event rule as ValidateTokenForEvent.
+func (r *CheckinRepository) ValidateByIDForEvent(ctx context.Context, entitlementID, eventID, scannerVendorID, scannedBy, clientScanID string, deviceScannedAt time.Time) (*ValidatedTicket, error) {
+	return r.validateEntitlement(ctx, "id", entitlementID, eventID, scannerVendorID, scannedBy, clientScanID, deviceScannedAt)
 }
 
 // lookupColumn is always one of the literal strings above — never caller input — so
 // building the query with it isn't a SQL-injection risk.
-func (r *CheckinRepository) validateEntitlement(ctx context.Context, lookupColumn, lookupValue, scannerVendorID, scannedBy, clientScanID string, deviceScannedAt time.Time) (*ValidatedTicket, error) {
+func (r *CheckinRepository) validateEntitlement(ctx context.Context, lookupColumn, lookupValue, eventID, scannerVendorID, scannedBy, clientScanID string, deviceScannedAt time.Time) (*ValidatedTicket, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
 
-	var entitlementID, studentID, orderNumber, currentStatus, vendorID, vendorName string
+	var entitlementID, studentID, orderNumber, currentStatus, vendorID, vendorName, orderEventID, eventName string
 	var validUntil time.Time
 	var existingUsedAt *time.Time
 	err = tx.QueryRow(ctx, `
-		SELECT e.id, e.student_id, o.order_number, e.status, e.vendor_id, v.name, e.valid_until, e.used_at
+		SELECT e.id, e.student_id, o.order_number, e.status, e.vendor_id, v.name, e.valid_until, e.used_at, o.event_id, ev.name
 		FROM entitlements e
 		JOIN orders o ON o.id = e.order_id
+		JOIN events ev ON ev.id = o.event_id
 		JOIN vendors v ON v.id = e.vendor_id
 		WHERE e.`+lookupColumn+` = $1
-	`, lookupValue).Scan(&entitlementID, &studentID, &orderNumber, &currentStatus, &vendorID, &vendorName, &validUntil, &existingUsedAt)
+	`, lookupValue).Scan(&entitlementID, &studentID, &orderNumber, &currentStatus, &vendorID, &vendorName, &validUntil, &existingUsedAt, &orderEventID, &eventName)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		_ = r.logAttempt(ctx, tx, nil, scannedBy, clientScanID, ResultNotFound, deviceScannedAt)
@@ -90,6 +108,9 @@ func (r *CheckinRepository) validateEntitlement(ctx context.Context, lookupColum
 	studentName := studentNameFor(ctx, tx, studentID)
 
 	result := func() ValidationResult {
+		if eventID != "" && eventID != orderEventID {
+			return ResultWrongEvent
+		}
 		if scannerVendorID != "" && scannerVendorID != vendorID {
 			return ResultWrongSector
 		}
@@ -130,7 +151,7 @@ func (r *CheckinRepository) validateEntitlement(ctx context.Context, lookupColum
 
 	return &ValidatedTicket{
 		Result: result, EntitlementID: entitlementID, Label: label, VendorName: vendorName,
-		StudentName: studentName, OrderNumber: orderNumber, UsedAt: usedAt,
+		StudentName: studentName, OrderNumber: orderNumber, UsedAt: usedAt, EventName: eventName,
 	}, nil
 }
 
@@ -203,7 +224,10 @@ type RosterGroup struct {
 // A combo entitlement covering two classes from the same vendor (one ticket, two
 // entitlement_items) appears once in each class's group — validating it from either one
 // marks the whole ticket used, matching what scanning its one QR code would do.
-func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, date string) ([]RosterGroup, error) {
+//
+// eventID limits the list to one event's tickets ("" = every event), so two events on the
+// same day never share a roster.
+func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, date, eventID string) ([]RosterGroup, error) {
 	// nil (not "") signals "unrestricted" to Postgres — an empty string can't be compared
 	// against the uuid column without an explicit, always-evaluated cast.
 	var vendorFilter *string
@@ -228,8 +252,9 @@ func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, dat
 		LEFT JOIN vouchers vouch ON vouch.order_id = o.id
 		WHERE e.valid_until = $1::date
 		  AND ($2::uuid IS NULL OR e.vendor_id = $2::uuid)
+		  AND ($3::uuid IS NULL OR o.event_id = $3::uuid)
 		ORDER BY cs.starts_at NULLS LAST, s.full_name
-	`, date, vendorFilter)
+	`, date, vendorFilter, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +316,7 @@ func (r *CheckinRepository) ListRoster(ctx context.Context, scannerVendorID, dat
 // session of its own, but it always rides along with a class purchase (see order.go), so
 // every one of its dates already shows up here too. scannerVendorID scopes it the same
 // way as ListRoster; empty sees every sector's dates.
-func (r *CheckinRepository) ListRosterDates(ctx context.Context, scannerVendorID string) ([]string, error) {
+func (r *CheckinRepository) ListRosterDates(ctx context.Context, scannerVendorID, eventID string) ([]string, error) {
 	var vendorFilter *string
 	if scannerVendorID != "" {
 		vendorFilter = &scannerVendorID
@@ -302,8 +327,9 @@ func (r *CheckinRepository) ListRosterDates(ctx context.Context, scannerVendorID
 		JOIN activities a ON a.id = cs.activity_id
 		WHERE cs.status = 'scheduled'
 		  AND ($1::uuid IS NULL OR a.vendor_id = $1::uuid)
+		  AND ($2::uuid IS NULL OR a.event_id = $2::uuid)
 		ORDER BY d
-	`, vendorFilter)
+	`, vendorFilter, nullableEventID(eventID))
 	if err != nil {
 		return nil, err
 	}

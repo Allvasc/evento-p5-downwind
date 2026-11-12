@@ -22,6 +22,8 @@ let ticker: ReturnType<typeof setInterval> | undefined;
 // cancelada na Asaas e a vaga volta a ficar disponível. O servidor informa quantos
 // segundos faltam e a contagem segue localmente entre uma consulta e outra.
 const secondsLeft = ref<number | null>(null);
+// Evento do pedido ("" = evento principal): "Gerar novo Pix" volta para o checkout certo.
+const eventSlug = ref("");
 const expired = computed(() => status.value === "expired" || (status.value === "pending" && secondsLeft.value === 0));
 const countdown = computed(() => {
   const s = secondsLeft.value ?? 0;
@@ -33,9 +35,10 @@ const pixQrImage = (history.state?.pixQrImage as string) ?? "";
 
 async function checkStatus() {
   try {
-    const res = await api.get<{ status: string; secondsLeft: number }>(`/checkout/orders/${orderId}/status`);
+    const res = await api.get<{ status: string; secondsLeft: number; eventSlug?: string }>(`/checkout/orders/${orderId}/status`);
     status.value = res.status;
     secondsLeft.value = res.secondsLeft;
+    eventSlug.value = res.eventSlug ?? "";
     if (res.status === "paid") {
       clearInterval(poller);
       clearInterval(ticker);
@@ -88,7 +91,7 @@ onUnmounted(() => {
             : "Esta cobrança não está mais disponível. Gere um novo Pix para garantir sua vaga." }}
         </p>
         <p class="mt-2 text-xs text-ink-soft">Não pague o código antigo: ele não vale mais.</p>
-        <button class="button-magenta mt-6" @click="router.push('/comprar')">Gerar novo Pix</button>
+        <button class="button-magenta mt-6" @click="router.push(eventSlug ? `/${eventSlug}/comprar` : '/comprar')">Gerar novo Pix</button>
       </template>
       <template v-else>
         <p class="eyebrow mb-3">Pagamento via Pix</p>

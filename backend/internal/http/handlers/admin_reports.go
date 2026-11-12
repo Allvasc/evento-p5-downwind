@@ -21,7 +21,7 @@ func NewAdminReportsHandler(repo *postgres.AdminReportsRepository, encryptionKey
 
 func (h *AdminReportsHandler) Sessions(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	list, err := h.repo.SessionsWithAttendees(r.Context(), from, to)
+	list, err := h.repo.SessionsWithAttendees(r.Context(), eventScope(r), from, to)
 	if err != nil {
 		h.log.Error("sessions report", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o relatório de turmas")
@@ -32,7 +32,7 @@ func (h *AdminReportsHandler) Sessions(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminReportsHandler) Products(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	list, err := h.repo.ProductsWithBuyers(r.Context(), from, to)
+	list, err := h.repo.ProductsWithBuyers(r.Context(), eventScope(r), from, to)
 	if err != nil {
 		h.log.Error("products report", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o relatório de produtos")
@@ -43,7 +43,7 @@ func (h *AdminReportsHandler) Products(w http.ResponseWriter, r *http.Request) {
 
 func (h *AdminReportsHandler) Activities(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	list, err := h.repo.ByActivity(r.Context(), from, to)
+	list, err := h.repo.ByActivity(r.Context(), eventScope(r), from, to)
 	if err != nil {
 		h.log.Error("activities report", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar o relatório por atividade")
@@ -56,7 +56,7 @@ func (h *AdminReportsHandler) Activities(w http.ResponseWriter, r *http.Request)
 // day with the buyer's phone, e-mail, CPF and purchase date.
 func (h *AdminReportsHandler) Attendees(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	list, err := h.repo.EventAttendees(r.Context(), from, to, h.encryptionKey)
+	list, err := h.repo.EventAttendees(r.Context(), eventScope(r), from, to, h.encryptionKey)
 	if err != nil {
 		h.log.Error("attendees report", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível carregar a lista de presença")
@@ -71,7 +71,7 @@ func (h *AdminReportsHandler) Attendees(w http.ResponseWriter, r *http.Request) 
 // validated digitally.
 func (h *AdminReportsHandler) AttendeesCSV(w http.ResponseWriter, r *http.Request) {
 	from, to := parseDateRange(r)
-	list, err := h.repo.EventAttendees(r.Context(), from, to, h.encryptionKey)
+	list, err := h.repo.EventAttendees(r.Context(), eventScope(r), from, to, h.encryptionKey)
 	if err != nil {
 		h.log.Error("attendees csv report", "error", err)
 		writeJSONError(w, http.StatusInternalServerError, "não foi possível gerar a lista de presença")

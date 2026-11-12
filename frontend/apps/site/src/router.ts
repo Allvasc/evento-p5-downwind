@@ -19,6 +19,10 @@ export const router = createRouter({
     { path: "/perfil", name: "perfil", component: () => import("./pages/Perfil.vue") },
     { path: "/check-in", name: "check-in", component: () => import("./pages/CheckIn.vue"), meta: { requiresTeamAuth: true } },
     { path: "/admin", name: "admin", component: () => import("./pages/Admin.vue"), meta: { requiresTeamAuth: true, requiresAdminArea: true } },
+    // Outros eventos (cadastrados no Admin): página em /<endereço> e checkout em
+    // /<endereço>/comprar. As rotas fixas acima sempre têm prioridade sobre estas.
+    { path: "/:eventSlug([a-z0-9-]+)", name: "evento", component: () => import("./pages/Evento.vue") },
+    { path: "/:eventSlug([a-z0-9-]+)/comprar", name: "evento-comprar", component: () => import("./pages/Comprar.vue") },
     { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("./pages/NotFound.vue") },
   ],
 });

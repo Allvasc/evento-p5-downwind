@@ -213,5 +213,9 @@ func (h *CheckoutHandler) Status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// secondsLeft: tempo até o Pix expirar e a vaga ser liberada (postgres.PendingOrderTTL).
-	writeJSON(w, http.StatusOK, map[string]any{"status": status, "secondsLeft": secondsLeft})
+	// eventSlug: "" para o evento principal; senão a página /<slug> do evento do pedido.
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": status, "secondsLeft": secondsLeft,
+		"eventSlug": h.orders.EventSlugForOrder(r.Context(), orderID),
+	})
 }

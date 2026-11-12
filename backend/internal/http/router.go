@@ -35,14 +35,16 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.PublicSiteURL, cfg.PublicAdminURL},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", handlers.EventHeader},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
 
 	catalogRepo := postgres.NewCatalogRepository(pool)
 	sessionRepo := postgres.NewSessionRepository(pool)
-	publicCatalog := handlers.NewPublicCatalogHandler(catalogRepo, sessionRepo, log)
+	eventRepo := postgres.NewEventRepository(pool)
+	publicCatalog := handlers.NewPublicCatalogHandler(catalogRepo, sessionRepo, eventRepo, log)
+	eventsHandler := handlers.NewEventsHandler(eventRepo, log)
 
 	studentRepo := postgres.NewStudentRepository(pool)
 	teamRepo := postgres.NewTeamRepository(pool)
@@ -63,6 +65,7 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 	}
 
 	authStudent := handlers.NewAuthStudentHandler(studentRepo, resetRepo, tokenIssuer, emailSender, cfg.PasswordPepper, log)
+	authStudent.UseEvents(eventRepo)
 	authTeam := handlers.NewAuthTeamHandler(teamRepo, resetRepo, tokenIssuer, emailSender, cfg.PasswordPepper, log)
 	studentAreaRepo := postgres.NewStudentAreaRepository(pool)
 
@@ -90,22 +93,22 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 
 	adminCatalogRepo := postgres.NewAdminCatalogRepository(pool)
 	vendorRepo := postgres.NewVendorRepository(pool)
-	adminCatalog := handlers.NewAdminCatalogHandler(adminCatalogRepo, vendorRepo, log)
+	adminCatalog := handlers.NewAdminCatalogHandler(adminCatalogRepo, vendorRepo, eventRepo, log)
 	adminTeam := handlers.NewAdminTeamHandler(teamRepo, cfg.PasswordPepper, log)
 	dashboardRepo := postgres.NewDashboardRepository(pool)
 	dashboard := handlers.NewAdminDashboardHandler(dashboardRepo, log)
-	adminSessions := handlers.NewAdminSessionsHandler(sessionRepo, log)
+	adminSessions := handlers.NewAdminSessionsHandler(sessionRepo, eventRepo, log)
 
 	adminCustomerRepo := postgres.NewAdminCustomerRepository(pool)
 	adminCustomers := handlers.NewAdminCustomersHandler(adminCustomerRepo, studentRepo, log)
 	adminOrderRepo := postgres.NewAdminOrderRepository(pool)
-	adminOrders := handlers.NewAdminOrdersHandler(adminOrderRepo, orderRepo, asaasClient, emailSender, log)
+	adminOrders := handlers.NewAdminOrdersHandler(adminOrderRepo, orderRepo, eventRepo, asaasClient, emailSender, log)
 	adminReportsRepo := postgres.NewAdminReportsRepository(pool)
 	adminReports := handlers.NewAdminReportsHandler(adminReportsRepo, cfg.PasswordPepper, log)
 
 	voucherRepo := postgres.NewVoucherRepository(pool)
-	voucherStudent := handlers.NewVoucherStudentHandler(catalogRepo, studentRepo, orderRepo, voucherRepo, emailSender, cfg.QRHMACSecret, log)
-	adminVouchers := handlers.NewAdminVouchersHandler(voucherRepo, log)
+	voucherStudent := handlers.NewVoucherStudentHandler(catalogRepo, eventRepo, studentRepo, orderRepo, voucherRepo, emailSender, cfg.QRHMACSecret, log)
+	adminVouchers := handlers.NewAdminVouchersHandler(voucherRepo, eventRepo, log)
 
 	authRateLimit := httprate.LimitByIP(10, time.Minute)
 
@@ -119,6 +122,14 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 			pub.Get("/products", publicCatalog.ListProducts)
 			pub.Get("/activities/{activityId}/sessions", publicCatalog.ListActivitySessions)
 			pub.Get("/next-sessions", publicCatalog.NextSessions)
+			pub.Get("/events/{slug}", eventsHandler.Public)
+		})
+
+		// Seletor de evento do Admin e do terminal de check-in — toda a equipe (a equipe é
+		// a mesma para todos os eventos).
+		api.Route("/team", func(tm chi.Router) {
+			tm.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin", "staff", "reports", "marketing"))
+			tm.Get("/events", eventsHandler.TeamList)
 		})
 
 		api.Route("/auth/student", func(a chi.Router) {
@@ -176,6 +187,11 @@ func NewRouter(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, log 
 				cfg.Use(appmw.RequireAuth(tokenIssuer, auth.SubjectTeam, "admin"))
 
 				cfg.Get("/vendors", adminCatalog.ListVendors)
+
+				cfg.Get("/events", eventsHandler.AdminList)
+				cfg.Post("/events", eventsHandler.Create)
+				cfg.Put("/events/{id}", eventsHandler.Update)
+				cfg.Patch("/events/{id}/active", eventsHandler.SetActive)
 
 				cfg.Get("/activities", adminCatalog.ListActivities)
 				cfg.Post("/activities", adminCatalog.CreateActivity)

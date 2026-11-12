@@ -57,6 +57,12 @@ const leftCheckmark = computed(() => {
   return "Suporte rápido e seguro para sua conta.";
 });
 
+function eventSlugFromRedirect() {
+  const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "";
+  const match = redirect.match(/^\/([a-z0-9]+(?:-[a-z0-9]+)*)\/comprar$/);
+  return match ? match[1] : undefined;
+}
+
 async function submit() {
   errorMessage.value = "";
   successMessage.value = "";
@@ -69,6 +75,9 @@ async function submit() {
       router.push(redirectPath);
     } else if (mode.value === "register") {
       const res = await api.post<{ token: string }>("/auth/student/register", {
+        // Cadastro feito a partir do checkout de outro evento (/<slug>/comprar): o e-mail
+        // de boas-vindas fala desse evento em vez do evento principal.
+        eventSlug: eventSlugFromRedirect(),
         fullName: name.value,
         phone: phone.value,
         cpf: cpf.value || undefined,

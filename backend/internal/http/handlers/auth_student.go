@@ -18,6 +18,7 @@ import (
 type AuthStudentHandler struct {
 	students *postgres.StudentRepository
 	resets   *postgres.PasswordResetRepository
+	events   *postgres.EventRepository
 	issuer   *auth.TokenIssuer
 	mailer   mailer.Sender
 	pepper   string
@@ -26,6 +27,26 @@ type AuthStudentHandler struct {
 
 func NewAuthStudentHandler(students *postgres.StudentRepository, resets *postgres.PasswordResetRepository, issuer *auth.TokenIssuer, sender mailer.Sender, pepper string, log *slog.Logger) *AuthStudentHandler {
 	return &AuthStudentHandler{students: students, resets: resets, issuer: issuer, mailer: sender, pepper: pepper, log: log}
+}
+
+// UseEvents lets the welcome e-mail name the event whose page the customer signed up
+// from. Without it every welcome e-mail talks about the main event.
+func (h *AuthStudentHandler) UseEvents(events *postgres.EventRepository) {
+	h.events = events
+}
+
+// welcomeEvent resolves the optional eventSlug sent by the sign-up form. Anything that
+// isn't a published, non-main event falls back to the main event's welcome copy.
+func (h *AuthStudentHandler) welcomeEvent(r *http.Request, slug string) mailer.EventInfo {
+	slug = strings.TrimSpace(slug)
+	if h.events == nil || slug == "" {
+		return mailer.EventInfo{}
+	}
+	e, err := h.events.GetActiveBySlug(r.Context(), slug)
+	if err != nil || e.IsDefault {
+		return mailer.EventInfo{}
+	}
+	return mailer.EventInfo{Name: e.Name, Slug: e.Slug}
 }
 
 type registerRequest struct {
@@ -37,6 +58,9 @@ type registerRequest struct {
 
 	EmergencyContactName  string `json:"emergencyContactName"`
 	EmergencyContactPhone string `json:"emergencyContactPhone"`
+
+	// EventSlug is the event page the customer came from (optional), for the welcome e-mail.
+	EventSlug string `json:"eventSlug"`
 }
 
 func (h *AuthStudentHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +132,7 @@ func (h *AuthStudentHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Best-effort: a welcome e-mail failing must never block registration itself.
-	if err := h.mailer.SendWelcome(r.Context(), student.Email, student.FullName); err != nil {
+	if err := h.mailer.SendWelcome(r.Context(), student.Email, student.FullName, h.welcomeEvent(r, req.EventSlug)); err != nil {
 		h.log.Error("send welcome email", "error", err)
 	}
 

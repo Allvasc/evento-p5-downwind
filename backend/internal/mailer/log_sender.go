@@ -25,28 +25,28 @@ func (s *LogSender) Send(ctx context.Context, to, subject, template, body string
 	return s.record(ctx, to, subject, template)
 }
 
-func (s *LogSender) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, tickets []TicketAttachment) error {
+func (s *LogSender) SendOrderConfirmation(ctx context.Context, to, studentName, orderNumber string, event EventInfo, tickets []TicketAttachment) error {
 	labels := make([]string, len(tickets))
 	for i, t := range tickets {
 		labels[i] = t.Label
 	}
 	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "order_confirmation",
-		"studentName", studentName, "orderNumber", orderNumber, "tickets", fmt.Sprintf("%v", labels))
+		"studentName", studentName, "orderNumber", orderNumber, "event", event.DisplayName(), "tickets", fmt.Sprintf("%v", labels))
 	return s.record(ctx, to, "Sua experiência P5 Wellness Club está confirmada", "order_confirmation")
 }
 
-func (s *LogSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, tickets []TicketAttachment) error {
+func (s *LogSender) SendRescheduleNotice(ctx context.Context, to, studentName, orderNumber, newDate string, event EventInfo, tickets []TicketAttachment) error {
 	labels := make([]string, len(tickets))
 	for i, t := range tickets {
 		labels[i] = t.Label
 	}
 	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "reschedule_notice",
-		"studentName", studentName, "orderNumber", orderNumber, "newDate", newDate, "tickets", fmt.Sprintf("%v", labels))
+		"studentName", studentName, "orderNumber", orderNumber, "newDate", newDate, "event", event.DisplayName(), "tickets", fmt.Sprintf("%v", labels))
 	return s.record(ctx, to, "Sua data no P5 Wellness Club foi alterada", "reschedule_notice")
 }
 
-func (s *LogSender) SendWelcome(ctx context.Context, to, fullName string) error {
-	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "welcome", "fullName", fullName)
+func (s *LogSender) SendWelcome(ctx context.Context, to, fullName string, event EventInfo) error {
+	s.log.Info("email (dev stub, not actually sent)", "to", to, "template", "welcome", "fullName", fullName, "event", event.DisplayName())
 	return s.record(ctx, to, "Bem-vindo(a) ao P5 Wellness Club", "welcome")
 }
 

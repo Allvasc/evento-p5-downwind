@@ -16,6 +16,7 @@ import (
 
 type VoucherStudentHandler struct {
 	catalog  *postgres.CatalogRepository
+	events   *postgres.EventRepository
 	students *postgres.StudentRepository
 	orders   *postgres.OrderRepository
 	vouchers *postgres.VoucherRepository
@@ -24,8 +25,8 @@ type VoucherStudentHandler struct {
 	log      *slog.Logger
 }
 
-func NewVoucherStudentHandler(catalog *postgres.CatalogRepository, students *postgres.StudentRepository, orders *postgres.OrderRepository, vouchers *postgres.VoucherRepository, sender mailer.Sender, qrSecret string, log *slog.Logger) *VoucherStudentHandler {
-	return &VoucherStudentHandler{catalog: catalog, students: students, orders: orders, vouchers: vouchers, mailer: sender, qrSecret: qrSecret, log: log}
+func NewVoucherStudentHandler(catalog *postgres.CatalogRepository, events *postgres.EventRepository, students *postgres.StudentRepository, orders *postgres.OrderRepository, vouchers *postgres.VoucherRepository, sender mailer.Sender, qrSecret string, log *slog.Logger) *VoucherStudentHandler {
+	return &VoucherStudentHandler{catalog: catalog, events: events, students: students, orders: orders, vouchers: vouchers, mailer: sender, qrSecret: qrSecret, log: log}
 }
 
 func normalizeVoucherCode(raw string) string {
@@ -50,7 +51,18 @@ func (h *VoucherStudentHandler) Check(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"name": v.Name, "companyName": v.CompanyName})
+	// The redemption page lists only the products of the voucher's own event: eventSlug
+	// is "" for the main event (the same /public/products it always used).
+	resp := map[string]string{"name": v.Name, "companyName": v.CompanyName, "eventSlug": "", "eventName": ""}
+	if e, err := h.events.GetByID(r.Context(), v.EventID); err == nil && !e.IsDefault {
+		if !e.Active {
+			writeJSONError(w, http.StatusConflict, "o evento deste voucher não está disponível no momento")
+			return
+		}
+		resp["eventSlug"] = e.Slug
+		resp["eventName"] = e.Name
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 type redeemVoucherRequest struct {
@@ -90,17 +102,19 @@ func (h *VoucherStudentHandler) Redeem(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "experiência não encontrada")
 		return
 	}
-	// A voucher covers any active product (GetProductByID only returns active ones). It
-	// used to be limited to "one class of your choice + breakfast" from the Yoga/HYROX
+	// A voucher covers any active product of its own event (GetProductByID only returns
+	// active ones; Claim refuses another event's product). It used to be limited to "one class of your choice + breakfast" from the Yoga/HYROX
 	// catalog, a shape no DownWind product has — which made every voucher unredeemable.
 
-	voucherID, err := h.vouchers.Claim(r.Context(), code, claims.UserID())
+	voucherID, err := h.vouchers.Claim(r.Context(), code, claims.UserID(), prod.EventID)
 	if err != nil {
 		switch {
 		case errors.Is(err, postgres.ErrVoucherNotFound):
 			writeJSONError(w, http.StatusNotFound, "código de voucher não encontrado")
 		case errors.Is(err, postgres.ErrVoucherNotAvailable):
 			writeJSONError(w, http.StatusConflict, "esse voucher já foi usado ou cancelado")
+		case errors.Is(err, postgres.ErrVoucherOtherEvent):
+			writeJSONError(w, http.StatusConflict, "esse voucher não vale para este evento")
 		default:
 			h.log.Error("claim voucher", "error", err)
 			writeJSONError(w, http.StatusInternalServerError, "não foi possível resgatar o voucher")
