@@ -37,13 +37,14 @@ interface NextSession {
   booked: number;
 }
 
-const { data: productsData } = useQuery({
+const { data: productsData, isLoading: loadingProducts } = useQuery({
   queryKey: ["public-products"],
   queryFn: () => api.get<{ products: Product[] }>("/public/products"),
   staleTime: 60_000,
 });
 
 const products = computed(() => productsData.value?.products ?? []);
+const hasActiveEvent = computed(() => products.value.length > 0);
 
 const selectedProductIndex = ref(0);
 
@@ -136,10 +137,76 @@ const banner = {
 
 <template>
   <div class="min-h-screen bg-paper">
-    <WellnessHeader />
+    <WellnessHeader :hide-nav="!hasActiveEvent" :hide-buy-cta="!hasActiveEvent" />
     <HelpFab />
 
-    <main>
+    <main v-if="loadingProducts" class="mx-auto max-w-6xl px-6 py-24 text-sm text-ink-soft">
+      Carregando…
+    </main>
+
+    <main v-else-if="!hasActiveEvent" class="flex min-h-[calc(100vh-73px)] flex-col justify-between">
+      <section class="relative overflow-hidden py-20 md:py-28">
+        <div class="hero-orb hero-orb--blue"></div>
+        <div class="hero-orb hero-orb--cream"></div>
+
+        <div class="relative z-10 mx-auto max-w-3xl px-6 text-center">
+          <p class="eyebrow mb-6 justify-center text-xs tracking-wider">
+            <Compass :size="14" class="text-magenta" />
+            <span>P5 KITE HOUSE · FORTALEZA</span>
+          </p>
+
+          <h1 class="font-serif text-4xl font-black leading-[1.08] text-ink md:text-6xl">
+            Sem inscrições abertas <span class="text-magenta">no momento.</span>
+          </h1>
+
+          <p class="mx-auto mt-6 max-w-xl text-base leading-relaxed text-ink-soft md:text-lg">
+            As inscrições da edição anterior foram encerradas. Em breve divulgaremos as próximas datas e experiências na P5 Kite House.
+          </p>
+
+          <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+            <button class="button-magenta" @click="router.push('/entrar')">
+              Acessar Portal do aluno <ArrowRight :size="18" />
+            </button>
+            <button
+              class="rounded-full border border-line bg-white/80 px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink"
+              @click="router.push('/voucher')"
+            >
+              Tenho um voucher
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="border-t border-line/80 bg-ink py-12 text-white">
+        <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
+          <img src="/logo-downwind-dark.webp" alt="P5 DownWind Day" class="h-8 w-auto" />
+
+          <p class="text-center text-xs text-white/60 md:text-left">
+            P5 Kite House.<br />
+            Vento a favor, mar em movimento.
+          </p>
+
+          <div class="flex items-center gap-6 text-xs font-medium text-white/80">
+            <button class="hover:text-white" @click="router.push('/entrar')">Área do aluno</button>
+            <button class="hover:text-white" @click="router.push('/acesso-admin')">Acesso equipe</button>
+          </div>
+        </div>
+
+        <div class="mt-8 flex justify-center border-t border-white/10 px-6 pt-6">
+          <a
+            href="https://prolins.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Powered by Prolins Software House e Outsource"
+            class="opacity-80 transition-opacity hover:opacity-100"
+          >
+            <img src="/prolins-selo.webp" alt="Powered by Prolins Software House e Outsource" width="56" height="56" class="h-14 w-14" />
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <main v-else>
       <!-- HERO -->
       <section class="relative overflow-hidden pt-4 pb-16 md:py-20">
         <div class="hero-orb hero-orb--blue"></div>

@@ -6,11 +6,20 @@ import { useAuthStore } from "@/stores/auth";
 
 // eventSlug/eventName: páginas de outros eventos (/<slug>). Sem eles o cabeçalho é o do
 // evento principal, exatamente como sempre foi.
-const props = withDefaults(defineProps<{ transparent?: boolean; eventSlug?: string; eventName?: string; registrationMode?: "tickets" | "form" }>(), {
+const props = withDefaults(defineProps<{
+  transparent?: boolean;
+  eventSlug?: string;
+  eventName?: string;
+  registrationMode?: "tickets" | "form";
+  hideNav?: boolean;
+  hideBuyCta?: boolean;
+}>(), {
   transparent: false,
   eventSlug: "",
   eventName: "",
   registrationMode: "tickets",
+  hideNav: false,
+  hideBuyCta: false,
 });
 const isEventMode = computed(() => !!props.eventSlug);
 const isFormMode = computed(() => isEventMode.value && props.registrationMode === "form");
@@ -64,15 +73,16 @@ function handleLogout() {
         <span class="h-5 w-px shrink-0 bg-line/80"></span>
         <span class="truncate font-serif text-sm font-bold text-ink sm:text-base">{{ eventName }}</span>
       </RouterLink>
-      <!-- No celular só o logo DownWind; o selo Sertões aparece logo abaixo, no hero. -->
-      <RouterLink v-else to="/" aria-label="P5 DownWind Day & Sertões Kitesurf" class="flex shrink-0 items-center gap-2.5 sm:gap-3 group">
+      <RouterLink v-else to="/" aria-label="P5 DownWind Day" class="flex shrink-0 items-center gap-2.5 sm:gap-3 group">
         <img src="/logo-downwind.webp" alt="P5 DownWind Day" class="h-7 w-auto sm:h-9" />
-        <span class="hidden h-5 w-px bg-line/80 sm:block"></span>
-        <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="hidden h-8 w-auto rounded-sm shadow-2xs transition-transform group-hover:scale-105 sm:block" />
+        <template v-if="!hideNav">
+          <span class="hidden h-5 w-px bg-line/80 sm:block"></span>
+          <img src="/sertoes-kitesurf-verde.webp" alt="Sertões Kitesurf" class="hidden h-8 w-auto rounded-sm shadow-2xs transition-transform group-hover:scale-105 sm:block" />
+        </template>
       </RouterLink>
 
       <!-- O menu só aparece quando cabe inteiro numa linha (xl); abaixo disso o header fica com logo + acesso + CTA. -->
-      <nav class="hidden items-center gap-5 xl:flex" aria-label="Navegação principal">
+      <nav v-if="!hideNav" class="hidden items-center gap-5 xl:flex" aria-label="Navegação principal">
         <button
           v-for="item in (isEventMode ? eventNavItems : navItems)"
           :key="item.label"
@@ -104,7 +114,7 @@ function handleLogout() {
             <span class="hidden sm:inline">Portal do aluno</span>
           </button>
         </template>
-        <button class="button-magenta whitespace-nowrap px-3.5! py-2.5! text-sm sm:px-5!" @click="goBuy">
+        <button v-if="!hideBuyCta" class="button-magenta whitespace-nowrap px-3.5! py-2.5! text-sm sm:px-5!" @click="goBuy">
           <CalendarCheck :size="16" class="hidden sm:block" />
           <span>Garantir<span class="hidden min-[400px]:inline">&nbsp;vaga</span></span>
         </button>

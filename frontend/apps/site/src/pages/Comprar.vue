@@ -99,7 +99,7 @@ async function goToPayment() {
 
 <template>
   <div class="min-h-screen bg-paper">
-    <WellnessHeader :event-slug="eventSlug" :event-name="eventData?.name" />
+    <WellnessHeader :event-slug="eventSlug" :event-name="eventData?.name" :hide-nav="!eventSlug && !products.length" :hide-buy-cta="!products.length" />
 
     <main class="mx-auto max-w-6xl px-6 py-10">
       <button class="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink" @click="router.push(paths.home)">
@@ -127,9 +127,9 @@ async function goToPayment() {
       </div>
 
       <div v-else-if="!products.length" class="mt-12 rounded-[var(--radius-card)] border border-line bg-white p-10 text-center">
-        <h2 class="font-serif text-xl font-semibold text-ink">Agenda em preparação</h2>
+        <h2 class="font-serif text-xl font-semibold text-ink">{{ eventSlug ? "Agenda em preparação" : "Sem inscrições abertas no momento" }}</h2>
         <p v-if="eventSlug" class="mt-2 text-ink-soft">Os ingressos de {{ eventData?.name ?? "este evento" }} serão publicados aqui em breve.</p>
-        <p v-else class="mt-2 text-ink-soft">O ingresso do P5 DownWind Day será publicado aqui em breve.</p>
+        <p v-else class="mt-2 text-ink-soft">As inscrições da edição anterior foram encerradas. Em breve divulgaremos as próximas datas do P5 DownWind Day.</p>
       </div>
 
       <div v-else class="mt-10 grid gap-10 md:grid-cols-[1.5fr_1fr] md:items-start">
